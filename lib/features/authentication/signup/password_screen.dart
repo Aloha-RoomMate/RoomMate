@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/authentication/signup/welcome_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
-import 'package:roommate/features/authentication/login/login_screen.dart';
 
 class PasswordScreen extends StatefulWidget {
   const PasswordScreen({super.key});
@@ -96,9 +96,19 @@ class _PasswordScreenState extends State<PasswordScreen>
         context,
       ).showSnackBar(const SnackBar(content: Text('비밀번호가 일치하지 않습니다')));
     } else {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
+      FocusScope.of(context).unfocus();
+
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const WelcomeScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 500),
+        ),
       );
     }
   }
@@ -197,7 +207,10 @@ class _PasswordScreenState extends State<PasswordScreen>
                   Gaps.v32,
                   GestureDetector(
                     onTap: _onNextTap,
-                    child: FormButton(disabled: !_hasValidFormatBoth),
+                    child: FormButton(
+                      disabled: !_hasValidFormatBoth,
+                      text: "Next",
+                    ),
                   ),
                   Gaps.v20,
                 ],

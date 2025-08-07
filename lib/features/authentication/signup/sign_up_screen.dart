@@ -3,7 +3,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/widgets/auth_button.dart';
-import 'package:roommate/features/authentication/signup/email_screen.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/authentication/signup/username_screen.dart';
 import 'package:roommate/features/authentication/signup/google_screen.dart';
