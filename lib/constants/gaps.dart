@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:roommate/constants/sizes.dart';
 
 class Gaps {
-  // Vertical Gaps
+  // git pull origin develop 하고 push 해볼게요
+
   static const v1 = SizedBox(height: Sizes.size1);
   static const v2 = SizedBox(height: Sizes.size2);
   static const v3 = SizedBox(height: Sizes.size3);
