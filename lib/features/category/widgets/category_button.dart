@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:roommate/constants/sizes.dart';
 
 class CategoryButton extends StatefulWidget {
-  const CategoryButton({super.key, required this.text});
+  CategoryButton({
+    super.key,
+    required this.text,
+    required this.myonTap,
+  });
+
   final String text;
+  final Function myonTap;
 
   @override
   State<CategoryButton> createState() => _CategoryButtonState();
@@ -14,13 +20,13 @@ class _CategoryButtonState extends State<CategoryButton> {
 
   void _onChipTap() {
     _isSelected = !_isSelected;
-    setState(() {});
+    widget.myonTap();
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: _onChipTap,
+      onTap: () => _onChipTap(),
       child: AnimatedContainer(
         duration: Duration(
           milliseconds: 300,
