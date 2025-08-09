@@ -53,7 +53,7 @@ class LoginScreen extends StatelessWidget {
               Text(
                 '나의 룸메이트를 찾아보기',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 16,
                   fontWeight: FontWeight.w400,
                   color: Colors.black54,
                 ),

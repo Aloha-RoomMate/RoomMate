@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/signup/welcome_screen.dart';
@@ -22,6 +23,7 @@ class _PasswordScreenState extends State<PasswordScreen>
 
   String _password = "";
   String _confirmPassword = "";
+  bool _obscureText = true;
 
   @override
   void initState() {
@@ -113,6 +115,15 @@ class _PasswordScreenState extends State<PasswordScreen>
     }
   }
 
+  void _onClearTap() {
+    _passwordController.clear();
+  }
+
+  void _toogleObscureText() {
+    _obscureText = !_obscureText;
+    setState(() {});
+  }
+
   Widget _buildRequirement(String label, bool fulfilled) {
     return Row(
       children: [
@@ -166,9 +177,33 @@ class _PasswordScreenState extends State<PasswordScreen>
                   Gaps.v20,
                   TextField(
                     controller: _passwordController,
-                    obscureText: true,
+                    obscureText: _obscureText,
                     cursorColor: Theme.of(context).primaryColor,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
+                      suffix: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: _onClearTap,
+                            child: FaIcon(
+                              FontAwesomeIcons.solidCircleXmark,
+                              color: Colors.grey.shade400,
+                              size: Sizes.size20,
+                            ),
+                          ),
+                          Gaps.h14,
+                          GestureDetector(
+                            onTap: _toogleObscureText,
+                            child: FaIcon(
+                              _obscureText
+                                  ? FontAwesomeIcons.eye
+                                  : FontAwesomeIcons.eyeSlash,
+                              color: Colors.grey.shade400,
+                              size: Sizes.size20,
+                            ),
+                          ),
+                        ],
+                      ),
                       hintText: "비밀번호",
                       enabledBorder: UnderlineInputBorder(
                         borderSide: BorderSide(color: Colors.black),

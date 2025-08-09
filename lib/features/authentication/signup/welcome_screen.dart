@@ -3,6 +3,7 @@ import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
+import 'package:roommate/features/category/daily_rythm_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -10,7 +11,7 @@ class WelcomeScreen extends StatelessWidget {
   void _onNextTap(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      MaterialPageRoute(builder: (context) => const DailyRythmScreen()),
     );
   }
 

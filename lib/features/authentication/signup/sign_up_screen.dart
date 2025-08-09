@@ -51,7 +51,7 @@ class SignUpScreen extends StatelessWidget {
               Text(
                 '회원가입',
                 style: TextStyle(
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   fontSize: Sizes.size28,
                   color: Colors.black,
                 ),
@@ -63,7 +63,7 @@ class SignUpScreen extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w400,
                   fontSize: Sizes.size16,
-                  color: Colors.grey,
+                  color: Colors.black54,
                 ),
                 textAlign: TextAlign.center,
               ),
