@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
 

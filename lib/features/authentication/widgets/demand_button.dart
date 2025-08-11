@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/sizes.dart';
 
-class CategoryButton extends StatefulWidget {
-  const CategoryButton({super.key, required this.text, required this.myonTap});
+class DemandButton extends StatefulWidget {
+  const DemandButton({super.key, required this.text, required this.myonTap});
 
   final String text;
   final Function myonTap;
 
   @override
-  State<CategoryButton> createState() => _CategoryButtonState();
+  State<DemandButton> createState() => _DemandButtonState();
 }
 
-class _CategoryButtonState extends State<CategoryButton> {
+class _DemandButtonState extends State<DemandButton> {
   bool _isSelected = false;
 
   void _onChipTap() {

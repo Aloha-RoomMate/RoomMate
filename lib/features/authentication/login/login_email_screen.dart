@@ -19,6 +19,12 @@ class _LoginEmailScreenState extends State<LoginEmailScreen> {
     if (_formKey.currentState != null) {
       if (_formKey.currentState!.validate()) {
         _formKey.currentState!.save();
+
+        // 여기는 로그인 이후에 넘어가는 페이지 이니 나중에 홈화면 생기면 들어갈 자리
+        // Navigator.push(
+        // context,
+        // MaterialPageRoute(builder: (context) => const DailyRythmScreen()),
+        // );
       }
     }
   }
@@ -42,7 +48,11 @@ class _LoginEmailScreenState extends State<LoginEmailScreen> {
                 decoration: InputDecoration(hintText: "이메일"),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
-                  return "옳은 형식이 아닙니다.";
+                  if (value != null && value.isEmpty) {
+                    return "이메일을 입력해주세요";
+                  }
+                  return null;
+                  // return "옳은 형식이 아닙니다.";
                 },
                 onSaved: (newValue) {
                   if (newValue != null) {
@@ -55,7 +65,11 @@ class _LoginEmailScreenState extends State<LoginEmailScreen> {
                 decoration: InputDecoration(hintText: "비밀번호"),
                 obscureText: true,
                 validator: (value) {
-                  return "비밀번호가 일치하지 않습니다.";
+                  if (value != null && value.isEmpty) {
+                    return "비밀번호를 입력해주세요";
+                  }
+                  return null;
+                  // return "비밀번호가 일치하지 않습니다.";
                 },
                 onSaved: (newValue) {
                   if (newValue != null) {

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/authentication/login/login_screen.dart';
+import 'package:roommate/features/authentication/signup/password_screen.dart';
 import 'package:roommate/features/authentication/signup/sign_up_screen.dart';
+import 'package:roommate/features/category/daily_rythm_screen.dart';
 
 void main() {
   runApp(const RoomMate());

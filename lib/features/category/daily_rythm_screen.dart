@@ -63,6 +63,15 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Gaps.v8,
+              Text(
+                "최고의 룸메이트를 찾는데 사용됩니다.",
+                style: TextStyle(
+                  fontSize: Sizes.size20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Gaps.v10,
               Text(
                 '출근일을 알려주세요!',
                 style: TextStyle(
@@ -73,7 +82,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
               Gaps.v6,
               Wrap(
                 spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
+                runSpacing: Sizes.size12,
                 children: List.generate(7, (buttonIndex) {
                   final textOptions = ['월', '화', '수', '목', '금', '토', '일'];
                   return CategoryButton(
@@ -82,7 +91,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                   );
                 }),
               ),
-              Gaps.v12,
+              Gaps.v20,
               Text(
                 '출근일 기상 시간을 알려주세요!',
                 style: TextStyle(
@@ -93,7 +102,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
               Gaps.v6,
               Wrap(
                 spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
+                runSpacing: Sizes.size12,
                 children: List.generate(4, (buttonIndex) {
                   final textOptions = ['5-6시', '6-7시', '7-8시', '8-9시', '9시 이후'];
                   return CategoryButton(
@@ -102,7 +111,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                   );
                 }),
               ),
-              Gaps.v12,
+              Gaps.v20,
               Text(
                 '출근일 취침 시간을 알려주세요!',
                 style: TextStyle(
@@ -113,7 +122,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
               Gaps.v6,
               Wrap(
                 spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
+                runSpacing: Sizes.size12,
                 children: List.generate(4, (buttonIndex) {
                   final textOptions = ['21-22시', '22-23시', '23-00시', '00시 이후'];
                   return CategoryButton(
@@ -122,7 +131,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                   );
                 }),
               ),
-              Gaps.v12,
+              Gaps.v20,
               Text(
                 '휴일 기상 시간을 알려주세요!',
                 style: TextStyle(
@@ -133,7 +142,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
               Gaps.v6,
               Wrap(
                 spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
+                runSpacing: Sizes.size12,
                 children: List.generate(5, (buttonIndex) {
                   final textOptions = [
                     '7-8시',
@@ -148,7 +157,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                   );
                 }),
               ),
-              Gaps.v12,
+              Gaps.v20,
               Text(
                 '휴일 취침 시간을 알려주세요!',
                 style: TextStyle(
@@ -159,7 +168,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
               Gaps.v6,
               Wrap(
                 spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
+                runSpacing: Sizes.size12,
                 children: List.generate(4, (buttonIndex) {
                   final textOptions = ['21-22시', '22-23시', '23-00시', '00시 이후'];
                   return CategoryButton(
@@ -168,7 +177,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                   );
                 }),
               ),
-              Gaps.v12,
+              Gaps.v20,
               Text(
                 '일어날 때까지 알람 울리는 횟수를 알려주세요!',
                 style: TextStyle(
@@ -179,7 +188,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
               Gaps.v6,
               Wrap(
                 spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
+                runSpacing: Sizes.size12,
                 children: List.generate(3, (buttonIndex) {
                   final textOptions = ['1회', '2회', '3회'];
                   return CategoryButton(
@@ -188,7 +197,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                   );
                 }),
               ),
-              Gaps.v12,
+              Gaps.v20,
               GestureDetector(
                 onTap: _onNextTap,
                 child: FormButton(

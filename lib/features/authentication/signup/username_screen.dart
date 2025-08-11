@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/authentication/signup/email_screen.dart';
+import 'package:roommate/features/authentication/signup/user_demand_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
 
 class UsernameScreen extends StatefulWidget {
@@ -37,7 +37,7 @@ class _UsernameScreenState extends State<UsernameScreen> {
     if (_username.isEmpty) return;
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (context) => const EmailScreen()));
+    ).push(MaterialPageRoute(builder: (context) => const UserDemandScreen()));
   }
 
   @override
