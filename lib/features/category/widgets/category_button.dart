@@ -5,7 +5,7 @@ class CategoryButton extends StatefulWidget {
   CategoryButton({
     super.key,
     required this.text,
-    required this.myonTap,
+    required this.myonTap, // 여기에 _screen.dart 파일의 _onChipTap이 콜백으로 등록
   });
 
   final String text;
