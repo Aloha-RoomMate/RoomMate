@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/category/dining_habit_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/category/work_pattern_screen.dart';
@@ -13,16 +14,24 @@ class WorkPatternScreen extends StatefulWidget {
 }
 
 class _WorkPatternScreenState extends State<WorkPatternScreen> {
-  List<bool> answeredQuestion = List.filled(4, false);
+  List<List<bool>> _selectionStates = [
+    List.filled(4, false),
+    List.filled(5, false),
+    List.filled(4, false),
+    List.filled(5, false),
+    List.filled(5, false),
+  ];
 
-  void _onChipTap(int index) {
-    answeredQuestion[index] = !answeredQuestion[index];
-    setState(() {});
+  void _onChipTap(int groupIndex, int buttonIndex) {
+    setState(() {
+      _selectionStates[groupIndex][buttonIndex] =
+          !_selectionStates[groupIndex][buttonIndex];
+    });
   }
 
   bool _checkNextButtonAvailable() {
-    for (int i = 0; i < answeredQuestion.length; i++) {
-      if (answeredQuestion[i] == false) {
+    for (final groupState in _selectionStates) {
+      if (!groupState.contains(true)) {
         return false;
       }
     }
@@ -35,7 +44,7 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
         context,
       ).push(
         MaterialPageRoute(
-          builder: (context) => WorkPatternScreen(),
+          builder: (context) => DiningHabitScreen(),
         ),
       );
     }
@@ -48,7 +57,7 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
         title: Text(
           '출퇴근 패턴을 선택해주세요!',
           style: TextStyle(
-            fontSize: Sizes.size20,
+            fontSize: Sizes.size20 + Sizes.size2,
           ),
         ),
         centerTitle: true,
@@ -64,7 +73,7 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '출퇴근 형태를 알려주세요!!',
+                '출퇴근 형태를 알려주세요!',
                 style: TextStyle(
                   fontSize: Sizes.size16,
                   fontWeight: FontWeight.w600,
@@ -74,20 +83,13 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
               Wrap(
                 spacing: Sizes.size10,
                 runSpacing: Sizes.size10,
-                children: [
-                  CategoryButton(
-                    text: '회사',
-                    myonTap: () => _onChipTap(0),
-                  ),
-                  CategoryButton(
-                    text: '재택',
-                    myonTap: () => _onChipTap(0),
-                  ),
-                  CategoryButton(
-                    text: '프리랜서',
-                    myonTap: () => _onChipTap(0),
-                  ),
-                ],
+                children: List.generate(4, (buttonIndex) {
+                  final textOptions = ['회사/학교', '재택', '프리랜서', '대학생'];
+                  return CategoryButton(
+                    text: textOptions[buttonIndex],
+                    myonTap: () => _onChipTap(0, buttonIndex),
+                  );
+                }),
               ),
               Gaps.v12,
               Text(
@@ -101,32 +103,17 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
               Wrap(
                 spacing: Sizes.size10,
                 runSpacing: Sizes.size10,
-                children: [
-                  CategoryButton(
-                    text: '5-6시',
-                    myonTap: () => _onChipTap(1),
-                  ),
-                  CategoryButton(
-                    text: '6-7시',
-                    myonTap: () => _onChipTap(1),
-                  ),
-                  CategoryButton(
-                    text: '7-8시',
-                    myonTap: () => _onChipTap(1),
-                  ),
-                  CategoryButton(
-                    text: '8-9시',
-                    myonTap: () => _onChipTap(1),
-                  ),
-                  CategoryButton(
-                    text: '9시 이후',
-                    myonTap: () => _onChipTap(1),
-                  ),
-                ],
+                children: List.generate(5, (buttonIndex) {
+                  final textOptions = ['5-6시', '6-7시', '7-8시', '8-9시', '9시 이후'];
+                  return CategoryButton(
+                    text: textOptions[buttonIndex],
+                    myonTap: () => _onChipTap(1, buttonIndex),
+                  );
+                }),
               ),
               Gaps.v12,
               Text(
-                '귀가 시간대를 알려주세요!',
+                '출근일 귀가 시간대를 알려주세요!',
                 style: TextStyle(
                   fontSize: Sizes.size16,
                   fontWeight: FontWeight.w600,
@@ -136,28 +123,39 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
               Wrap(
                 spacing: Sizes.size10,
                 runSpacing: Sizes.size10,
-                children: [
-                  CategoryButton(
-                    text: '18-19시',
-                    myonTap: () => _onChipTap(2),
-                  ),
-                  CategoryButton(
-                    text: '19-20시',
-                    myonTap: () => _onChipTap(2),
-                  ),
-                  CategoryButton(
-                    text: '20-21시',
-                    myonTap: () => _onChipTap(2),
-                  ),
-                  CategoryButton(
-                    text: '21-22시 이후',
-                    myonTap: () => _onChipTap(2),
-                  ),
-                  CategoryButton(
-                    text: '22시 이후',
-                    myonTap: () => _onChipTap(2),
-                  ),
-                ],
+                children: List.generate(4, (buttonIndex) {
+                  final textOptions = ['18-19시', '19-20시', '20-21시', '21시 이후'];
+                  return CategoryButton(
+                    text: textOptions[buttonIndex],
+                    myonTap: () => _onChipTap(2, buttonIndex),
+                  );
+                }),
+              ),
+              Gaps.v12,
+              Text(
+                '주 야근/밤 공부 횟수를 알려주세요!',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size10,
+                runSpacing: Sizes.size10,
+                children: List.generate(5, (buttonIndex) {
+                  final textOptions = [
+                    '1-2회',
+                    '2-3회',
+                    '3-4회',
+                    '4-5회',
+                    '5회 이상',
+                  ];
+                  return CategoryButton(
+                    text: textOptions[buttonIndex],
+                    myonTap: () => _onChipTap(3, buttonIndex),
+                  );
+                }),
               ),
               Gaps.v12,
               Text(
@@ -171,20 +169,13 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
               Wrap(
                 spacing: Sizes.size10,
                 runSpacing: Sizes.size10,
-                children: [
-                  CategoryButton(
-                    text: '1-2회',
-                    myonTap: () => _onChipTap(3),
-                  ),
-                  CategoryButton(
-                    text: '3-4회',
-                    myonTap: () => _onChipTap(3),
-                  ),
-                  CategoryButton(
-                    text: '5회 이상',
-                    myonTap: () => _onChipTap(3),
-                  ),
-                ],
+                children: List.generate(5, (buttonIndex) {
+                  final textOptions = ['1-2회', '2-3회', '3-4회', '4-5회', '5회 이상'];
+                  return CategoryButton(
+                    text: textOptions[buttonIndex],
+                    myonTap: () => _onChipTap(4, buttonIndex),
+                  );
+                }),
               ),
               Gaps.v12,
               GestureDetector(
