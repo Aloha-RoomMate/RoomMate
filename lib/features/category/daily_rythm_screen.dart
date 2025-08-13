@@ -103,7 +103,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
               Wrap(
                 spacing: Sizes.size10,
                 runSpacing: Sizes.size10,
-                children: List.generate(4, (buttonIndex) {
+                children: List.generate(5, (buttonIndex) {
                   final textOptions = ['5-6시', '6-7시', '7-8시', '8-9시', '9시 이후'];
                   return CategoryButton(
                     text: textOptions[buttonIndex],
