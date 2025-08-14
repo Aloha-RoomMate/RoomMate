@@ -17,7 +17,7 @@ class _EtcScreenState extends State<EtcScreen> {
   List<List<bool>> _selectionStates = [
     List.filled(4, false),
     List.filled(4, false),
-    List.filled(8, false),
+    List.filled(9, false),
   ];
 
   void _onChipTap(int groupIndex, int buttonIndex) {
@@ -55,7 +55,7 @@ class _EtcScreenState extends State<EtcScreen> {
         title: Text(
           '기타 생활 습관을 알려주세요!',
           style: TextStyle(
-            fontSize: Sizes.size24,
+            fontSize: Sizes.size20 + Sizes.size2,
           ),
         ),
         centerTitle: true,
@@ -128,6 +128,7 @@ class _EtcScreenState extends State<EtcScreen> {
                 runSpacing: Sizes.size10,
                 children: List.generate(8, (buttonIndex) {
                   final textOptions = [
+                    '없음',
                     '강아지',
                     '고양이',
                     '물고기',

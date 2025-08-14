@@ -15,10 +15,10 @@ class DiningHabitScreen extends StatefulWidget {
 
 class _DiningHabitScreenState extends State<DiningHabitScreen> {
   List<List<bool>> _selectionStates = [
-    List.filled(5, false),
+    List.filled(6, false),
     List.filled(3, false),
     List.filled(2, false),
-    List.filled(5, false),
+    List.filled(6, false),
   ];
 
   void _onChipTap(int groupIndex, int buttonIndex) {
@@ -82,8 +82,15 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
               Wrap(
                 spacing: Sizes.size10,
                 runSpacing: Sizes.size10,
-                children: List.generate(5, (buttonIndex) {
-                  final textOptions = ['1-2회', '2-3회', '3-4회', '4-5회', '5회 이상'];
+                children: List.generate(6, (buttonIndex) {
+                  final textOptions = [
+                    '전혀 안 해요',
+                    '1-2회',
+                    '2-3회',
+                    '3-4회',
+                    '4-5회',
+                    '5회 이상',
+                  ];
                   return CategoryButton(
                     text: textOptions[buttonIndex],
                     myonTap: () => _onChipTap(0, buttonIndex),
@@ -142,8 +149,9 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
               Wrap(
                 spacing: Sizes.size10,
                 runSpacing: Sizes.size10,
-                children: List.generate(5, (buttonIndex) {
+                children: List.generate(6, (buttonIndex) {
                   final textOptions = [
+                    '전혀 안 시켜요',
                     '1-2회',
                     '2-3회',
                     '3-4회',

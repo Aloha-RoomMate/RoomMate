@@ -16,7 +16,7 @@ class SoundScreen extends StatefulWidget {
 class _SoundScreenState extends State<SoundScreen> {
   List<List<bool>> _selectionStates = [
     List.filled(3, false),
-    List.filled(4, false),
+    List.filled(5, false),
     List.filled(5, false),
     List.filled(3, false),
   ];
@@ -102,8 +102,9 @@ class _SoundScreenState extends State<SoundScreen> {
               Wrap(
                 spacing: Sizes.size10,
                 runSpacing: Sizes.size10,
-                children: List.generate(4, (buttonIndex) {
+                children: List.generate(5, (buttonIndex) {
                   final textOptions = [
+                    '잠 버릇이 없어요',
                     '코를 골아요',
                     '피곤하면 코를 골아요',
                     '이를 갈아요',
@@ -115,6 +116,7 @@ class _SoundScreenState extends State<SoundScreen> {
                   );
                 }),
               ),
+              Gaps.v12,
               Text(
                 '선호하는 소리/진동/무음 모드를 알려주세요!',
                 style: TextStyle(

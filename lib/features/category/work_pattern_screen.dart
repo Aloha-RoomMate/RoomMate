@@ -17,8 +17,8 @@ class WorkPatternScreen extends StatefulWidget {
 class _WorkPatternScreenState extends State<WorkPatternScreen> {
   List<List<bool>> _selectionStates = [
     List.filled(4, false),
-    List.filled(5, false),
-    List.filled(5, false),
+    List.filled(6, false),
+    List.filled(6, false),
   ];
   List<bool> timeSelected = [false, false];
   // _있으면 안됨.
@@ -190,6 +190,7 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
                 runSpacing: Sizes.size10,
                 children: List.generate(5, (buttonIndex) {
                   final textOptions = [
+                    '0회',
                     '1-2회',
                     '2-3회',
                     '3-4회',
@@ -215,7 +216,14 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
                 spacing: Sizes.size10,
                 runSpacing: Sizes.size10,
                 children: List.generate(5, (buttonIndex) {
-                  final textOptions = ['1-2회', '2-3회', '3-4회', '4-5회', '5회 이상'];
+                  final textOptions = [
+                    '0회',
+                    '1-2회',
+                    '2-3회',
+                    '3-4회',
+                    '4-5회',
+                    '5회 이상',
+                  ];
                   return CategoryButton(
                     text: textOptions[buttonIndex],
                     myonTap: () => _onChipTap(2, buttonIndex),
