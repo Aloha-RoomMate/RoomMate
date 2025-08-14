@@ -15,7 +15,7 @@ class DailyRythmScreen extends StatefulWidget {
 
 class _DailyRythmScreenState extends State<DailyRythmScreen> {
   List<List<bool>> _daySelected = [
-    List.filled(7, false),
+    List.filled(8, false),
     List.filled(3, false),
   ];
   List<bool> timeSelected = [false, false, false, false];
@@ -122,8 +122,17 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                 Wrap(
                   spacing: Sizes.size10,
                   runSpacing: Sizes.size10,
-                  children: List.generate(7, (buttonIndex) {
-                    final textOptions = ['월', '화', '수', '목', '금', '토', '일'];
+                  children: List.generate(8, (buttonIndex) {
+                    final textOptions = [
+                      '월',
+                      '화',
+                      '수',
+                      '목',
+                      '금',
+                      '토',
+                      '일',
+                      '없음',
+                    ];
                     return CategoryButton(
                       text: textOptions[buttonIndex],
                       myonTap: () => _onChipTap(0, buttonIndex),

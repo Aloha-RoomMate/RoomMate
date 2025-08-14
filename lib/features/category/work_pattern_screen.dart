@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
@@ -17,10 +18,12 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
   List<List<bool>> _selectionStates = [
     List.filled(4, false),
     List.filled(5, false),
-    List.filled(4, false),
-    List.filled(5, false),
     List.filled(5, false),
   ];
+  List<bool> timeSelected = [false, false];
+
+  final TextEditingController _goToWorkController = TextEditingController();
+  final TextEditingController _backHomeController = TextEditingController();
 
   void _onChipTap(int groupIndex, int buttonIndex) {
     setState(() {
@@ -31,11 +34,38 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
 
   bool _checkNextButtonAvailable() {
     for (final groupState in _selectionStates) {
-      if (!groupState.contains(true)) {
+      if (!groupState.contains(true) || timeSelected.contains(false)) {
         return false;
       }
     }
     return true;
+  }
+
+  void _onTimePickerChanged(
+    DateTime time,
+    TextEditingController controller,
+    int index,
+  ) {
+    final textTime =
+        time.toString().split(' ')[1].split(':')[0] +
+        ' : ' +
+        time.toString().split(' ')[1].split(':')[1];
+    // 얘가 있어야 텍스트 필드 업데이트
+    controller.value = TextEditingValue(text: textTime);
+    timeSelected[index] = true;
+  }
+
+  void _onTimeFieldTap(TextEditingController controller, int index) async {
+    await showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return CupertinoDatePicker(
+          mode: CupertinoDatePickerMode.time,
+          onDateTimeChanged: (DateTime time) =>
+              _onTimePickerChanged(time, controller, index),
+        );
+      },
+    );
   }
 
   void _onNextTap() {
@@ -100,16 +130,23 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
                 ),
               ),
               Gaps.v6,
-              Wrap(
-                spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
-                children: List.generate(5, (buttonIndex) {
-                  final textOptions = ['5-6시', '6-7시', '7-8시', '8-9시', '9시 이후'];
-                  return CategoryButton(
-                    text: textOptions[buttonIndex],
-                    myonTap: () => _onChipTap(1, buttonIndex),
-                  );
-                }),
+              TextField(
+                onTap: () => _onTimeFieldTap(_goToWorkController, 0),
+                readOnly: true,
+                controller: _goToWorkController,
+                decoration: InputDecoration(
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
+                ),
+                cursorColor: Theme.of(context).primaryColor,
               ),
               Gaps.v12,
               Text(
@@ -120,16 +157,23 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
                 ),
               ),
               Gaps.v6,
-              Wrap(
-                spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
-                children: List.generate(4, (buttonIndex) {
-                  final textOptions = ['18-19시', '19-20시', '20-21시', '21시 이후'];
-                  return CategoryButton(
-                    text: textOptions[buttonIndex],
-                    myonTap: () => _onChipTap(2, buttonIndex),
-                  );
-                }),
+              TextField(
+                onTap: () => _onTimeFieldTap(_backHomeController, 1),
+                readOnly: true,
+                controller: _backHomeController,
+                decoration: InputDecoration(
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
+                ),
+                cursorColor: Theme.of(context).primaryColor,
               ),
               Gaps.v12,
               Text(
@@ -153,7 +197,7 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
                   ];
                   return CategoryButton(
                     text: textOptions[buttonIndex],
-                    myonTap: () => _onChipTap(3, buttonIndex),
+                    myonTap: () => _onChipTap(1, buttonIndex),
                   );
                 }),
               ),
@@ -173,7 +217,7 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
                   final textOptions = ['1-2회', '2-3회', '3-4회', '4-5회', '5회 이상'];
                   return CategoryButton(
                     text: textOptions[buttonIndex],
-                    myonTap: () => _onChipTap(4, buttonIndex),
+                    myonTap: () => _onChipTap(2, buttonIndex),
                   );
                 }),
               ),
