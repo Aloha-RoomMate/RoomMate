@@ -21,6 +21,7 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
     List.filled(5, false),
   ];
   List<bool> timeSelected = [false, false];
+  // _있으면 안됨.
 
   final TextEditingController _goToWorkController = TextEditingController();
   final TextEditingController _backHomeController = TextEditingController();
