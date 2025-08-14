@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/disease_screen.dart';
+import 'package:roommate/features/category/introduction_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/category/work_pattern_screen.dart';
@@ -38,6 +39,12 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
   void _onScaffoldTap() {
     // 화면 누르면 키보드 내려가게 하기
     FocusScope.of(context).unfocus();
+  }
+
+  void _onNextTap() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => IntroductionScreen()));
   }
 
   @override
@@ -90,6 +97,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
                 ),
                 Gaps.v12,
                 GestureDetector(
+                  onTap: _onNextTap,
                   child: FormButton(
                     enabled: _noneSelected == true || _diseases.isNotEmpty,
                     text: '완료',
