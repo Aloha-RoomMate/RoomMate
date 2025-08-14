@@ -56,7 +56,7 @@ class _SoundScreenState extends State<SoundScreen> {
         title: Text(
           '소리 민감도를 선택해주세요!',
           style: TextStyle(
-            fontSize: Sizes.size24,
+            fontSize: Sizes.size20 + Sizes.size2,
           ),
         ),
         centerTitle: true,
