@@ -1,9 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/category/dining_habit_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
-import 'package:roommate/features/category/work_pattern_screen.dart';
 
 class WorkPatternScreen extends StatefulWidget {
   const WorkPatternScreen({super.key});
@@ -13,27 +14,79 @@ class WorkPatternScreen extends StatefulWidget {
 }
 
 class _WorkPatternScreenState extends State<WorkPatternScreen> {
-  List<bool> answeredQuestion = List.filled(4, false);
+  final List<List<bool>> _selectionStates = [
+    List.filled(6, false),
+    List.filled(6, false),
+  ];
+  List<bool> timeSelected = [false, false];
 
-  void _onChipTap(int index) {
-    answeredQuestion[index] = !answeredQuestion[index];
-    setState(() {});
+  final TextEditingController _goToWorkController = TextEditingController();
+  final TextEditingController _backHomeController = TextEditingController();
+
+  void _onChipTap(int groupIndex, int buttonIndex) {
+    setState(() {
+      _selectionStates[groupIndex][buttonIndex] =
+          !_selectionStates[groupIndex][buttonIndex];
+    });
   }
 
   bool _checkNextButtonAvailable() {
-    for (int i = 0; i < answeredQuestion.length; i++) {
-      if (answeredQuestion[i] == false) {
-        return false;
-      }
+    final groupsOk = _selectionStates.every((g) => g.contains(true));
+    final timesOk = timeSelected.every((t) => t); // 출근/귀가 둘 다 선택되어야
+    return groupsOk && timesOk;
+  }
+
+  // ▼ 추가: 오전/오후(또는 24시간제)로 표시하는 포맷 함수
+  String _formatTime(DateTime time) {
+    final use24h = MediaQuery.of(context).alwaysUse24HourFormat;
+    final hour = time.hour;
+    final minute = time.minute;
+
+    if (use24h) {
+      final hh = hour.toString().padLeft(2, '0');
+      final mm = minute.toString().padLeft(2, '0');
+      return '$hh : $mm'; // 예: 14 : 05
+    } else {
+      final isAm = hour < 12;
+      final period = isAm ? '오전' : '오후'; // AM/PM 한국어 표기
+      final hour12 = hour % 12 == 0 ? 12 : hour % 12;
+      final hh = hour12.toString().padLeft(2, '0');
+      final mm = minute.toString().padLeft(2, '0');
+      return '$period $hh : $mm'; // 예: 오후 02 : 05
     }
-    return true;
+  }
+
+  void _onTimePickerChanged(
+    DateTime time,
+    TextEditingController controller,
+    int index,
+  ) {
+    // ▼ 변경: 문자열 자르기 대신 포맷 함수 사용 + setState로 즉시 반영
+    final textTime = _formatTime(time);
+    setState(() {
+      controller.text = textTime;
+      timeSelected[index] = true;
+    });
+  }
+
+  void _onTimeFieldTap(TextEditingController controller, int index) async {
+    await showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return CupertinoDatePicker(
+          mode: CupertinoDatePickerMode.time,
+          onDateTimeChanged: (DateTime time) =>
+              _onTimePickerChanged(time, controller, index),
+        );
+      },
+    );
   }
 
   void _onNextTap() {
     if (_checkNextButtonAvailable()) {
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (context) => WorkPatternScreen()));
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) => const DiningHabitScreen()),
+      );
     }
   }
 
@@ -43,7 +96,7 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
       appBar: AppBar(
         title: Text(
           '출퇴근 패턴을 선택해주세요!',
-          style: TextStyle(fontSize: Sizes.size20),
+          style: TextStyle(fontSize: Sizes.size20 + Sizes.size2),
         ),
         centerTitle: true,
       ),
@@ -57,23 +110,6 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '출퇴근 형태를 알려주세요!!',
-                style: TextStyle(
-                  fontSize: Sizes.size16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Gaps.v6,
-              Wrap(
-                spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
-                children: [
-                  CategoryButton(text: '회사', myonTap: () => _onChipTap(0)),
-                  CategoryButton(text: '재택', myonTap: () => _onChipTap(0)),
-                  CategoryButton(text: '프리랜서', myonTap: () => _onChipTap(0)),
-                ],
-              ),
               Gaps.v12,
               Text(
                 '출근 시간대를 알려주세요!',
@@ -83,20 +119,60 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
                 ),
               ),
               Gaps.v6,
-              Wrap(
-                spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
-                children: [
-                  CategoryButton(text: '5-6시', myonTap: () => _onChipTap(1)),
-                  CategoryButton(text: '6-7시', myonTap: () => _onChipTap(1)),
-                  CategoryButton(text: '7-8시', myonTap: () => _onChipTap(1)),
-                  CategoryButton(text: '8-9시', myonTap: () => _onChipTap(1)),
-                  CategoryButton(text: '9시 이후', myonTap: () => _onChipTap(1)),
-                ],
+              TextField(
+                onTap: () => _onTimeFieldTap(_goToWorkController, 0),
+                readOnly: true,
+                controller: _goToWorkController,
+                decoration: InputDecoration(
+                  hintText: "오전 08 : 00",
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                  suffixIcon: Icon(
+                    Icons.access_time_rounded,
+                    size: 18,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey.shade400),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey.shade400),
+                  ),
+                ),
+                cursorColor: Theme.of(context).primaryColor,
               ),
               Gaps.v12,
               Text(
-                '귀가 시간대를 알려주세요!',
+                '출근일 귀가 시간대를 알려주세요!',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              TextField(
+                onTap: () => _onTimeFieldTap(_backHomeController, 1),
+                readOnly: true,
+                controller: _backHomeController,
+                decoration: InputDecoration(
+                  hintText: "오후 09 : 00",
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                  suffixIcon: Icon(
+                    Icons.access_time_rounded,
+                    size: 18,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey.shade400),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey.shade400),
+                  ),
+                ),
+                cursorColor: Theme.of(context).primaryColor,
+              ),
+              Gaps.v12,
+              Text(
+                '주 야근/밤 공부 횟수를 알려주세요!',
                 style: TextStyle(
                   fontSize: Sizes.size16,
                   fontWeight: FontWeight.w600,
@@ -106,16 +182,20 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
               Wrap(
                 spacing: Sizes.size10,
                 runSpacing: Sizes.size10,
-                children: [
-                  CategoryButton(text: '18-19시', myonTap: () => _onChipTap(2)),
-                  CategoryButton(text: '19-20시', myonTap: () => _onChipTap(2)),
-                  CategoryButton(text: '20-21시', myonTap: () => _onChipTap(2)),
-                  CategoryButton(
-                    text: '21-22시 이후',
-                    myonTap: () => _onChipTap(2),
-                  ),
-                  CategoryButton(text: '22시 이후', myonTap: () => _onChipTap(2)),
-                ],
+                children: List.generate(6, (buttonIndex) {
+                  final textOptions = [
+                    '0회',
+                    '1-2회',
+                    '2-3회',
+                    '3-4회',
+                    '4-5회',
+                    '5회 이상',
+                  ];
+                  return CategoryButton(
+                    text: textOptions[buttonIndex],
+                    myonTap: () => _onChipTap(1, buttonIndex),
+                  );
+                }),
               ),
               Gaps.v12,
               Text(
@@ -129,11 +209,20 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
               Wrap(
                 spacing: Sizes.size10,
                 runSpacing: Sizes.size10,
-                children: [
-                  CategoryButton(text: '1-2회', myonTap: () => _onChipTap(3)),
-                  CategoryButton(text: '3-4회', myonTap: () => _onChipTap(3)),
-                  CategoryButton(text: '5회 이상', myonTap: () => _onChipTap(3)),
-                ],
+                children: List.generate(6, (buttonIndex) {
+                  final textOptions = [
+                    '0회',
+                    '1-2회',
+                    '2-3회',
+                    '3-4회',
+                    '4-5회',
+                    '5회 이상',
+                  ];
+                  return CategoryButton(
+                    text: textOptions[buttonIndex],
+                    myonTap: () => _onChipTap(0, buttonIndex),
+                  );
+                }),
               ),
               Gaps.v12,
               GestureDetector(

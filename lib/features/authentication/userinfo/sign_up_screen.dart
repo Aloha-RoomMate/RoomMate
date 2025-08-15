@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/authentication/userinfo/userid_screen.dart';
 import 'package:roommate/features/authentication/widgets/auth_button.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
-import 'package:roommate/features/authentication/signup/username_screen.dart';
 import 'package:roommate/features/authentication/signup/google_screen.dart';
 import 'package:roommate/features/authentication/signup/kakaotalk_screen.dart';
 
@@ -20,7 +20,7 @@ class SignUpScreen extends StatelessWidget {
   void _onEmailTap(BuildContext context) {
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (context) => UsernameScreen()));
+    ).push(MaterialPageRoute(builder: (context) => UseridScreen()));
   }
 
   void _onGoogleTap(BuildContext context) {

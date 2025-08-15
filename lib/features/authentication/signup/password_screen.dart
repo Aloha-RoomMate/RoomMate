@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/authentication/signup/welcome_screen.dart';
+import 'package:roommate/features/authentication/userinfo/userjob_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
 
 class PasswordScreen extends StatefulWidget {
@@ -58,6 +58,10 @@ class _PasswordScreenState extends State<PasswordScreen>
     super.dispose();
   }
 
+  void _onScaffoldTap() {
+    FocusScope.of(context).unfocus();
+  }
+
   // 형식 조건
   bool get _hasMinLength => _password.length >= 8;
   bool get _hasUppercase => _password.contains(RegExp(r'[A-Z]'));
@@ -105,11 +109,11 @@ class _PasswordScreenState extends State<PasswordScreen>
       Navigator.of(context).push(
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              const WelcomeScreen(),
+              const UserjobScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
-          transitionDuration: const Duration(milliseconds: 500),
+          transitionDuration: const Duration(milliseconds: 300),
         ),
       );
     }
@@ -146,109 +150,113 @@ class _PasswordScreenState extends State<PasswordScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('회원가입')),
-      body: AnimatedBuilder(
-        animation: _shakeController,
-        builder: (context, child) {
-          return Transform.translate(
-            offset: Offset(_offsetAnimation.value, 0),
-            child: child,
-          );
-        },
-        child: SafeArea(
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: Sizes.size24),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Gaps.v40,
-                  const Text(
-                    '비밀번호 생성하기',
-                    style: TextStyle(
-                      fontSize: Sizes.size24,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
-                    ),
-                  ),
-                  Gaps.v20,
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: _obscureText,
-                    cursorColor: Theme.of(context).primaryColor,
-                    decoration: InputDecoration(
-                      suffix: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          GestureDetector(
-                            onTap: _onClearTap,
-                            child: FaIcon(
-                              FontAwesomeIcons.solidCircleXmark,
-                              color: Colors.grey.shade400,
-                              size: Sizes.size20,
-                            ),
-                          ),
-                          Gaps.h14,
-                          GestureDetector(
-                            onTap: _toogleObscureText,
-                            child: FaIcon(
-                              _obscureText
-                                  ? FontAwesomeIcons.eye
-                                  : FontAwesomeIcons.eyeSlash,
-                              color: Colors.grey.shade400,
-                              size: Sizes.size20,
-                            ),
-                          ),
-                        ],
-                      ),
-                      hintText: "비밀번호",
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.black),
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.black),
+    return GestureDetector(
+      onTap: _onScaffoldTap,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(title: const Text('회원가입')),
+        body: AnimatedBuilder(
+          animation: _shakeController,
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(_offsetAnimation.value, 0),
+              child: child,
+            );
+          },
+          child: SafeArea(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: Sizes.size24),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Gaps.v40,
+                    const Text(
+                      '비밀번호 생성하기',
+                      style: TextStyle(
+                        fontSize: Sizes.size24,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
                       ),
                     ),
-                  ),
-                  Gaps.v20,
-                  TextField(
-                    controller: _confirmPasswordController,
-                    obscureText: true,
-                    cursorColor: Theme.of(context).primaryColor,
-                    decoration: InputDecoration(
-                      hintText: "비밀번호 확인",
-                      enabledBorder: const UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.black),
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(
-                          color:
-                              (!_passwordsMatch && _confirmPassword.isNotEmpty)
-                              ? Colors.red
-                              : Colors.black,
+                    Gaps.v20,
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: _obscureText,
+                      cursorColor: Theme.of(context).primaryColor,
+                      decoration: InputDecoration(
+                        suffix: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            GestureDetector(
+                              onTap: _onClearTap,
+                              child: FaIcon(
+                                FontAwesomeIcons.solidCircleXmark,
+                                color: Colors.grey.shade400,
+                                size: Sizes.size20,
+                              ),
+                            ),
+                            Gaps.h14,
+                            GestureDetector(
+                              onTap: _toogleObscureText,
+                              child: FaIcon(
+                                _obscureText
+                                    ? FontAwesomeIcons.eye
+                                    : FontAwesomeIcons.eyeSlash,
+                                color: Colors.grey.shade400,
+                                size: Sizes.size20,
+                              ),
+                            ),
+                          ],
+                        ),
+                        hintText: "비밀번호",
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.black),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.black),
                         ),
                       ),
                     ),
-                  ),
-                  Gaps.v24,
-                  _buildRequirement('8자 이상', _hasMinLength),
-                  _buildRequirement('대문자 포함 (A-Z)', _hasUppercase),
-                  _buildRequirement('숫자 포함 (0-9)', _hasNumber),
-                  _buildRequirement('특수문자 포함 (!@#...)', _hasSpecialChar),
-                  _buildRequirement('비밀번호가 일치합니다', _passwordsMatch),
-                  Gaps.v32,
-                  GestureDetector(
-                    onTap: _onNextTap,
-                    child: FormButton(
-                      disabled: !_hasValidFormatBoth,
-                      text: "Next",
+                    Gaps.v20,
+                    TextField(
+                      controller: _confirmPasswordController,
+                      obscureText: true,
+                      cursorColor: Theme.of(context).primaryColor,
+                      decoration: InputDecoration(
+                        hintText: "비밀번호 확인",
+                        enabledBorder: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.black),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(
+                            color:
+                                (!_passwordsMatch &&
+                                    _confirmPassword.isNotEmpty)
+                                ? Theme.of(context).primaryColor
+                                : Colors.black,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  Gaps.v20,
-                ],
+                    Gaps.v24,
+                    _buildRequirement('8자 이상', _hasMinLength),
+                    _buildRequirement('대문자 포함 (A-Z)', _hasUppercase),
+                    _buildRequirement('숫자 포함 (0-9)', _hasNumber),
+                    _buildRequirement('특수문자 포함 (!@#...)', _hasSpecialChar),
+                    _buildRequirement('비밀번호가 일치합니다', _passwordsMatch),
+                    Gaps.v32,
+                    GestureDetector(
+                      onTap: _onNextTap,
+                      child: FormButton(
+                        disabled: !_hasValidFormatBoth,
+                        text: "Next",
+                      ),
+                    ),
+                    Gaps.v20,
+                  ],
+                ),
               ),
             ),
           ),
