@@ -94,6 +94,7 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
                   return CategoryButton(
                     text: textOptions[buttonIndex],
                     myonTap: () => _onChipTap(0, buttonIndex),
+                    isSelected: _selectionStates[0][buttonIndex],
                   );
                 }),
               ),
@@ -114,6 +115,7 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
                   return CategoryButton(
                     text: textOptions[buttonIndex],
                     myonTap: () => _onChipTap(1, buttonIndex),
+                    isSelected: _selectionStates[1][buttonIndex],
                   );
                 }),
               ),
@@ -134,6 +136,7 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
                   return CategoryButton(
                     text: textOptions[buttonIndex],
                     myonTap: () => _onChipTap(2, buttonIndex),
+                    isSelected: _selectionStates[2][buttonIndex],
                   );
                 }),
               ),
@@ -161,6 +164,7 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
                   return CategoryButton(
                     text: textOptions[buttonIndex],
                     myonTap: () => _onChipTap(3, buttonIndex),
+                    isSelected: _selectionStates[3][buttonIndex],
                   );
                 }),
               ),
