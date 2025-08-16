@@ -13,14 +13,10 @@ class CategoryButton extends StatelessWidget {
   final Function myonTap;
   bool isSelected;
 
-  void _onChipTap() {
-    myonTap();
-  }
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _onChipTap(),
+      onTap: () => myonTap(),
       child: AnimatedContainer(
         duration: Duration(
           milliseconds: 300,
