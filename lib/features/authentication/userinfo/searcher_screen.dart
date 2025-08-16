@@ -269,52 +269,66 @@ const Map<String, List<String>> kSeoulGuDong = {
     '일원2동',
     '수서동',
   ],
-  // … 나머지 25개 자치구를 같은 방식으로 추가 …
+  // … 나머지 자치구 추가 …
 };
 
 class SearcherScreen extends StatefulWidget {
   const SearcherScreen({super.key});
-
   @override
-  State<SearcherScreen> createState() => _RoomownerScreenState();
+  State<SearcherScreen> createState() => _SearcherScreenState();
 }
 
-class _RoomownerScreenState extends State<SearcherScreen> {
+class _SearcherScreenState extends State<SearcherScreen> {
+  final Set<String> _fav = {}; // "구/동" 저장
+  late final List<String> _guList = (kSeoulGuDong.keys.toList()..sort());
   String? _selectedGu;
-  String? _selectedDong;
 
-  List<String> get _guList => kSeoulGuDong.keys.toList()..sort();
-  List<String> get _dongList =>
-      _selectedGu == null ? [] : (kSeoulGuDong[_selectedGu!] ?? []);
+  bool get _isNextEnabled => _fav.isNotEmpty;
 
-  bool get _isNextEnabled => _selectedGu != null && _selectedDong != null;
-
-  void _onGuChanged(String? gu) {
-    setState(() {
-      _selectedGu = gu;
-      _selectedDong = null; // 구 변경 시 동 초기화
-    });
+  @override
+  void initState() {
+    super.initState();
+    // 최초 선택값(없으면 null 유지)
+    if (_guList.isNotEmpty) _selectedGu = _guList.first;
   }
 
-  void _onDongChanged(String? dong) {
-    setState(() => _selectedDong = dong);
+  void _toggleFav(String gu, String dong) {
+    final key = '$gu/$dong';
+    setState(() {
+      if (_fav.contains(key)) {
+        _fav.remove(key);
+      } else {
+        _fav.add(key);
+      }
+    });
   }
 
   void _onNextTap() {
     if (!_isNextEnabled) return;
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => WelcomeScreen()));
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const WelcomeScreen(),
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).primaryColor;
+    final dongs = _selectedGu == null
+        ? <String>[]
+        : (kSeoulGuDong[_selectedGu!] ?? []);
+
     return Scaffold(
       appBar: AppBar(title: const Text('희망 거주지역 선택')),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            constraints: const BoxConstraints(maxWidth: 900), // 넓은 화면에서도 정돈
             child: Padding(
               padding: const EdgeInsets.all(Sizes.size16),
               child: Column(
@@ -329,44 +343,267 @@ class _RoomownerScreenState extends State<SearcherScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 자치구 드롭다운
-                  DropdownButtonFormField<String>(
-                    value: _selectedGu,
-                    decoration: const InputDecoration(
-                      labelText: '자치구',
-                      border: OutlineInputBorder(),
+                  // 상단 컨텐트: 좌(구) 1 : 우(동) 3
+                  Expanded(
+                    child: Row(
+                      children: [
+                        // 좌측: 자치구 목록 (1)
+                        Expanded(
+                          flex: 3,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListView.separated(
+                              itemCount: _guList.length,
+                              separatorBuilder: (_, __) => Divider(
+                                height: 1,
+                                color: Colors.grey.shade300,
+                              ),
+                              itemBuilder: (context, index) {
+                                final gu = _guList[index];
+                                final selected = gu == _selectedGu;
+                                final favCount = _fav
+                                    .where((k) => k.startsWith('$gu/'))
+                                    .length;
+
+                                return Material(
+                                  color: selected
+                                      ? primary.withAlpha(50)
+                                      : Colors.transparent,
+                                  child: ListTile(
+                                    dense: true,
+                                    title: Text(
+                                      gu,
+                                      style: TextStyle(
+                                        fontSize: Sizes.size12,
+                                        fontWeight: selected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: selected
+                                            ? primary
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                    trailing: favCount > 0
+                                        ? Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(
+                                                  0,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.transparent,
+
+                                                  borderRadius:
+                                                      BorderRadius.circular(0),
+                                                ),
+                                                child: Text(
+                                                  '$favCount',
+                                                  style: TextStyle(
+                                                    color: primary,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w400,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : null,
+                                    onTap: () =>
+                                        setState(() => _selectedGu = gu),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        // 우측: 선택한 자치구의 동 목록 (3)
+                        Expanded(
+                          flex: 5,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: _selectedGu == null
+                                ? const Center(child: Text('좌측에서 자치구를 선택하세요'))
+                                : Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      // 우측 헤더
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade50,
+                                          borderRadius:
+                                              const BorderRadius.vertical(
+                                                top: Radius.circular(12),
+                                              ),
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: Colors.grey.shade300,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              _selectedGu!,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text('(${dongs.length}개 동)'),
+                                          ],
+                                        ),
+                                      ),
+
+                                      // 동 리스트
+                                      Expanded(
+                                        child: ListView.separated(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
+                                          itemCount: dongs.length,
+                                          separatorBuilder: (_, __) => Divider(
+                                            height: 1,
+                                            color: Colors.grey.shade200,
+                                          ),
+                                          itemBuilder: (context, idx) {
+                                            final dong = dongs[idx];
+                                            final key = '$_selectedGu/$dong';
+                                            final selected = _fav.contains(key);
+                                            return ListTile(
+                                              dense: true,
+                                              title: Text(dong),
+                                              trailing: IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minWidth: 32,
+                                                      minHeight: 32,
+                                                    ), // 터치 영역 확보
+                                                iconSize: 25,
+                                                icon: Icon(
+                                                  selected
+                                                      ? Icons.favorite
+                                                      : Icons.favorite_border,
+                                                  size: 25,
+                                                  color: selected
+                                                      ? primary
+                                                      : Colors.grey.shade500,
+                                                ),
+                                                onPressed: () => _toggleFav(
+                                                  _selectedGu!,
+                                                  dong,
+                                                ),
+                                                tooltip: selected
+                                                    ? '찜 해제'
+                                                    : '찜하기',
+                                              ),
+                                              onTap: () => _toggleFav(
+                                                _selectedGu!,
+                                                dong,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
-                    items: _guList
-                        .map((g) => DropdownMenuItem(value: g, child: Text(g)))
-                        .toList(),
-                    onChanged: _onGuChanged,
-                    validator: (v) => v == null ? '자치구를 선택하세요' : null,
                   ),
 
-                  const SizedBox(height: 12),
-
-                  // 동 드롭다운
-                  DropdownButtonFormField<String>(
-                    value: _selectedDong,
-                    decoration: const InputDecoration(
-                      labelText: '동',
-                      border: OutlineInputBorder(),
+                  // 하단: 찜한 항목 Chips + 다음 버튼
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.fromLTRB(
+                      Sizes.size12,
+                      Sizes.size12,
+                      Sizes.size12,
+                      Sizes.size16,
                     ),
-                    items: _dongList
-                        .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                        .toList(),
-                    onChanged: _dongList.isEmpty ? null : _onDongChanged,
-                    validator: (v) => v == null ? '동을 선택하세요' : null,
-                  ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_fav.isNotEmpty) ...[
+                          const Text(
+                            '찜한 동',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: 40, // 칩 높이에 맞게 조정
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              padding: EdgeInsets.zero,
+                              itemCount: _fav.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final favList = _fav.toList()..sort();
+                                final key = favList[index];
+                                final parts = key.split('/');
+                                final label = parts.length == 2
+                                    ? '${parts[0]} · ${parts[1]}'
+                                    : key;
 
-                  const Spacer(),
-
-                  // 다음 버튼 (FormButton 버전에 맞춰 enabled/disabled 선택)
-                  GestureDetector(
-                    onTap: _isNextEnabled ? _onNextTap : null,
-                    child: FormButton(
-                      disabled: !_isNextEnabled, // disabled 프로퍼티면 반대로 바꾸세요
-                      text: "다음",
+                                return Chip(
+                                  label: Text(label),
+                                  avatar: Icon(
+                                    Icons.favorite,
+                                    color: primary,
+                                    size: 18,
+                                  ),
+                                  onDeleted: () =>
+                                      setState(() => _fav.remove(key)),
+                                  deleteIconColor: Colors.grey.shade600,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  backgroundColor: Colors.white,
+                                  side: BorderSide(color: Colors.grey.shade300),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        GestureDetector(
+                          onTap: _isNextEnabled ? _onNextTap : null,
+                          child: FormButton(
+                            disabled: !_isNextEnabled,
+                            text: "다음",
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

@@ -19,8 +19,8 @@ class ChatScreen extends StatelessWidget {
         ),
       ),
       body: Padding(
-        padding: EdgeInsetsGeometry.all(Sizes.size5),
-        child: Row(children: [Text("채팅채팅채팅채팅채팅채팅채팅채팅채팅채팅채팅채팅채팅채팅")]),
+        padding: EdgeInsetsGeometry.all(8),
+        child: Row(children: [Text("채팅채팅채팅채팅채팅채팅채팅채팅채팅채팅채팅")]),
       ),
     );
   }

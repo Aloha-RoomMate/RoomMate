@@ -12,27 +12,51 @@ class SignUpScreen extends StatelessWidget {
   const SignUpScreen({super.key});
 
   void _onLoginTap(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => LoginScreen()));
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => LoginScreen(),
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
   }
 
   void _onEmailTap(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => UseridScreen()));
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => UseridScreen(),
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
   }
 
   void _onGoogleTap(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const GoogleScreen()));
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const GoogleScreen(),
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
   }
 
   void _onKakaoTap(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const KakaotalkScreen()));
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const KakaotalkScreen(),
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
   }
 
   @override
@@ -49,14 +73,15 @@ class SignUpScreen extends StatelessWidget {
             children: [
               Gaps.v80,
               Text(
-                '회원가입',
+                'RoomMate',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  fontSize: Sizes.size28,
-                  color: Colors.black,
+                  fontSize: Sizes.size32,
+                  color: Theme.of(context).primaryColor,
                 ),
                 textAlign: TextAlign.center,
               ),
+
               Gaps.v24,
               Text(
                 '나의 룸메이트를 찾아보기',
@@ -69,14 +94,15 @@ class SignUpScreen extends StatelessWidget {
               ),
               Gaps.v1,
               Text(
-                'RoomMate',
+                '회원가입',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: Sizes.size20,
-                  color: Theme.of(context).primaryColor,
+                  color: Colors.black,
                 ),
                 textAlign: TextAlign.center,
               ),
+
               Gaps.v48,
               GestureDetector(
                 onTap: () => _onEmailTap(context),

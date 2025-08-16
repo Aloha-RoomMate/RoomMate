@@ -192,7 +192,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                   enabled: !_noWorkday,
                   controller: _weekWakeUpController,
                   decoration: InputDecoration(
-                    hintText: "07 : 00",
+                    hintText: "오전 07 : 00",
                     hintStyle: TextStyle(color: Colors.grey.shade400),
                     suffixIcon: Icon(
                       Icons.access_time_rounded,
@@ -229,7 +229,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                   enabled: !_noWorkday,
                   controller: _weekSleepController,
                   decoration: InputDecoration(
-                    hintText: "24 : 00",
+                    hintText: "오후 12 : 00",
                     hintStyle: TextStyle(color: Colors.grey.shade400),
                     suffixIcon: Icon(
                       Icons.access_time_rounded,
@@ -263,7 +263,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                   readOnly: true,
                   controller: _weekendSleepController,
                   decoration: InputDecoration(
-                    hintText: "09 : 00",
+                    hintText: "오전 09 : 00",
                     hintStyle: TextStyle(color: Colors.grey.shade400),
                     suffixIcon: Icon(
                       Icons.access_time_rounded,
@@ -295,7 +295,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                   readOnly: true,
                   controller: _weekendWakeUpController,
                   decoration: InputDecoration(
-                    hintText: "24 : 00",
+                    hintText: "오후 12 : 00",
                     hintStyle: TextStyle(color: Colors.grey.shade400),
                     suffixIcon: Icon(
                       Icons.access_time_rounded,

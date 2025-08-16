@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/authentication/signup/password_screen.dart';
+import 'package:roommate/features/authentication/userinfo/userjob_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
 
 class UseridScreen extends StatefulWidget {
@@ -15,6 +15,7 @@ class _UseridScreenState extends State<UseridScreen> {
   final TextEditingController _usernameController = TextEditingController();
 
   String _username = "";
+  String? _selectedGender;
 
   @override
   void initState() {
@@ -34,10 +35,15 @@ class _UseridScreenState extends State<UseridScreen> {
   }
 
   void _onNextTap() {
-    if (_username.isEmpty) return;
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const PasswordScreen()));
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => UserjobScreen(),
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
   }
 
   void _onScaffoldTap() {
@@ -58,7 +64,7 @@ class _UseridScreenState extends State<UseridScreen> {
             children: [
               Gaps.v40,
               Text(
-                '아이디를 입력해주세요',
+                '닉네임을 입력해주세요',
                 style: TextStyle(
                   fontSize: Sizes.size24,
                   fontWeight: FontWeight.w700,
@@ -67,7 +73,7 @@ class _UseridScreenState extends State<UseridScreen> {
               ),
               Gaps.v8,
               Text(
-                '아이디를 사용해주세요',
+                '닉네임을 사용해주세요',
                 style: TextStyle(
                   fontSize: Sizes.size16,
                   fontWeight: FontWeight.w500,
@@ -79,19 +85,110 @@ class _UseridScreenState extends State<UseridScreen> {
                 controller: _usernameController,
                 cursorColor: Theme.of(context).primaryColor,
                 decoration: InputDecoration(
-                  hintText: "아이디",
+                  hintText: "닉네임",
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
                   enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey.shade500),
+                    borderSide: BorderSide(color: Colors.grey.shade400),
                   ),
                   focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey.shade500),
+                    borderSide: BorderSide(color: Colors.grey.shade400),
                   ),
                 ),
               ),
               Gaps.v16,
+              Text(
+                "성별을 골라주세요",
+                style: TextStyle(
+                  fontSize: Sizes.size24,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedGender = "male";
+                      });
+                    },
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _selectedGender == "male"
+                                ? Theme.of(context).primaryColor
+                                : Colors.grey.shade300,
+                          ),
+                          child: Icon(
+                            Icons.male_rounded,
+                            color: _selectedGender == "male"
+                                ? Colors.white
+                                : Colors.black,
+                            size: 32,
+                          ),
+                        ),
+                        Gaps.h10,
+                        Text(
+                          "남성",
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(width: 80),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedGender = "female";
+                      });
+                    },
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _selectedGender == "female"
+                                ? Theme.of(context).primaryColor
+                                : Colors.grey.shade300,
+                          ),
+
+                          child: Icon(
+                            Icons.female_rounded,
+                            color: _selectedGender == "female"
+                                ? Colors.white
+                                : Colors.black,
+                            size: 32,
+                          ),
+                        ),
+                        Gaps.h10,
+                        Text(
+                          "여성",
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 60),
               GestureDetector(
                 onTap: _onNextTap,
-                child: FormButton(disabled: _username.isEmpty, text: "Next"),
+                child: FormButton(
+                  disabled: _username.isEmpty || _selectedGender == null,
+                  text: "다음",
+                ),
               ),
             ],
           ),

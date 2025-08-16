@@ -35,14 +35,6 @@ class _DemandButtonState extends State<DemandButton> {
               : Colors.grey.shade200,
           borderRadius: BorderRadius.circular(Sizes.size12),
           border: Border.all(color: Colors.black.withAlpha(5)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withAlpha(100),
-              blurRadius: 5,
-              spreadRadius: 0.5,
-              offset: Offset(5, 1),
-            ),
-          ],
         ),
         child: Text(
           widget.text,

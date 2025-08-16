@@ -24,6 +24,7 @@ class _PasswordScreenState extends State<PasswordScreen>
   String _password = "";
   String _confirmPassword = "";
   bool _obscureText = true;
+  bool _obscureConfirmText = true;
 
   @override
   void initState() {
@@ -93,7 +94,6 @@ class _PasswordScreenState extends State<PasswordScreen>
       _password.isNotEmpty &&
       _confirmPassword.isNotEmpty &&
       _password == _confirmPassword;
-
   void _onNextTap() async {
     if (!_passwordsMatch) {
       await _shakeController.forward();
@@ -114,6 +114,9 @@ class _PasswordScreenState extends State<PasswordScreen>
             return FadeTransition(opacity: animation, child: child);
           },
           transitionDuration: const Duration(milliseconds: 300),
+          reverseTransitionDuration: const Duration(
+            milliseconds: 300,
+          ), // 팝 시 동일
         ),
       );
     }
@@ -123,8 +126,15 @@ class _PasswordScreenState extends State<PasswordScreen>
     _passwordController.clear();
   }
 
+  void _clearConfirm() => _confirmPasswordController.clear();
+
   void _toogleObscureText() {
     _obscureText = !_obscureText;
+    setState(() {});
+  }
+
+  void _toogleObscureConfirmText() {
+    _obscureConfirmText = !_obscureConfirmText;
     setState(() {});
   }
 
@@ -211,21 +221,49 @@ class _PasswordScreenState extends State<PasswordScreen>
                           ],
                         ),
                         hintText: "비밀번호",
+                        hintStyle: TextStyle(color: Colors.grey.shade400),
                         enabledBorder: UnderlineInputBorder(
                           borderSide: BorderSide(color: Colors.black),
                         ),
                         focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).primaryColor,
+                          ),
                         ),
                       ),
                     ),
                     Gaps.v20,
                     TextField(
                       controller: _confirmPasswordController,
-                      obscureText: true,
+                      obscureText: _obscureConfirmText,
                       cursorColor: Theme.of(context).primaryColor,
                       decoration: InputDecoration(
+                        suffix: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            GestureDetector(
+                              onTap: _clearConfirm,
+                              child: FaIcon(
+                                FontAwesomeIcons.solidCircleXmark,
+                                color: Colors.grey.shade400,
+                                size: Sizes.size20,
+                              ),
+                            ),
+                            Gaps.h14,
+                            GestureDetector(
+                              onTap: _toogleObscureConfirmText,
+                              child: FaIcon(
+                                _obscureConfirmText
+                                    ? FontAwesomeIcons.eye
+                                    : FontAwesomeIcons.eyeSlash,
+                                color: Colors.grey.shade400,
+                                size: Sizes.size20,
+                              ),
+                            ),
+                          ],
+                        ),
                         hintText: "비밀번호 확인",
+                        hintStyle: TextStyle(color: Colors.grey.shade400),
                         enabledBorder: const UnderlineInputBorder(
                           borderSide: BorderSide(color: Colors.black),
                         ),
@@ -251,7 +289,7 @@ class _PasswordScreenState extends State<PasswordScreen>
                       onTap: _onNextTap,
                       child: FormButton(
                         disabled: !_hasValidFormatBoth,
-                        text: "Next",
+                        text: "다음",
                       ),
                     ),
                     Gaps.v20,

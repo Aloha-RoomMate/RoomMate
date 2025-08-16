@@ -302,9 +302,16 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
 
   void _onNextTap() {
     if (!_isNextEnabled) return;
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => WelcomeScreen()));
+
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => WelcomeScreen(),
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
   }
 
   @override

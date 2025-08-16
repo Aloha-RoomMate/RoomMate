@@ -15,11 +15,9 @@ class UserjobScreen extends StatefulWidget {
 }
 
 class _UserjobScreenState extends State<UserjobScreen> {
-  // 4개 카테고리 선택 상태(다중 선택 허용)
   final List<bool> _jobSelections = List<bool>.filled(4, false);
 
-  // 2개 유저 타입 선택 상태(단일 선택)
-  int? _selectedIndex; // 0: Room-owner, 1: Searcher
+  int? _selectedIndex;
   Key _leftKey = UniqueKey();
   Key _rightKey = UniqueKey();
 
@@ -59,14 +57,19 @@ class _UserjobScreenState extends State<UserjobScreen> {
 
   void _onNextTap() {
     if (!_isNextEnabled()) return;
+
+    Route fadeRoute(Widget page) => PageRouteBuilder(
+      pageBuilder: (_, __, ___) => page,
+      transitionDuration: const Duration(milliseconds: 300),
+      reverseTransitionDuration: const Duration(milliseconds: 300),
+      transitionsBuilder: (_, animation, __, child) =>
+          FadeTransition(opacity: animation, child: child),
+    );
+
     if (_selectedIndex == 0) {
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const RoomownerScreen()));
+      Navigator.of(context).push(fadeRoute(const RoomownerScreen()));
     } else {
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const SearcherScreen()));
+      Navigator.of(context).push(fadeRoute(const SearcherScreen()));
     }
   }
 
@@ -87,7 +90,6 @@ class _UserjobScreenState extends State<UserjobScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 4개 카테고리 영역
                     const Text(
                       '출퇴근 형태를 알려주세요',
                       style: TextStyle(
@@ -103,15 +105,12 @@ class _UserjobScreenState extends State<UserjobScreen> {
                         return CategoryButton(
                           text: textOptions[i],
                           myonTap: () => _onJobTap(i),
-                          // 선택 시각화가 필요하면 CategoryButton에 selected 전달하도록 위젯 수정 권장
-                          // selected: _jobSelections[i],
                         );
                       }),
                     ),
 
                     const SizedBox(height: Sizes.size32),
 
-                    // 2개 유저 타입 영역
                     const Text(
                       '유저 타입을 선택해주세요',
                       style: TextStyle(
@@ -127,21 +126,18 @@ class _UserjobScreenState extends State<UserjobScreen> {
                           key: _leftKey,
                           text: "Room-owner",
                           myonTap: _onTapLeft,
-                          // selected: _selectedIndex == 0,  // 위젯이 지원하면 사용
                         ),
                         const SizedBox(width: Sizes.size56),
                         DemandButton(
                           key: _rightKey,
                           text: "Searcher",
                           myonTap: _onTapRight,
-                          // selected: _selectedIndex == 1,
                         ),
                       ],
                     ),
 
                     const SizedBox(height: Sizes.size24),
 
-                    // 설명 카드 + 애니메이션 (원래 UserdemandScreen 로직 복원)
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
                       switchInCurve: Curves.easeOutCubic,
@@ -164,7 +160,6 @@ class _UserjobScreenState extends State<UserjobScreen> {
 
                     const SizedBox(height: Sizes.size28),
 
-                    // 다음 버튼
                     GestureDetector(
                       onTap: isNextEnabled ? _onNextTap : null,
                       child: _supportsEnabledProp()
