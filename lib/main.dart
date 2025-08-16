@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
+import 'package:roommate/features/category/dining_habit_screen.dart';
 import 'package:roommate/features/category/disease_screen.dart';
 import 'package:roommate/features/category/etc_screen.dart';
 import 'package:roommate/features/category/introduction_screen.dart';
