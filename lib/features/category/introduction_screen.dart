@@ -5,7 +5,9 @@ import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
+
 import 'package:roommate/features/homepage/widgets/homepage_screen.dart';
+
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -34,7 +36,10 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     if (_introduction.length >= 50 && _introduction.length <= 300) {
       Navigator.of(
         context,
+
       ).push(MaterialPageRoute(builder: (context) => HomepageScreen()));
+
+
     }
   }
 
@@ -56,7 +61,11 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         appBar: AppBar(
           title: Text(
             '간단한 소개글을 작성해주세요!',
-            style: TextStyle(fontSize: Sizes.size24),
+
+            style: TextStyle(
+              fontSize: Sizes.size24,
+            ),
+
           ),
           centerTitle: true,
         ),
@@ -76,7 +85,11 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                 Gaps.v6,
                 Text(
                   '최소 50자 최대 300자예요!',
-                  style: TextStyle(color: Colors.grey.shade700),
+
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                  ),
+
                 ),
                 Gaps.v12,
                 TextField(
@@ -87,7 +100,10 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                   textInputAction: TextInputAction.newline, // 엔터 시 다음 줄
                   decoration: InputDecoration(
                     counterText:
-                        '${(_controller.text.characters.length)} / $_limit',
+
+
+                        '${(_controller.text.characters.length)} / ${_limit}',
+
                   ),
                 ),
                 Gaps.v20,

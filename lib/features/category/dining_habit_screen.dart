@@ -135,4 +135,6 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
       ),
     );
   }
+
 }
+

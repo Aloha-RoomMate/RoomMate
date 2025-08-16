@@ -42,4 +42,6 @@ class CategoryButton extends StatelessWidget {
       ),
     );
   }
+
 }
+

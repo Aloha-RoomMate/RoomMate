@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter_naver_map/flutter_naver_map.dart'; // 이거 필요
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/userinfo/sign_up_screen.dart';
@@ -23,19 +24,26 @@ class RoomMate extends StatelessWidget {
       title: 'RoomMate',
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
+
         primaryColor: const Color.fromARGB(255, 103, 104, 171),
         appBarTheme: const AppBarTheme(
+
           foregroundColor: Colors.black,
           backgroundColor: Colors.white,
           elevation: 0,
           titleTextStyle: TextStyle(
             fontWeight: FontWeight.w800,
+
             fontSize: Sizes.size18, // size16 + size2
+
+
             color: Colors.black,
           ),
         ),
       ),
+
       home: const SignUpScreen(),
+
     );
   }
 }

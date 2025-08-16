@@ -102,4 +102,6 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
       ),
     );
   }
+
 }
+

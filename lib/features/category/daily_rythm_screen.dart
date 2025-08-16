@@ -229,4 +229,5 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
       ),
     );
   }
+
 }
