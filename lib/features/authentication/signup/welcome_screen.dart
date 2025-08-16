@@ -10,14 +10,7 @@ class WelcomeScreen extends StatelessWidget {
   void _onNextTap(BuildContext context) {
     Navigator.push(
       context,
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const DailyRythmScreen(),
-        transitionDuration: const Duration(milliseconds: 300),
-        reverseTransitionDuration: const Duration(milliseconds: 300),
-        transitionsBuilder: (_, animation, __, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
+      MaterialPageRoute(builder: (context) => const DailyRythmScreen()),
     );
   }
 

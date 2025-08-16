@@ -105,6 +105,7 @@ class _UserjobScreenState extends State<UserjobScreen> {
                         return CategoryButton(
                           text: textOptions[i],
                           myonTap: () => _onJobTap(i),
+                          isSelected: _jobSelections[i],
                         );
                       }),
                     ),
