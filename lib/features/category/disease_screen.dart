@@ -15,7 +15,7 @@ class DiseaseScreen extends StatefulWidget {
 }
 
 class _DiseaseScreenState extends State<DiseaseScreen> {
-  bool _noneSelected = false;
+  bool _isHealthy = false;
   TextEditingController _textEditingController = TextEditingController();
   String _diseases = "";
 
@@ -32,7 +32,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
 
   void _onChipTap() {
     setState(() {
-      _noneSelected = !_noneSelected;
+      _isHealthy = !_isHealthy;
     });
   }
 
@@ -78,7 +78,11 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Gaps.v6,
-                CategoryButton(text: '없음', myonTap: _onChipTap),
+                CategoryButton(
+                  text: '없음',
+                  myonTap: _onChipTap,
+                  isSelected: _isHealthy,
+                ),
                 Gaps.v12,
                 TextField(
                   controller: _textEditingController,
@@ -99,7 +103,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
                 GestureDetector(
                   onTap: _onNextTap,
                   child: FormButton(
-                    enabled: _noneSelected == true || _diseases.isNotEmpty,
+                    enabled: _isHealthy == true || _diseases.isNotEmpty,
                     text: '완료',
                   ),
                 ),
