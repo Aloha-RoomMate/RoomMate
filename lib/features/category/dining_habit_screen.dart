@@ -4,6 +4,7 @@ import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/sound_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
+import 'package:roommate/features/category/widgets/selection_chip.dart';
 import 'package:roommate/features/category/work_pattern_screen.dart';
 
 class DiningHabitScreen extends StatefulWidget {
@@ -14,7 +15,7 @@ class DiningHabitScreen extends StatefulWidget {
 }
 
 class _DiningHabitScreenState extends State<DiningHabitScreen> {
-  List<List<bool>> _selectionStates = [
+  List<List<bool>> _chipOptionSelected = [
     List.filled(6, false),
     List.filled(3, false),
     List.filled(2, false),
@@ -23,13 +24,13 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
 
   void _onChipTap(int groupIndex, int buttonIndex) {
     setState(() {
-      _selectionStates[groupIndex][buttonIndex] =
-          !_selectionStates[groupIndex][buttonIndex];
+      _chipOptionSelected[groupIndex][buttonIndex] =
+          !_chipOptionSelected[groupIndex][buttonIndex];
     });
   }
 
   bool _checkNextButtonAvailable() {
-    for (final groupState in _selectionStates) {
+    for (final groupState in _chipOptionSelected) {
       if (!groupState.contains(true)) {
         return false;
       }
@@ -71,102 +72,54 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '주 요리 빈도를 선택해주세요!',
-                style: TextStyle(
-                  fontSize: Sizes.size16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Gaps.v6,
-              Wrap(
-                spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
-                children: List.generate(6, (buttonIndex) {
-                  final textOptions = [
-                    '전혀 안 해요',
-                    '1-2회',
-                    '2-3회',
-                    '3-4회',
-                    '4-5회',
-                    '5회 이상',
-                  ];
-                  return CategoryButton(
-                    text: textOptions[buttonIndex],
-                    myonTap: () => _onChipTap(0, buttonIndex),
-                    isSelected: _selectionStates[0][buttonIndex],
-                  );
-                }),
+              SelectionChip(
+                textOptions: [
+                  '전혀 안 해요',
+                  '1-2회',
+                  '2-3회',
+                  '3-4회',
+                  '4-5회',
+                  '5회 이상',
+                ],
+                onChipTap: _onChipTap,
+                checkList: _chipOptionSelected,
+                indexOfQuestion: 0,
+                question: '주 요리 빈도를 선택해주세요!',
               ),
               Gaps.v12,
-              Text(
-                '냄새 민감도를 알려주세요!',
-                style: TextStyle(
-                  fontSize: Sizes.size16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Gaps.v6,
-              Wrap(
-                spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
-                children: List.generate(3, (buttonIndex) {
-                  final textOptions = ['둔감해요', '보통이예요', '예민한 편이예요'];
-                  return CategoryButton(
-                    text: textOptions[buttonIndex],
-                    myonTap: () => _onChipTap(1, buttonIndex),
-                    isSelected: _selectionStates[1][buttonIndex],
-                  );
-                }),
+              SelectionChip(
+                textOptions: [
+                  '둔감해요',
+                  '보통이예요',
+                  '예민한 편이예요',
+                ],
+                onChipTap: _onChipTap,
+                checkList: _chipOptionSelected,
+                indexOfQuestion: 1,
+                question: '냄새 민감도를 알려주세요!',
               ),
               Gaps.v12,
-              Text(
-                '공용 식기 사용 선호도를 알려주세요!',
-                style: TextStyle(
-                  fontSize: Sizes.size16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Gaps.v6,
-              Wrap(
-                spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
-                children: List.generate(2, (buttonIndex) {
-                  final textOptions = ['같이 써요', '개인 식기를 선호해요'];
-                  return CategoryButton(
-                    text: textOptions[buttonIndex],
-                    myonTap: () => _onChipTap(2, buttonIndex),
-                    isSelected: _selectionStates[2][buttonIndex],
-                  );
-                }),
+              SelectionChip(
+                textOptions: ['같이 써요', '개인 식기를 선호해요'],
+                onChipTap: _onChipTap,
+                checkList: _chipOptionSelected,
+                indexOfQuestion: 2,
+                question: '공용 식기 선호도를 알려주세요!',
               ),
               Gaps.v12,
-              Text(
-                '주 배달 횟수를 알려주세요!',
-                style: TextStyle(
-                  fontSize: Sizes.size16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Gaps.v6,
-              Wrap(
-                spacing: Sizes.size10,
-                runSpacing: Sizes.size10,
-                children: List.generate(6, (buttonIndex) {
-                  final textOptions = [
-                    '전혀 안 시켜요',
-                    '1-2회',
-                    '2-3회',
-                    '3-4회',
-                    '4-5회',
-                    '5회 이상',
-                  ];
-                  return CategoryButton(
-                    text: textOptions[buttonIndex],
-                    myonTap: () => _onChipTap(3, buttonIndex),
-                    isSelected: _selectionStates[3][buttonIndex],
-                  );
-                }),
+              SelectionChip(
+                textOptions: [
+                  '전혀 안 시켜요',
+                  '1-2회',
+                  '2-3회',
+                  '3-4회',
+                  '4-5회',
+                  '5회 이상',
+                ],
+                onChipTap: _onChipTap,
+                checkList: _chipOptionSelected,
+                indexOfQuestion: 3,
+                question: '주 배달 횟수를 선택해주세요!',
               ),
               Gaps.v12,
               GestureDetector(
