@@ -42,9 +42,14 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
   }
 
   void _onNextTap() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => IntroductionScreen()));
+    if (_isHealthy || _diseases.isNotEmpty)
+      Navigator.of(
+        context,
+      ).push(
+        MaterialPageRoute(
+          builder: (context) => IntroductionScreen(),
+        ),
+      );
   }
 
   @override
@@ -85,6 +90,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
                 ),
                 Gaps.v12,
                 TextField(
+                  readOnly: _isHealthy,
                   controller: _textEditingController,
                   autocorrect: false,
                   decoration: InputDecoration(
