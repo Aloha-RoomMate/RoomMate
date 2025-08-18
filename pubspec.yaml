@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   font_awesome_flutter: 10.3.0
 
-  font_awesome_flutter: ^10.9.0
+  
   flutter_naver_map: ^1.4.1+1
 
 
