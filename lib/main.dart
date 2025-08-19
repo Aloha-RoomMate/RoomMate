@@ -5,6 +5,11 @@ import 'package:roommate/features/category/dining_habit_screen.dart';
 import 'package:roommate/features/category/disease_screen.dart';
 import 'package:roommate/features/category/etc_screen.dart';
 import 'package:roommate/features/category/introduction_screen.dart';
+import 'package:roommate/features/post/room_owner_post.dart';
+import 'package:roommate/features/post/searcher_post.dart';
+import 'package:roommate/features/view/room_owner_post_view.dart';
+import 'package:roommate/features/view/searcher_post_view.dart';
+import 'package:roommate/features/view/user_profile_view.dart';
 
 void main() {
   runApp(const MyApp());
@@ -32,7 +37,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: DailyRythmScreen(),
+      home: UserProfileView(),
     );
   }
 }
