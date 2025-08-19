@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/category/cleaning_screen.dart';
 import 'package:roommate/features/category/etc_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
@@ -44,7 +45,7 @@ class _SoundScreenState extends State<SoundScreen> {
         context,
       ).push(
         MaterialPageRoute(
-          builder: (context) => EtcScreen(),
+          builder: (context) => CleaningScreen(),
         ),
       );
     }
