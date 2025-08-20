@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/daily_rythm_screen.dart';
-import 'package:roommate/features/category/dining_habit_screen.dart';
-import 'package:roommate/features/category/disease_screen.dart';
-import 'package:roommate/features/category/etc_screen.dart';
-import 'package:roommate/features/category/introduction_screen.dart';
+import 'package:roommate/features/navigationbar/main_navigation.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await FlutterNaverMap().init(
+    clientId: '7j2w13vo27',
+    onAuthFailed: (e) => debugPrint('NaverMap auth fail: $e'),
+  );
+
+  runApp(const RoomMate());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class RoomMate extends StatelessWidget {
+  const RoomMate({super.key});
 
   // This widget is the root of your application.
   @override
@@ -32,7 +35,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: DailyRythmScreen(),
+      home: MainNavigation(),
     );
   }
 }
