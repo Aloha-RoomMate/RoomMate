@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/navigationbar/main_navigation.dart';
+
+import 'package:roommate/features/view/user_profile_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +36,8 @@ class RoomMate extends StatelessWidget {
           ),
         ),
       ),
-      home: MainNavigation(),
+
+      home: UserProfileView(),
     );
   }
 }

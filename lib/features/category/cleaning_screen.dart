@@ -1,25 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/cleaning_screen.dart';
+import 'package:roommate/features/category/disease_screen.dart';
 import 'package:roommate/features/category/etc_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/selection_chip.dart';
 import 'package:roommate/features/category/work_pattern_screen.dart';
 
-class SoundScreen extends StatefulWidget {
-  const SoundScreen({super.key});
+class CleaningScreen extends StatefulWidget {
+  const CleaningScreen({super.key});
 
   @override
-  State<SoundScreen> createState() => _SoundScreenState();
+  State<CleaningScreen> createState() => _CleaningScreenState();
 }
 
-class _SoundScreenState extends State<SoundScreen> {
+class _CleaningScreenState extends State<CleaningScreen> {
   List<List<bool>> _chipOptionSelected = [
     List.filled(3, false),
-    List.filled(5, false),
-    List.filled(5, false),
+    List.filled(3, false),
     List.filled(3, false),
   ];
 
@@ -45,7 +44,7 @@ class _SoundScreenState extends State<SoundScreen> {
         context,
       ).push(
         MaterialPageRoute(
-          builder: (context) => CleaningScreen(),
+          builder: (context) => EtcScreen(),
         ),
       );
     }
@@ -56,7 +55,7 @@ class _SoundScreenState extends State<SoundScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '소리 민감도를 선택해주세요!',
+          '청소 습관을 알려주세요!',
           style: TextStyle(
             fontSize: Sizes.size20 + Sizes.size2,
           ),
@@ -75,54 +74,40 @@ class _SoundScreenState extends State<SoundScreen> {
             children: [
               SelectionChip(
                 textOptions: [
-                  '둔감해요',
-                  '보통이예요',
-                  '예민한 편이예요',
+                  '잘 하지 않아요',
+                  '더러워지면 해요',
+                  '주 1-2회 정리해요',
+                  '매일/자주 정리해요',
                 ],
                 onChipTap: _onChipTap,
                 checkList: _chipOptionSelected,
                 indexOfQuestion: 0,
-                question: '잠귀 민감도를 선택해주세요!',
+                question: '방 청소 빈도를 선택해주세요!',
               ),
               Gaps.v12,
               SelectionChip(
                 textOptions: [
-                  '잠버릇이 없어요',
-                  '자주 코를 골아요',
-                  '피곤하면 코를 골아요',
-                  '자주 이를 갈아요',
-                  '피곤하면 이를 갈아요',
+                  '주 1회 교대 청소해요',
+                  '더러워지면 청소해요',
+                  '사용 후 바로 청소해요',
                 ],
                 onChipTap: _onChipTap,
                 checkList: _chipOptionSelected,
                 indexOfQuestion: 1,
-                question: '잠버릇을 선택해주세요!',
+                question: '화장실 청소 선호도를 알려주세요!',
               ),
               Gaps.v12,
               SelectionChip(
                 textOptions: [
-                  '항상 소리',
-                  '항상 진동',
-                  '항상 무음',
-                  '잘 때 진동',
-                  '잘 때 무음',
+                  '항상 제자리에 둬요',
+                  '일정 기준 아래로는 깔끔하게 유지해요',
+                  '필요할 때만 해요',
+                  '어지럽혀도 상관없어요',
                 ],
                 onChipTap: _onChipTap,
                 checkList: _chipOptionSelected,
                 indexOfQuestion: 2,
-                question: '선호하는 소리/진동/무음 모드를 알려주세요!',
-              ),
-              Gaps.v12,
-              SelectionChip(
-                textOptions: [
-                  '항상',
-                  '밤에만',
-                  '신경 안 써요',
-                ],
-                onChipTap: _onChipTap,
-                checkList: _chipOptionSelected,
-                indexOfQuestion: 3,
-                question: '선호하는 이어폰 사용 형태를 선택해주세요!',
+                question: '정리정돈 성향을 알려주세요!',
               ),
               Gaps.v12,
               GestureDetector(
