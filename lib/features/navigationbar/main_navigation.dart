@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/navigationbar/screens/chat_screen.dart';
 import 'package:roommate/features/navigationbar/screens/home_screen.dart';
 import 'package:roommate/features/navigationbar/screens/map_screen.dart';
@@ -13,6 +14,13 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
+  final List<String> _appBarTitles = [
+    '홈',
+    '채팅',
+    '지도',
+    '마이페이지',
+  ];
+
   int _selectedIndex = 0;
 
   void _onNavTab(int index) {
@@ -23,6 +31,10 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: Sizes.size40,
+        title: Text(_appBarTitles[_selectedIndex]),
+      ),
       body: IndexedStack(
         index: _selectedIndex,
         children: [
