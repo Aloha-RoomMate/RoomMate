@@ -9,14 +9,12 @@ class TimeField extends StatelessWidget {
     required this.question,
     required this.onTimeFieldTap,
     required this.controller,
-    required this.indexOfQuestion,
     required this.isJobLess,
   });
 
   final String question;
   final Function onTimeFieldTap;
   final TextEditingController controller;
-  final int indexOfQuestion;
   bool isJobLess;
 
   @override
@@ -36,7 +34,7 @@ class TimeField extends StatelessWidget {
           ignoring: isJobLess,
           child: TextField(
             readOnly: true,
-            onTap: () => onTimeFieldTap(controller, indexOfQuestion),
+            onTap: () => onTimeFieldTap,
             controller: controller,
             decoration: InputDecoration(
               enabledBorder: UnderlineInputBorder(
