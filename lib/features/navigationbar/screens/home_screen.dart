@@ -9,29 +9,50 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('홈'),
-          bottom: TabBar(
-            labelColor: Colors.white,
+      child: Column(
+        // TabBar와 TabBarView를 하나의 위젯으로 묶어주는 Column
+        children: [
+          // 상단에 TabBar 배치
+          TabBar(
+            labelColor: Theme.of(context).primaryColor,
             unselectedLabelColor: Colors.black87,
             indicatorSize: TabBarIndicatorSize.tab,
-            indicator: BoxDecoration(
+            indicator: UnderlineTabIndicator(
               borderRadius: BorderRadius.circular(8),
-              color: Theme.of(context).primaryColor,
+              borderSide: BorderSide(
+                color: Theme.of(context).primaryColor,
+                width: 2.0,
+              ),
             ),
-            tabs: const [
+            tabs: [
               Tab(text: "Room-Owner"),
               Tab(text: "Searcher"),
             ],
           ),
-        ),
-        body: TabBarView(
-          children: [
-            PostContainer(),
-            PostContainer(),
-          ],
-        ),
+          // 나머지 공간에 TabBarView를 채우기 위해 Expanded 사용
+          Expanded(
+            child: TabBarView(
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: Sizes.size8,
+                  ),
+                  child: Column(
+                    children: [PostContainer(), PostContainer()],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: Sizes.size8,
+                  ),
+                  child: Column(
+                    children: [PostContainer(), PostContainer()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
