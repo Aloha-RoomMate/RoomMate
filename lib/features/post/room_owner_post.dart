@@ -225,19 +225,35 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                 ),
                 Gaps.v24,
                 Text(
-                  '전용 면적',
+                  '전용 면적 / 화장실 개수',
                   style: TextStyle(
                     fontSize: Sizes.size16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Gaps.v6,
-                TextField(
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    hintText: '(평)',
-                    border: OutlineInputBorder(),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: '(평)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    Gaps.h12,
+                    Expanded(
+                      child: TextField(
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: '화장실 개수',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 Gaps.v24,
                 SelectionChip(
