@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'dart:ui';
 
 class MypageScreen extends StatelessWidget {
   const MypageScreen({super.key});
