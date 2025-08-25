@@ -23,8 +23,8 @@ android {
         applicationId = "com.example.roommate"
 
         // ★ 여기 3줄 중요
-        minSdk = 23          // ← 21에서 23으로 올림
-        targetSdk = 36       // ← 숫자로 명시
+        minSdk = flutter.minSdkVersion       
+        targetSdk = flutter.targetSdkVersion
         // versionCode / versionName은 flutter 변수를 그대로 써도 됨
         versionCode = flutter.versionCode
         versionName = flutter.versionName
