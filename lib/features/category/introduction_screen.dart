@@ -3,6 +3,7 @@ import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
+import 'package:roommate/features/navigationbar/main_navigation.dart';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -33,7 +34,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         context,
       ).push(
         MaterialPageRoute(
-          builder: (context) => DailyRythmScreen(),
+          builder: (context) => MainNavigation(),
         ),
       );
     }
