@@ -38,7 +38,9 @@ dependencies:
 
   
   flutter_naver_map: ^1.4.1+1
-
+  image_picker: ^1.1.1
+  proj4dart: ^2.1.0
+  firebase_core: ^4.0.0  
 
 dev_dependencies:
   flutter_test:
