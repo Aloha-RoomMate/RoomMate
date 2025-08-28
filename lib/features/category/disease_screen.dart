@@ -13,7 +13,7 @@ class DiseaseScreen extends StatefulWidget {
 }
 
 class _DiseaseScreenState extends State<DiseaseScreen> {
-  TextEditingController _textEditingController = TextEditingController();
+  final TextEditingController _textEditingController = TextEditingController();
   bool _isHealthy = false;
   String _diseases = "";
 
