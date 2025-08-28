@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/category/cleaning_screen.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
+import 'package:roommate/features/category/dining_habit_screen.dart';
+import 'package:roommate/features/category/etc_screen.dart';
+import 'package:roommate/features/category/sound_screen.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
-import 'package:roommate/features/post/room_owner_post.dart';
-import 'package:roommate/features/post/searcher_post.dart';
-import 'package:roommate/features/view/room_owner_post_view.dart';
-import 'package:roommate/features/view/user_profile_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,8 +40,7 @@ class RoomMate extends StatelessWidget {
           ),
         ),
       ),
-
-      home: DailyRythmScreen(),
+      home: MainNavigation(),
     );
   }
 }

@@ -1,9 +1,7 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
-import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 
 class IntroductionScreen extends StatefulWidget {

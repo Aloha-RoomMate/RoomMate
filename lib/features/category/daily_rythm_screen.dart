@@ -155,32 +155,24 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
     );
   }
 
-  bool _isTimeFilled(TextEditingController controller) =>
-      controller.text.trim().isEmpty;
+  bool _isTimeSelected(TextEditingController controller) =>
+      controller.text.trim().isNotEmpty;
 
   bool _timesCheck() {
     if (_isJobLess) {
-      if (_isTimeFilled(_weekendAwakeCtrl) &&
-          _isTimeFilled(_weekendAwakeCtrl)) {
-        return true;
-      }
+      return (_isTimeSelected(_weekendAwakeCtrl) &&
+          _isTimeSelected(_weekendSleepCtrl));
     } else {
-      return false;
+      return (_isTimeSelected(_weekAwakeCtrl) &&
+          _isTimeSelected(_weekGoWorkCtrl) &&
+          _isTimeSelected(_weekComeBackHomeCtrl) &&
+          _isTimeSelected(_weekSleepCtrl) &&
+          _isTimeSelected(_weekendAwakeCtrl) &&
+          _isTimeSelected(_weekendSleepCtrl));
     }
-
-    if (_isTimeFilled(_weekAwakeCtrl) &&
-        _isTimeFilled(_weekGoWorkCtrl) &&
-        _isTimeFilled(_weekComeBackHomeCtrl) &&
-        _isTimeFilled(_weekSleepCtrl) &&
-        _isTimeFilled(_weekendAwakeCtrl) &&
-        _isTimeFilled(_weekendSleepCtrl))
-      return true;
-
-    return false;
   }
 
   bool _isNextEnable() {
-    print(_weekendAwakeCtrl);
     final daysCheck = _selectedDays.isNotEmpty;
     final alarmsCheck = _selectedAlarms.isNotEmpty;
 
@@ -198,17 +190,6 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
       final h = int.tryParse(p[0]), m = int.tryParse(p[1]);
       if (h == null || m == null) return null;
       return h * 60 + m;
-    }
-
-    void _onNextTap() {
-      if (!_isNextEnable()) return;
-      final payload = _buildPayload();
-      // TODO: Firestore 저장 예) FirebaseFirestore.instance.collection('dailyRythm').add(payload);
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const WorkPatternScreen(),
-        ),
-      );
     }
 
     return {

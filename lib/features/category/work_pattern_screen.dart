@@ -1,12 +1,38 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/dining_habit_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
-import 'package:roommate/features/category/widgets/selection_chip.dart';
-import 'package:roommate/features/category/work_pattern_screen.dart';
+
+/// 늦는 횟수
+class LateOption {
+  final String label;
+  const LateOption(this.label);
+}
+
+const keyLate = [
+  LateOption('0회'),
+  LateOption('1-2회'),
+  LateOption('2-3회'),
+  LateOption('3-4회'),
+  LateOption('4-5회'),
+  LateOption('5회 이상'),
+];
+
+class DrinkOption {
+  final String label;
+  const DrinkOption(this.label);
+}
+
+const keyDrink = [
+  DrinkOption('0회'),
+  DrinkOption('1-2회'),
+  DrinkOption('2-3회'),
+  DrinkOption('3-4회'),
+  DrinkOption('4-5회'),
+  DrinkOption('5회 이상'),
+];
 
 class WorkPatternScreen extends StatefulWidget {
   const WorkPatternScreen({super.key});
@@ -16,31 +42,33 @@ class WorkPatternScreen extends StatefulWidget {
 }
 
 class _WorkPatternScreenState extends State<WorkPatternScreen> {
-  List<List<bool>> _chipOptionSelected = [
-    List.filled(6, false),
-    List.filled(6, false),
-  ];
-  List<bool> timeSelected = [false, false];
-  // _있으면 안됨.
+  final Set<String> _selectedLates = {};
+  final Set<String> _selectedDrinks = {};
 
-  void _onChipTap(int groupIndex, int buttonIndex) {
-    setState(() {
-      _chipOptionSelected[groupIndex][buttonIndex] =
-          !_chipOptionSelected[groupIndex][buttonIndex];
-    });
+  void _onLateOptionTap(String option) {
+    if (_selectedLates.contains(option)) {
+      _selectedLates.remove(option);
+    } else {
+      _selectedLates.add(option);
+    }
+    setState(() {});
   }
 
-  bool _checkNextButtonAvailable() {
-    for (final groupState in _chipOptionSelected) {
-      if (!groupState.contains(true)) {
-        return false;
-      }
+  void _onDrinkTap(String option) {
+    if (_selectedDrinks.contains(option)) {
+      _selectedDrinks.remove(option);
+    } else {
+      _selectedDrinks.add(option);
     }
-    return true;
+    setState(() {});
+  }
+
+  bool _isNextEnable() {
+    return (_selectedLates.isNotEmpty && _selectedDrinks.isNotEmpty);
   }
 
   void _onNextTap() {
-    if (_checkNextButtonAvailable()) {
+    if (_isNextEnable()) {
       Navigator.of(
         context,
       ).push(
@@ -73,26 +101,53 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SelectionChip(
-                textOptions: ['0회', '1-2회', '2-3회', '3-4회', '4-5회', '5회 이상'],
-                onChipTap: _onChipTap,
-                checkList: _chipOptionSelected,
-                indexOfQuestion: 0,
-                question: '주 야근/밤 공부 횟수를 알려주세요!',
+              Text(
+                '늦은 귀가에 빈도에 대해 알려주세요!',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final late in keyLate)
+                    CategoryButton(
+                      text: late.label,
+                      myonTap: () => _onLateOptionTap(late.label),
+                      isSelected: _selectedLates.contains(late.label),
+                    ),
+                ],
               ),
               Gaps.v12,
-              SelectionChip(
-                textOptions: ['0회', '1-2회', '2-3회', '3-4회', '4-5회', '5회 이상'],
-                onChipTap: _onChipTap,
-                checkList: _chipOptionSelected,
-                indexOfQuestion: 1,
-                question: '주 외출/음주 횟수를 알려주세요!',
+              Text(
+                '주 음주 횟수를 알려주세요',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final drink in keyDrink)
+                    CategoryButton(
+                      text: drink.label,
+                      myonTap: () => _onDrinkTap(drink.label),
+                      isSelected: _selectedDrinks.contains(drink.label),
+                    ),
+                ],
+              ),
+
               Gaps.v12,
               GestureDetector(
                 onTap: _onNextTap,
                 child: FormButton(
-                  enabled: _checkNextButtonAvailable(),
+                  enabled: _isNextEnable(),
                   text: "다음",
                 ),
               ),

@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/disease_screen.dart';
 import 'package:roommate/features/category/introduction_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
-import 'package:roommate/features/category/work_pattern_screen.dart';
 
 class DiseaseScreen extends StatefulWidget {
   const DiseaseScreen({super.key});
@@ -15,8 +13,8 @@ class DiseaseScreen extends StatefulWidget {
 }
 
 class _DiseaseScreenState extends State<DiseaseScreen> {
-  bool _isHealthy = false;
   TextEditingController _textEditingController = TextEditingController();
+  bool _isHealthy = false;
   String _diseases = "";
 
   @override
@@ -30,15 +28,16 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
     });
   }
 
-  void _onChipTap() {
-    setState(() {
-      _isHealthy = !_isHealthy;
-    });
+  void _onScaffoldTap() {
+    FocusScope.of(context).unfocus();
   }
 
-  void _onScaffoldTap() {
-    // 화면 누르면 키보드 내려가게 하기
-    FocusScope.of(context).unfocus();
+  void _onHealthyChipTap() {
+    _isHealthy = !_isHealthy;
+    if (_isHealthy) {
+      _textEditingController.clear();
+    }
+    setState(() {});
   }
 
   void _onNextTap() {
@@ -85,7 +84,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
                 Gaps.v6,
                 CategoryButton(
                   text: '없음',
-                  myonTap: _onChipTap,
+                  myonTap: _onHealthyChipTap,
                   isSelected: _isHealthy,
                 ),
                 Gaps.v12,
@@ -110,7 +109,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
                   onTap: _onNextTap,
                   child: FormButton(
                     enabled: _isHealthy == true || _diseases.isNotEmpty,
-                    text: '완료',
+                    text: '다음',
                   ),
                 ),
               ],

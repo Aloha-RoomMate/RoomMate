@@ -1,12 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/disease_screen.dart';
 import 'package:roommate/features/category/etc_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
-import 'package:roommate/features/category/widgets/selection_chip.dart';
-import 'package:roommate/features/category/work_pattern_screen.dart';
+
+class RoomCleanOption {
+  final String label;
+  const RoomCleanOption(this.label);
+}
+
+const keyRoomClean = [
+  RoomCleanOption('잘 하지 않아요'),
+  RoomCleanOption('더러워지면 해요'),
+  RoomCleanOption('주 1-2회 정리해요'),
+];
+
+class BathroomCleanOption {
+  final String label;
+  const BathroomCleanOption(this.label);
+}
+
+const keyBathroomClean = [
+  BathroomCleanOption('주 1회 교대로 청소해요'),
+  BathroomCleanOption('더러워지면 청소해요'),
+  BathroomCleanOption('사용 후 그때그때 청소해요'),
+];
+
+class CleaningHabit {
+  final String label;
+  const CleaningHabit(this.label);
+}
+
+const keyCleaningHabit = [
+  CleaningHabit('항상 제자리에 둬요'),
+  CleaningHabit('일정 기준에 맞게 깔끔하게 유지해요'),
+  CleaningHabit('필요할 때만 해요'),
+];
 
 class CleaningScreen extends StatefulWidget {
   const CleaningScreen({super.key});
@@ -16,30 +46,45 @@ class CleaningScreen extends StatefulWidget {
 }
 
 class _CleaningScreenState extends State<CleaningScreen> {
-  List<List<bool>> _chipOptionSelected = [
-    List.filled(3, false),
-    List.filled(3, false),
-    List.filled(3, false),
-  ];
+  final Set<String> _selectedRoomClean = {};
+  final Set<String> _selectedBathroomCleanOption = {};
+  final Set<String> _selectedCleaningHabit = {};
 
-  void _onChipTap(int groupIndex, int buttonIndex) {
-    setState(() {
-      _chipOptionSelected[groupIndex][buttonIndex] =
-          !_chipOptionSelected[groupIndex][buttonIndex];
-    });
+  void _onSleepSoundChipTap(String option) {
+    if (_selectedRoomClean.contains(option)) {
+      _selectedRoomClean.remove(option);
+    } else {
+      _selectedRoomClean.add(option);
+    }
+    setState(() {});
   }
 
-  bool _checkNextButtonAvailable() {
-    for (final groupState in _chipOptionSelected) {
-      if (!groupState.contains(true)) {
-        return false;
-      }
+  void _onBathroomCleanOptionChipTap(String option) {
+    if (_selectedBathroomCleanOption.contains(option)) {
+      _selectedBathroomCleanOption.remove(option);
+    } else {
+      _selectedBathroomCleanOption.add(option);
     }
-    return true;
+    setState(() {});
+  }
+
+  void _onCleaningHabitChipTap(String option) {
+    if (_selectedCleaningHabit.contains(option)) {
+      _selectedCleaningHabit.remove(option);
+    } else {
+      _selectedCleaningHabit.add(option);
+    }
+    setState(() {});
+  }
+
+  bool _isNextEnable() {
+    return _selectedRoomClean.isNotEmpty &&
+        _selectedBathroomCleanOption.isNotEmpty &&
+        _selectedCleaningHabit.isNotEmpty;
   }
 
   void _onNextTap() {
-    if (_checkNextButtonAvailable()) {
+    if (_isNextEnable()) {
       Navigator.of(
         context,
       ).push(
@@ -55,9 +100,9 @@ class _CleaningScreenState extends State<CleaningScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '청소 습관을 알려주세요!',
+          '청소 습관을 선택해주세요!',
           style: TextStyle(
-            fontSize: Sizes.size20 + Sizes.size2,
+            fontSize: Sizes.size24,
           ),
         ),
         centerTitle: true,
@@ -72,48 +117,76 @@ class _CleaningScreenState extends State<CleaningScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SelectionChip(
-                textOptions: [
-                  '잘 하지 않아요',
-                  '더러워지면 해요',
-                  '주 1-2회 정리해요',
-                  '매일/자주 정리해요',
+              Text(
+                '방 청소 성향을 알려주세요',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final room in keyRoomClean)
+                    CategoryButton(
+                      text: room.label,
+                      myonTap: () => _onSleepSoundChipTap(room.label),
+                      isSelected: _selectedRoomClean.contains(room.label),
+                    ),
                 ],
-                onChipTap: _onChipTap,
-                checkList: _chipOptionSelected,
-                indexOfQuestion: 0,
-                question: '방 청소 빈도를 선택해주세요!',
               ),
               Gaps.v12,
-              SelectionChip(
-                textOptions: [
-                  '주 1회 교대 청소해요',
-                  '더러워지면 청소해요',
-                  '사용 후 바로 청소해요',
+              Text(
+                '선호하는 화장실 청소 형태를 알려주세요',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final bathroom in keyBathroomClean)
+                    CategoryButton(
+                      text: bathroom.label,
+                      myonTap: () =>
+                          _onBathroomCleanOptionChipTap(bathroom.label),
+                      isSelected: _selectedBathroomCleanOption.contains(
+                        bathroom.label,
+                      ),
+                    ),
                 ],
-                onChipTap: _onChipTap,
-                checkList: _chipOptionSelected,
-                indexOfQuestion: 1,
-                question: '화장실 청소 선호도를 알려주세요!',
               ),
               Gaps.v12,
-              SelectionChip(
-                textOptions: [
-                  '항상 제자리에 둬요',
-                  '일정 기준 아래로는 깔끔하게 유지해요',
-                  '필요할 때만 해요',
-                  '어지럽혀도 상관없어요',
+              Text(
+                '정리정돈 성향을 알려주세요',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final habit in keyCleaningHabit)
+                    CategoryButton(
+                      text: habit.label,
+                      myonTap: () => _onCleaningHabitChipTap(habit.label),
+                      isSelected: _selectedCleaningHabit.contains(habit.label),
+                    ),
                 ],
-                onChipTap: _onChipTap,
-                checkList: _chipOptionSelected,
-                indexOfQuestion: 2,
-                question: '정리정돈 성향을 알려주세요!',
               ),
               Gaps.v12,
               GestureDetector(
                 onTap: _onNextTap,
                 child: FormButton(
-                  enabled: _checkNextButtonAvailable(),
+                  enabled: _isNextEnable(),
                   text: "다음",
                 ),
               ),

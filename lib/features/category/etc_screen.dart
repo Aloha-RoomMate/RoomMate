@@ -4,8 +4,46 @@ import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/disease_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
-import 'package:roommate/features/category/widgets/selection_chip.dart';
-import 'package:roommate/features/category/work_pattern_screen.dart';
+
+class SmokeOption {
+  final String label;
+  const SmokeOption(this.label);
+}
+
+const keySmoke = [
+  SmokeOption('비흡연'),
+  SmokeOption('궐련형'),
+  SmokeOption('액상 전자담배'),
+  SmokeOption('연초'),
+];
+
+class InsideSmokeOption {
+  final String label;
+  const InsideSmokeOption(this.label);
+}
+
+const keyInsideSmoke = [
+  InsideSmokeOption('절대 안 돼요'),
+  InsideSmokeOption('전자담배 가능'),
+  InsideSmokeOption('궐련형 가능'),
+  InsideSmokeOption('상관 없어요'),
+];
+
+class Pet {
+  final String label;
+  const Pet(this.label);
+}
+
+const keyPet = [
+  Pet('없음'),
+  Pet('강아지'),
+  Pet('고양이'),
+  Pet('물고기'),
+  Pet('양서류'),
+  Pet('파충류'),
+  Pet('무척추동물(기타)'),
+  Pet('조류'),
+];
 
 class EtcScreen extends StatefulWidget {
   const EtcScreen({super.key});
@@ -15,30 +53,45 @@ class EtcScreen extends StatefulWidget {
 }
 
 class _EtcScreenState extends State<EtcScreen> {
-  List<List<bool>> _chipOptionSelected = [
-    List.filled(4, false),
-    List.filled(4, false),
-    List.filled(8, false),
-  ];
+  final Set<String> _selectedSmoke = {};
+  final Set<String> _selectedInsideSmoke = {};
+  final Set<String> _selectedPet = {};
 
-  void _onChipTap(int groupIndex, int buttonIndex) {
-    setState(() {
-      _chipOptionSelected[groupIndex][buttonIndex] =
-          !_chipOptionSelected[groupIndex][buttonIndex];
-    });
+  void _onSmokeChipTap(String option) {
+    if (_selectedSmoke.contains(option)) {
+      _selectedSmoke.remove(option);
+    } else {
+      _selectedSmoke.add(option);
+    }
+    setState(() {});
   }
 
-  bool _checkNextButtonAvailable() {
-    for (final groupState in _chipOptionSelected) {
-      if (!groupState.contains(true)) {
-        return false;
-      }
+  void _onInsideSmokeChipTap(String option) {
+    if (_selectedInsideSmoke.contains(option)) {
+      _selectedInsideSmoke.remove(option);
+    } else {
+      _selectedInsideSmoke.add(option);
     }
-    return true;
+    setState(() {});
+  }
+
+  void _onPetChipTap(String option) {
+    if (_selectedPet.contains(option)) {
+      _selectedPet.remove(option);
+    } else {
+      _selectedPet.add(option);
+    }
+    setState(() {});
+  }
+
+  bool _isNextEnable() {
+    return _selectedSmoke.isNotEmpty &&
+        _selectedInsideSmoke.isNotEmpty &&
+        _selectedPet.isNotEmpty;
   }
 
   void _onNextTap() {
-    if (_checkNextButtonAvailable()) {
+    if (_isNextEnable()) {
       Navigator.of(
         context,
       ).push(
@@ -54,9 +107,9 @@ class _EtcScreenState extends State<EtcScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '기타 생활 습관을 알려주세요!',
+          '기타 생활 습관을 선택해주세요!',
           style: TextStyle(
-            fontSize: Sizes.size20 + Sizes.size2,
+            fontSize: Sizes.size24,
           ),
         ),
         centerTitle: true,
@@ -71,53 +124,75 @@ class _EtcScreenState extends State<EtcScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SelectionChip(
-                textOptions: [
-                  '연초',
-                  '궐련형',
-                  '액상 전자담배',
-                  '비흡연',
+              Text(
+                '흡연 여부를 알려주세요',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final smoke in keySmoke)
+                    CategoryButton(
+                      text: smoke.label,
+                      myonTap: () => _onSmokeChipTap(smoke.label),
+                      isSelected: _selectedSmoke.contains(smoke.label),
+                    ),
                 ],
-                onChipTap: _onChipTap,
-                checkList: _chipOptionSelected,
-                indexOfQuestion: 0,
-                question: '흡연 여부를 선택해주세요!',
               ),
               Gaps.v12,
-              SelectionChip(
-                textOptions: [
-                  '상관 없어요',
-                  '전자담배 가능',
-                  '궐련형 가능',
-                  '절대 안 돼요',
+              Text(
+                '실내 흡연 허용 정도를 알려주세요',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final smoke in keyInsideSmoke)
+                    CategoryButton(
+                      text: smoke.label,
+                      myonTap: () => _onInsideSmokeChipTap(smoke.label),
+                      isSelected: _selectedInsideSmoke.contains(
+                        smoke.label,
+                      ),
+                    ),
                 ],
-                onChipTap: _onChipTap,
-                checkList: _chipOptionSelected,
-                indexOfQuestion: 1,
-                question: '실내 흡연 허용 정도를 알려주세요!',
               ),
               Gaps.v12,
-              SelectionChip(
-                textOptions: [
-                  '없음',
-                  '강아지',
-                  '고양이',
-                  '물고기',
-                  '양서류',
-                  '파충류',
-                  '무척추동물(곤충)',
-                  '조류',
+              Text(
+                '키우는 반려동물을 알려주세요',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final pet in keyPet)
+                    CategoryButton(
+                      text: pet.label,
+                      myonTap: () => _onPetChipTap(pet.label),
+                      isSelected: _selectedPet.contains(pet.label),
+                    ),
                 ],
-                onChipTap: _onChipTap,
-                checkList: _chipOptionSelected,
-                indexOfQuestion: 2,
-                question: '키우는 반려동물을 적어주세요!',
               ),
               Gaps.v12,
               GestureDetector(
                 onTap: _onNextTap,
                 child: FormButton(
-                  enabled: _checkNextButtonAvailable(),
+                  enabled: _isNextEnable(),
                   text: "다음",
                 ),
               ),

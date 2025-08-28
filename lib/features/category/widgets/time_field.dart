@@ -34,7 +34,7 @@ class TimeField extends StatelessWidget {
           ignoring: isJobLess,
           child: TextField(
             readOnly: true,
-            onTap: () => onTimeFieldTap,
+            onTap: () => onTimeFieldTap(),
             controller: controller,
             decoration: InputDecoration(
               enabledBorder: UnderlineInputBorder(
