@@ -35,10 +35,8 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   font_awesome_flutter: 10.3.0
-
-  
-  flutter_naver_map: ^1.4.1+1
   image_picker: ^1.1.1
+  flutter_naver_map: ^1.4.1+1
   proj4dart: ^2.1.0
   firebase_core: ^4.0.0  
 
