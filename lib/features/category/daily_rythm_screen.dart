@@ -6,6 +6,7 @@ import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/time_field.dart';
 import 'package:roommate/features/category/work_pattern_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// 요일
 class DayOption {
@@ -106,15 +107,25 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
     setState(() {});
   }
 
-  void _onNextTap() {
+  void _onNextTap() async {
     if (_isNextEnable()) {
-      Navigator.of(
-        context,
-      ).push(
-        MaterialPageRoute(
-          builder: (context) => WorkPatternScreen(),
-        ),
-      );
+      try {
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance.collection('dailyRythm').add(payload);
+        print('데이터 저장 성공');
+
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => WorkPatternScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('데이터 저장 중 에러 발생');
+      }
     }
   }
 
