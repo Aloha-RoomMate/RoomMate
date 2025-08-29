@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/cleaning_screen.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
-import 'package:roommate/features/category/dining_habit_screen.dart';
-import 'package:roommate/features/category/etc_screen.dart';
-import 'package:roommate/features/category/sound_screen.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp();
+
+  if (kDebugMode) {
+    try {
+      final host = Platform.isAndroid ? '10.0.2.2' : 'localhost';
+      FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
+    } catch (e) {
+      debugPrint('에뮬레이터 연결 실패. $e');
+    }
+  }
+
   await FlutterNaverMap().init(
     clientId: '7j2w13vo27',
     onAuthFailed: (e) => debugPrint('NaverMap auth fail: $e'),
@@ -28,7 +40,7 @@ class RoomMate extends StatelessWidget {
       title: 'RoomMate',
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
-        primaryColor: Color.fromARGB(255, 103, 104, 171),
+        primaryColor: Colors.green.shade500,
         appBarTheme: AppBarTheme(
           foregroundColor: Colors.black,
           backgroundColor: Colors.white,
@@ -40,7 +52,7 @@ class RoomMate extends StatelessWidget {
           ),
         ),
       ),
-      home: MainNavigation(),
+      home: DailyRythmScreen(),
     );
   }
 }
