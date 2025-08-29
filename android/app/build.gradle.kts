@@ -1,5 +1,8 @@
 plugins {
     id("com.android.application")
+    // START: FlutterFire Configuration
+    id("com.google.gms.google-services")
+    // END: FlutterFire Configuration
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -39,4 +42,19 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Firebase BoM(Bill of Materials) - 여러 Firebase 라이브러리 버전을 한번에 관리합니다.
+    // 최신 버전은 Firebase 공식 문서에서 확인하는 것이 좋습니다.
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+
+    // BoM을 사용하므로 아래 라이브러리들은 버전을 명시할 필요가 없습니다.
+    // Firestore 사용을 위한 의존성
+    implementation("com.google.firebase:firebase-firestore")
+
+    // Google Analytics 사용을 위한 의존성 (추천)
+    implementation("com.google.firebase:firebase-analytics")
+
+    // 여기에 다른 필요한 라이브러리들을 추가할 수 있습니다.
 }
