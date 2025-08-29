@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
-import 'package:roommate/features/navigationbar/main_navigation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+/// 루트에서 firebase emulators:start
+/// 에뮬레이터 콜드 부트
+/// 디버깅
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
