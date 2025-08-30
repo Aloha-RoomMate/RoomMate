@@ -1,10 +1,8 @@
 plugins {
     id("com.android.application")
-    // START: FlutterFire Configuration
-    id("com.google.gms.google-services")
-    // END: FlutterFire Configuration
-    id("org.jetbrains.kotlin.android") // 권장. 기존 kotlin-android도 동작은 함
+    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -23,25 +21,33 @@ android {
 
     defaultConfig {
         applicationId = "com.example.roommate"
-
-        // ★ Kotlin DSL에서는 이렇게 씁니다
         minSdk = flutter.minSdkVersion
-        // 필요하면 Flutter 값 따라가도록:
-        // targetSdk = flutter.targetSdkVersion
-        targetSdk = 36
+        targetSdk = flutter.targetSdkVersion
+        // 타입 오류 나는 경우가 있어 안전하게 toInt 사용 권장
+        versionCode = flutter.versionCode.toInt()
+        versionName = flutter.versionName
+    }
 
-        // Flutter 플러그인 타입에 따라 다르므로 먼저 이렇게 시도:
-        versionCode = flutter.versionCode      // 안 되면 아래 주석라인로 교체
-        versionName = flutter.versionName      // 안 되면 아래 주석라인로 교체
-
-        // 타입 불일치 오류가 나올 때 대안:
-        // versionCode = flutter.versionCode.toInt()
-        // versionName = flutter.versionName
+    signingConfigs {
+        create("debugCustom") {
+            storeFile = file(System.getProperty("user.home") + "/.android/debug_custom.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debugCustom")
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            // 실제 배포 시에는 별도 릴리즈 키 사용 권장
+            signingConfig = signingConfigs.getByName("debugCustom")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
