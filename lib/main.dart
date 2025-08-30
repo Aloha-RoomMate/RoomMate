@@ -42,7 +42,7 @@ class RoomMate extends StatelessWidget {
       title: 'RoomMate',
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
-        primaryColor: Colors.green.shade500,
+        primaryColor: Colors.green.shade600,
         appBarTheme: AppBarTheme(
           foregroundColor: Colors.black,
           backgroundColor: Colors.white,
