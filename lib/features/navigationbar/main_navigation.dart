@@ -63,7 +63,7 @@ class _MainNavigationState extends State<MainNavigation> {
             label: '지도',
           ),
           BottomNavigationBarItem(
-            icon: FaIcon(FontAwesomeIcons.person),
+            icon: FaIcon(FontAwesomeIcons.user),
             label: '마이페이지',
           ),
         ],
