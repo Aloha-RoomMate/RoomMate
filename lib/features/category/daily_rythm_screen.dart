@@ -34,7 +34,7 @@ class AlarmOption {
 const keyAlarms = [
   AlarmOption('1회'),
   AlarmOption('2회'),
-  AlarmOption('3회'),
+  AlarmOption('3회 이상'),
 ];
 
 /// 시간 필드 식별자
