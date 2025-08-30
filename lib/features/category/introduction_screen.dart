@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
@@ -28,15 +29,33 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     });
   }
 
-  void _onNextTap() {
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'introduction': _introduction,
+    };
+  }
+
+  void _onNextTap() async {
     if (_introduction.length >= 50 && _introduction.length <= 300) {
-      Navigator.of(
-        context,
-      ).push(
-        MaterialPageRoute(
-          builder: (context) => MainNavigation(),
-        ),
-      );
+      try {
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance
+            .collection('introduction')
+            .add(payload);
+        print('data stored!');
+
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => MainNavigation(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('error occured!');
+      }
     }
   }
 

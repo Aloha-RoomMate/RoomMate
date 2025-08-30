@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
@@ -83,15 +84,35 @@ class _CleaningScreenState extends State<CleaningScreen> {
         _selectedCleaningHabit.isNotEmpty;
   }
 
-  void _onNextTap() {
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'roomClean': _selectedRoomClean.toList(),
+      'bathroomClean': _selectedBathroomCleanOption.toList(),
+      'cleaningLevel': _selectedCleaningHabit.toList(),
+    };
+  }
+
+  void _onNextTap() async {
     if (_isNextEnable()) {
-      Navigator.of(
-        context,
-      ).push(
-        MaterialPageRoute(
-          builder: (context) => EtcScreen(),
-        ),
-      );
+      try {
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance
+            .collection('cleaningHabit')
+            .add(payload);
+        print('data stored!');
+
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => EtcScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('error occured!');
+      }
     }
   }
 
