@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
@@ -40,15 +41,38 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
     setState(() {});
   }
 
-  void _onNextTap() {
-    if (_isHealthy || _diseases.isNotEmpty)
-      Navigator.of(
-        context,
-      ).push(
-        MaterialPageRoute(
-          builder: (context) => IntroductionScreen(),
-        ),
-      );
+  Map<String, dynamic> _buildPayload() {
+    if (_isHealthy) {
+      return {
+        'isHealthy': true,
+      };
+    } else {
+      return {
+        'diseases': _diseases,
+      };
+    }
+  }
+
+  void _onNextTap() async {
+    if (_isHealthy || _diseases.isNotEmpty) {
+      try {
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance.collection('disease').add(payload);
+        print('data stored!');
+
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => IntroductionScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('error occured!');
+      }
+    }
   }
 
   @override

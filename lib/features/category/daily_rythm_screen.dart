@@ -6,6 +6,7 @@ import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/time_field.dart';
 import 'package:roommate/features/category/work_pattern_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// 요일
 class DayOption {
@@ -33,7 +34,7 @@ class AlarmOption {
 const keyAlarms = [
   AlarmOption('1회'),
   AlarmOption('2회'),
-  AlarmOption('3회'),
+  AlarmOption('3회 이상'),
 ];
 
 /// 시간 필드 식별자
@@ -106,15 +107,25 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
     setState(() {});
   }
 
-  void _onNextTap() {
+  void _onNextTap() async {
     if (_isNextEnable()) {
-      Navigator.of(
-        context,
-      ).push(
-        MaterialPageRoute(
-          builder: (context) => WorkPatternScreen(),
-        ),
-      );
+      try {
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance.collection('dailyRythm').add(payload);
+        print('데이터 저장 성공');
+
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => WorkPatternScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('데이터 저장 중 에러 발생');
+      }
     }
   }
 
@@ -183,7 +194,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
 
   // Firestore 저장/전송용 페이로드 (한국어 값 그대로)
   Map<String, dynamic> _buildPayload() {
-    int? _toMinutes(String textTime) {
+    int? toMinutes(String textTime) {
       if (textTime.isEmpty) return null;
       final p = textTime.replaceAll(' ', '').split(':');
       if (p.length != 2) return null;
@@ -196,12 +207,12 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
       'days': _selectedDays.toList(), // 예: ['월','수'] 또는 ['없음']
       'alarms': _selectedAlarms.toList(), // 예: ['2회']
       'isJobLess': _isJobLess,
-      'weekAwakeMins': _toMinutes(_weekAwakeCtrl.text),
-      'weekGoWorkMins': _toMinutes(_weekGoWorkCtrl.text),
-      'weekBackHomeMins': _toMinutes(_weekComeBackHomeCtrl.text),
-      'weekSleepMins': _toMinutes(_weekSleepCtrl.text),
-      'weekendAwakeMins': _toMinutes(_weekendAwakeCtrl.text),
-      'weekendSleepMins': _toMinutes(_weekendSleepCtrl.text),
+      'weekAwakeMins': toMinutes(_weekAwakeCtrl.text),
+      'weekGoWorkMins': toMinutes(_weekGoWorkCtrl.text),
+      'weekBackHomeMins': toMinutes(_weekComeBackHomeCtrl.text),
+      'weekSleepMins': toMinutes(_weekSleepCtrl.text),
+      'weekendAwakeMins': toMinutes(_weekendAwakeCtrl.text),
+      'weekendSleepMins': toMinutes(_weekendSleepCtrl.text),
       'updatedAt': DateTime.now().toIso8601String(),
     };
   }

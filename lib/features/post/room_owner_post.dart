@@ -14,13 +14,13 @@ class RoomOwnerPost extends StatefulWidget {
 }
 
 class _RoomOwnerPostState extends State<RoomOwnerPost> {
-  List<List<bool>> _chipOptionSelected = [
+  final List<List<bool>> _chipOptionSelected = [
     List.filled(4, false),
     List.filled(4, false),
     List.filled(2, false),
     List.filled(2, false),
   ];
-  TextEditingController _controller = TextEditingController();
+  final TextEditingController _controller = TextEditingController();
 
   bool _checkNextButtonAvailable() {
     for (final groupState in _chipOptionSelected) {

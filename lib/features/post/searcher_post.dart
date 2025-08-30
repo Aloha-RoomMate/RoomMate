@@ -14,13 +14,13 @@ class SearcherPost extends StatefulWidget {
 }
 
 class _SearcherPostState extends State<SearcherPost> {
-  List<List<bool>> _chipOptionSelected = [
+  final List<List<bool>> _chipOptionSelected = [
     List.filled(1, false),
     List.filled(4, false),
     List.filled(4, false),
     List.filled(2, false),
   ];
-  TextEditingController _controller = TextEditingController();
+  final TextEditingController _controller = TextEditingController();
 
   bool _checkNextButtonAvailable() {
     for (final groupState in _chipOptionSelected) {

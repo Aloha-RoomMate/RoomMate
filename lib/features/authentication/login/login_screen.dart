@@ -3,33 +3,58 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/widgets/auth_button.dart';
-import 'package:roommate/features/authentication/login/login_email_screen.dart';
-import 'package:roommate/features/authentication/login/login_google_screen.dart';
-import 'package:roommate/features/authentication/login/login_kakaotalk_screen.dart';
+import 'package:roommate/features/category/daily_rythm_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
+  static const _webClientId =
+      '909707662887-ld8djjd1eqbdu7hcellh7689j3q1n9ik.apps.googleusercontent.com';
+
   void _onSignupTap(BuildContext context) {
-    Navigator.of(context).pop();
-  }
-
-  void _onloginEmailTap(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const LoginEmailScreen()));
-  }
-
-  void _onGoogleTap(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const LoginGoogleScreen()));
-  }
-
-  void _onKakaoTap(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const LoginKakaotalkScreen()),
+      MaterialPageRoute(builder: (_) => const DailyRythmScreen()),
     );
+  }
+
+  Future<void> _signInWithGoogle(BuildContext context) async {
+    try {
+      final google = GoogleSignIn(
+        scopes: const ['email'],
+        serverClientId: _webClientId,
+      );
+      final account = await google.signIn();
+      if (account == null) return;
+
+      final gauth = await account.authentication;
+      final idToken = gauth.idToken;
+      if (idToken == null) {
+        throw FirebaseAuthException(
+          code: 'missing-id-token',
+          message: 'No Google ID Token',
+        );
+      }
+
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (!context.mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const DailyRythmScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('로그인 실패: ${e.code}')));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('로그인 오류: $e')));
+    }
   }
 
   @override
@@ -42,7 +67,7 @@ class LoginScreen extends StatelessWidget {
           child: Column(
             children: [
               Gaps.v80,
-              Text(
+              const Text(
                 '로그인',
                 style: TextStyle(
                   fontSize: Sizes.size28,
@@ -50,7 +75,7 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
               Gaps.v20,
-              Text(
+              const Text(
                 '나의 룸메이트를 찾아보기',
                 style: TextStyle(
                   fontSize: 16,
@@ -69,29 +94,13 @@ class LoginScreen extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-
               Gaps.v48,
-              GestureDetector(
-                onTap: () => _onloginEmailTap(context),
-                child: AuthButton(
-                  icon: const FaIcon(FontAwesomeIcons.solidUser),
-                  text: 'Use email or password',
-                ),
-              ),
-              Gaps.v16,
-              GestureDetector(
-                onTap: () => _onGoogleTap(context),
+              InkWell(
+                onTap: () => _signInWithGoogle(context),
+                borderRadius: BorderRadius.circular(12),
                 child: const AuthButton(
                   icon: FaIcon(FontAwesomeIcons.google),
                   text: 'Continue with Google',
-                ),
-              ),
-              Gaps.v16,
-              GestureDetector(
-                onTap: () => _onKakaoTap(context),
-                child: const AuthButton(
-                  icon: FaIcon(FontAwesomeIcons.comment),
-                  text: 'Continue with KakaoTalk',
                 ),
               ),
             ],
@@ -106,7 +115,7 @@ class LoginScreen extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text("Dont have account?  "),
+              const Text("Dont have account?  "),
               GestureDetector(
                 onTap: () => _onSignupTap(context),
                 child: Text(

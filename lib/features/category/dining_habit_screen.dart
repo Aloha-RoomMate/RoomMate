@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
@@ -107,16 +108,37 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
         _selectedDishes.isNotEmpty;
   }
 
-  void _onNextTap() {
+  void _onNextTap() async {
     if (_isNextEnable()) {
-      Navigator.of(
-        context,
-      ).push(
-        MaterialPageRoute(
-          builder: (context) => SoundScreen(),
-        ),
-      );
+      try {
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance
+            .collection('diningPattern')
+            .add(payload);
+        print('data stored!');
+
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => SoundScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('error occured!');
+      }
     }
+  }
+
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'weeklyCooking': _selectedCook.toList(),
+      'smellSense': _selectedSmell.toList(),
+      'dishShare': _selectedDishes.toList(),
+      'delivery': _selectedDelivery.toList(),
+    };
   }
 
   @override
@@ -163,7 +185,7 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
               ),
               Gaps.v12,
               Text(
-                '냄새 빈도를 알려주세요!',
+                '냄새 민감도를 알려주세요!',
                 style: TextStyle(
                   fontSize: Sizes.size16,
                   fontWeight: FontWeight.w600,

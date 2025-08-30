@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
@@ -109,16 +110,37 @@ class _SoundScreenState extends State<SoundScreen> {
         _selectedSoundMode.isNotEmpty;
   }
 
-  void _onNextTap() {
+  void _onNextTap() async {
     if (_isNextEnable()) {
-      Navigator.of(
-        context,
-      ).push(
-        MaterialPageRoute(
-          builder: (context) => CleaningScreen(),
-        ),
-      );
+      try {
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance
+            .collection('soundSensitivity')
+            .add(payload);
+        print('data stored!');
+
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => CleaningScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('error occured!');
+      }
     }
+  }
+
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'sleepSound': _selectedSleepSound.toList(),
+      'sleepHabit': _selectedSleepHabit.toList(),
+      'soundMode': _selectedSoundMode.toList(),
+      'earPhone': _selectedEarPhone.toList(),
+    };
   }
 
   @override

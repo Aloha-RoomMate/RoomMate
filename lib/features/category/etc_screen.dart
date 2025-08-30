@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
@@ -90,15 +91,33 @@ class _EtcScreenState extends State<EtcScreen> {
         _selectedPet.isNotEmpty;
   }
 
-  void _onNextTap() {
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'smoking': _selectedSmoke.toList(),
+      'insideSmoking': _selectedInsideSmoke.toList(),
+      'pet': _selectedPet.toList(),
+    };
+  }
+
+  void _onNextTap() async {
     if (_isNextEnable()) {
-      Navigator.of(
-        context,
-      ).push(
-        MaterialPageRoute(
-          builder: (context) => DiseaseScreen(),
-        ),
-      );
+      try {
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance.collection('etcLife').add(payload);
+        print('data stored!');
+
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => DiseaseScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('error occured!');
+      }
     }
   }
 

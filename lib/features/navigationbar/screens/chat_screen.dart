@@ -8,7 +8,14 @@ class ChatScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsetsGeometry.all(8),
-      child: Row(children: [Text("채팅채팅채팅채팅채팅채팅채팅채팅채팅채팅채팅")]),
+      child: Center(
+        child: Text(
+          "채팅. 개발 예정",
+          style: TextStyle(
+            fontSize: Sizes.size24,
+          ),
+        ),
+      ),
     );
   }
 }
