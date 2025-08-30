@@ -4,6 +4,7 @@ import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/dining_habit_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// 늦는 횟수
 class LateOption {
@@ -67,16 +68,33 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
     return (_selectedLates.isNotEmpty && _selectedDrinks.isNotEmpty);
   }
 
-  void _onNextTap() {
+  void _onNextTap() async {
     if (_isNextEnable()) {
-      Navigator.of(
-        context,
-      ).push(
-        MaterialPageRoute(
-          builder: (context) => DiningHabitScreen(),
-        ),
-      );
+      try {
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance.collection('latePattern').add(payload);
+        print('data stored!');
+
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => DiningHabitScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('데이터 저장 중 에러 발생');
+      }
     }
+  }
+
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'lates': _selectedLates.toList(),
+      'drinks': _selectedDrinks.toList(),
+    };
   }
 
   @override
