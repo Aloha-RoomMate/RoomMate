@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 
@@ -111,7 +112,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                   textInputAction: TextInputAction.newline, // 엔터 시 다음 줄
                   decoration: InputDecoration(
                     counterText:
-                        '${(_controller.text.characters.length)} / $_limit',
+                        '${(_controller.text.characters.length)} / ${_limit}',
                   ),
                 ),
                 Gaps.v20,

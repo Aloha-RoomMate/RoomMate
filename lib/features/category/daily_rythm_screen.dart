@@ -194,7 +194,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
 
   // Firestore 저장/전송용 페이로드 (한국어 값 그대로)
   Map<String, dynamic> _buildPayload() {
-    int? toMinutes(String textTime) {
+    int? _toMinutes(String textTime) {
       if (textTime.isEmpty) return null;
       final p = textTime.replaceAll(' ', '').split(':');
       if (p.length != 2) return null;
@@ -207,12 +207,12 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
       'days': _selectedDays.toList(), // 예: ['월','수'] 또는 ['없음']
       'alarms': _selectedAlarms.toList(), // 예: ['2회']
       'isJobLess': _isJobLess,
-      'weekAwakeMins': toMinutes(_weekAwakeCtrl.text),
-      'weekGoWorkMins': toMinutes(_weekGoWorkCtrl.text),
-      'weekBackHomeMins': toMinutes(_weekComeBackHomeCtrl.text),
-      'weekSleepMins': toMinutes(_weekSleepCtrl.text),
-      'weekendAwakeMins': toMinutes(_weekendAwakeCtrl.text),
-      'weekendSleepMins': toMinutes(_weekendSleepCtrl.text),
+      'weekAwakeMins': _toMinutes(_weekAwakeCtrl.text),
+      'weekGoWorkMins': _toMinutes(_weekGoWorkCtrl.text),
+      'weekBackHomeMins': _toMinutes(_weekComeBackHomeCtrl.text),
+      'weekSleepMins': _toMinutes(_weekSleepCtrl.text),
+      'weekendAwakeMins': _toMinutes(_weekendAwakeCtrl.text),
+      'weekendSleepMins': _toMinutes(_weekendSleepCtrl.text),
       'updatedAt': DateTime.now().toIso8601String(),
     };
   }
