@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/authentication/signup/welcome_screen.dart';
 import 'package:roommate/features/authentication/widgets/auth_button.dart';
-import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -15,7 +15,7 @@ class LoginScreen extends StatelessWidget {
 
   void _onSignupTap(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const DailyRythmScreen()),
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
     );
   }
 
@@ -42,7 +42,7 @@ class LoginScreen extends StatelessWidget {
 
       if (!context.mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const DailyRythmScreen()),
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
       );
     } on FirebaseAuthException catch (e) {
       if (!context.mounted) return;
