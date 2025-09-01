@@ -12,14 +12,32 @@
         "lib/firebase_options.dart": {
           "projectId": "roommate-ce085",
           "configurations": {
-            "android": "1:909707662887:android:7a630deca2b73e4b02e002",
-            "ios": "1:909707662887:ios:0564e07e6b47aadb02e002",
-            "macos": "1:909707662887:ios:0564e07e6b47aadb02e002",
-            "web": "1:909707662887:web:baf7c8788239946402e002",
-            "windows": "1:909707662887:web:3847cf394a8bb30802e002"
+            "android": "1:909707662887:android:7a630deca2b73e4b02e002"
           }
         }
       }
+    }
+  },
+  "emulators": {
+    "auth": {
+      "host": "0.0.0.0",
+      "port": 9099
+    },
+    "ui": {
+      "enabled": true,
+      "host": "0.0.0.0",
+      "port": 4000
+    },
+    "singleProjectMode": true,
+    "firestore": {
+      "host": "0.0.0.0",
+      "port": 8080
+    },
+    "database": {
+      "port": 9000
+    },
+    "storage": {
+      "port": 9199
     }
   },
   "firestore": {
@@ -27,5 +45,8 @@
     "location": "asia-northeast1",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }

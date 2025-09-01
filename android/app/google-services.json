@@ -12,7 +12,36 @@
           "package_name": "com.example.roommate"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "909707662887-jchq7bl9q47l3fr24jn9tu67vv6j0s6u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.roommate",
+            "certificate_hash": "af77797475441feb3234d1ccc56e55d6eeb69b50"
+          }
+        },
+        {
+          "client_id": "909707662887-jragudanmnb4656kueksm1sa0i1lgogd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.roommate",
+            "certificate_hash": "ff5a057ddcad619cea958cc9a4c9486084194934"
+          }
+        },
+        {
+          "client_id": "909707662887-viqq35ljttgp1qn9sipaddvm02anh2u8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.roommate",
+            "certificate_hash": "770b190b5333c049767ecc06e33cd154ed9ec7b2"
+          }
+        },
+        {
+          "client_id": "909707662887-ld8djjd1eqbdu7hcellh7689j3q1n9ik.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCja-bkvIOQ_J3nMOuXwC2ZHQrPMLrm-0U"
@@ -20,7 +49,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "909707662887-7fdgmn767bd15tei2a4j62784aquhqg5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "909707662887-8kg5aidlop7iaq8qp01qpdf2ei4fhosd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.roommate"
+              }
+            }
+          ]
         }
       }
     }
