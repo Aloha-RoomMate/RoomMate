@@ -1,5 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/cleaning_screen.dart';
@@ -110,37 +111,37 @@ class _SoundScreenState extends State<SoundScreen> {
         _selectedSoundMode.isNotEmpty;
   }
 
-  void _onNextTap() async {
-    if (_isNextEnable()) {
-      try {
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance
-            .collection('soundSensitivity')
-            .add(payload);
-        print('data stored!');
+  Future<void> _onNextTap() async {
+    if (!_isNextEnable()) return;
 
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
-            MaterialPageRoute(
-              builder: (context) => CleaningScreen(),
-            ),
-          );
-        }
-      } catch (e) {
-        print('error occured!');
-      }
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final sp = SoundProfile(
+        sleepSound: _selectedSleepSound.toList(),
+        sleepHabit: _selectedSleepHabit.toList(),
+        soundMode: _selectedSoundMode.toList(),
+        earPhone: _selectedEarPhone.toList(),
+      );
+
+      await UserRepository().setSoundProfile(sp);
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const CleaningScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('저장 실패: $e')),
+      );
     }
-  }
-
-  Map<String, dynamic> _buildPayload() {
-    return {
-      'sleepSound': _selectedSleepSound.toList(),
-      'sleepHabit': _selectedSleepHabit.toList(),
-      'soundMode': _selectedSoundMode.toList(),
-      'earPhone': _selectedEarPhone.toList(),
-    };
   }
 
   @override
@@ -149,9 +150,7 @@ class _SoundScreenState extends State<SoundScreen> {
       appBar: AppBar(
         title: Text(
           '소리 민감도를 선택해주세요!',
-          style: TextStyle(
-            fontSize: Sizes.size24,
-          ),
+          style: TextStyle(fontSize: Sizes.size24),
         ),
         centerTitle: true,
       ),

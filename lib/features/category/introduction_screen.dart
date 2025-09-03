@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 
@@ -35,27 +35,30 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     };
   }
 
-  void _onNextTap() async {
-    if (_introduction.length >= 50 && _introduction.length <= 300) {
-      try {
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance
-            .collection('introduction')
-            .add(payload);
-        print('data stored!');
+  Future<void> _onNextTap() async {
+    final ok = _introduction.length >= 50 && _introduction.length <= 300;
+    if (!ok) return;
 
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
-            MaterialPageRoute(
-              builder: (context) => MainNavigation(),
-            ),
-          );
-        }
-      } catch (e) {
-        print('error occured!');
-      }
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await UserRepository().setIntroduction(_introduction);
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const MainNavigation()));
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
     }
   }
 
@@ -112,7 +115,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                   textInputAction: TextInputAction.newline, // 엔터 시 다음 줄
                   decoration: InputDecoration(
                     counterText:
-                        '${(_controller.text.characters.length)} / ${_limit}',
+                        '${(_controller.text.characters.length)} / $_limit',
                   ),
                 ),
                 Gaps.v20,

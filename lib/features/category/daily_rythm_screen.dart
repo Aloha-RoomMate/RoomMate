@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
@@ -107,25 +109,47 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
     setState(() {});
   }
 
-  void _onNextTap() async {
-    if (_isNextEnable()) {
-      try {
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance.collection('dailyRythm').add(payload);
-        print('데이터 저장 성공');
+  Future<void> _onNextTap() async {
+    if (!_isNextEnable()) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
 
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
-            MaterialPageRoute(
-              builder: (context) => WorkPatternScreen(),
-            ),
-          );
-        }
-      } catch (e) {
-        print('데이터 저장 중 에러 발생');
-      }
+    int? toMinutes(String t) {
+      return null;
+      /* 네가 쓰던 함수 그대로 */
+    }
+
+    try {
+      final rhythm = DailyRhythm(
+        workDays: _selectedDays.toList(),
+        alarms: _selectedAlarms.toList(),
+        isJobLess: _isJobLess,
+        weekAwakeMins: _isJobLess ? null : toMinutes(_weekAwakeCtrl.text),
+        weekGoWorkMins: _isJobLess ? null : toMinutes(_weekGoWorkCtrl.text),
+        weekBackHomeMins: _isJobLess
+            ? null
+            : toMinutes(_weekComeBackHomeCtrl.text),
+        weekSleepMins: _isJobLess ? null : toMinutes(_weekSleepCtrl.text),
+        weekendAwakeMins: toMinutes(_weekendAwakeCtrl.text),
+        weekendSleepMins: toMinutes(_weekendSleepCtrl.text),
+      );
+
+      await UserRepository().setDailyRhythm(rhythm);
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const WorkPatternScreen()));
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
     }
   }
 
@@ -187,6 +211,9 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
     final daysCheck = _selectedDays.isNotEmpty;
     final alarmsCheck = _selectedAlarms.isNotEmpty;
     final timesCheck = _timesCheck();
+    debugPrint(
+      'days:$daysCheck alarms:$alarmsCheck times:$timesCheck isJobLess:$_isJobLess',
+    );
     return daysCheck && alarmsCheck && timesCheck;
   }
 

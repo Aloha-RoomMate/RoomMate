@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/dining_habit_screen.dart';
@@ -68,25 +70,32 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
     return (_selectedLates.isNotEmpty && _selectedDrinks.isNotEmpty);
   }
 
-  void _onNextTap() async {
-    if (_isNextEnable()) {
-      try {
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance.collection('latePattern').add(payload);
-        print('data stored!');
+  Future<void> _onNextTap() async {
+    if (!_isNextEnable()) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
 
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
-            MaterialPageRoute(
-              builder: (context) => DiningHabitScreen(),
-            ),
-          );
-        }
-      } catch (e) {
-        print('데이터 저장 중 에러 발생');
-      }
+    try {
+      final wp = WorkPattern(
+        lates: _selectedLates.toList(),
+        drinks: _selectedDrinks.toList(),
+      );
+      await UserRepository().setWorkPattern(wp);
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const DiningHabitScreen()));
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
     }
   }
 

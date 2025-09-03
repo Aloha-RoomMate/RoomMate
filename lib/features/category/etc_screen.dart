@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/disease_screen.dart';
@@ -99,25 +101,33 @@ class _EtcScreenState extends State<EtcScreen> {
     };
   }
 
-  void _onNextTap() async {
-    if (_isNextEnable()) {
-      try {
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance.collection('etcLife').add(payload);
-        print('data stored!');
+  Future<void> _onNextTap() async {
+    if (!_isNextEnable()) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
 
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
-            MaterialPageRoute(
-              builder: (context) => DiseaseScreen(),
-            ),
-          );
-        }
-      } catch (e) {
-        print('error occured!');
-      }
+    try {
+      final etc = EtcLife(
+        smoking: _selectedSmoke.toList(),
+        insideSmoking: _selectedInsideSmoke.toList(),
+        pet: _selectedPet.toList(),
+      );
+      await UserRepository().setEtcLife(etc);
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const DiseaseScreen()));
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
     }
   }
 

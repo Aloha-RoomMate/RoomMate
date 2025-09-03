@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/signup/welcome_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
+import 'package:roommate/features/category/daily_rythm_screen.dart';
 
 const Map<String, List<String>> kSeoulGuDong = {
   '종로구': [
@@ -269,7 +270,6 @@ const Map<String, List<String>> kSeoulGuDong = {
     '일원2동',
     '수서동',
   ],
-  // … 나머지 자치구 추가 …
 };
 
 class SearcherScreen extends StatefulWidget {
@@ -307,7 +307,7 @@ class _SearcherScreenState extends State<SearcherScreen> {
     if (!_isNextEnabled) return;
     Navigator.of(context).push(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const WelcomeScreen(),
+        pageBuilder: (_, __, ___) => const DailyRythmScreen(),
         transitionDuration: const Duration(milliseconds: 300),
         reverseTransitionDuration: const Duration(milliseconds: 300),
         transitionsBuilder: (_, animation, __, child) =>

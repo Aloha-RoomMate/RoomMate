@@ -1,10 +1,13 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/etc_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
+
+// ✅ 모델 가져올 때 별칭으로
+import 'package:roommate/class/app_user.dart' as model;
 
 class RoomCleanOption {
   final String label;
@@ -28,6 +31,7 @@ const keyBathroomClean = [
   BathroomCleanOption('사용 후 그때그때 청소해요'),
 ];
 
+// ⛳️ 이건 UI 라벨용 클래스 (이름 그대로 둬도 됨)
 class CleaningHabit {
   final String label;
   const CleaningHabit(this.label);
@@ -84,6 +88,7 @@ class _CleaningScreenState extends State<CleaningScreen> {
         _selectedCleaningHabit.isNotEmpty;
   }
 
+  // (안 써도 되지만 남겨두고 싶다면 OK)
   Map<String, dynamic> _buildPayload() {
     return {
       'roomClean': _selectedRoomClean.toList(),
@@ -92,27 +97,36 @@ class _CleaningScreenState extends State<CleaningScreen> {
     };
   }
 
-  void _onNextTap() async {
-    if (_isNextEnable()) {
-      try {
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance
-            .collection('cleaningHabit')
-            .add(payload);
-        print('data stored!');
+  Future<void> _onNextTap() async {
+    if (!_isNextEnable()) return;
 
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
-            MaterialPageRoute(
-              builder: (context) => EtcScreen(),
-            ),
-          );
-        }
-      } catch (e) {
-        print('error occured!');
-      }
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // ✅ 여기! 모델 클래스는 model.CleaningHabit 로 명시
+      final ch = model.CleaningHabit(
+        roomClean: _selectedRoomClean.toList(),
+        bathroomClean: _selectedBathroomCleanOption.toList(),
+        cleaningLevel: _selectedCleaningHabit.toList(),
+      );
+
+      await UserRepository().setCleaningHabit(ch);
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const EtcScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('저장 실패: $e')),
+      );
     }
   }
 
@@ -122,9 +136,7 @@ class _CleaningScreenState extends State<CleaningScreen> {
       appBar: AppBar(
         title: Text(
           '청소 습관을 선택해주세요!',
-          style: TextStyle(
-            fontSize: Sizes.size24,
-          ),
+          style: TextStyle(fontSize: Sizes.size24),
         ),
         centerTitle: true,
       ),

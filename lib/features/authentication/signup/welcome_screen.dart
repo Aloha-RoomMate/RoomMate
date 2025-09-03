@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/authentication/userinfo/userjob_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
-import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -41,7 +41,7 @@ class WelcomeScreen extends StatelessWidget {
       if (!context.mounted) return;
       Navigator.of(context).pop();
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const DailyRythmScreen()),
+        MaterialPageRoute(builder: (_) => const UserjobScreen()),
       );
     } catch (e) {
       if (!context.mounted) return;
@@ -63,9 +63,10 @@ class WelcomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
+
             children: [
               Text(
-                '환영합니다',
+                '환영합니다. ${FirebaseAuth.instance.currentUser?.displayName}님',
                 style: TextStyle(
                   color: Theme.of(context).primaryColor,
                   fontWeight: FontWeight.w800,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/signup/welcome_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
+import 'package:roommate/features/category/daily_rythm_screen.dart';
 
 const Map<String, List<String>> kSeoulGuDong = {
   '종로구': [
@@ -305,7 +306,7 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
 
     Navigator.of(context).push(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => WelcomeScreen(),
+        pageBuilder: (_, __, ___) => DailyRythmScreen(),
         transitionDuration: const Duration(milliseconds: 300),
         reverseTransitionDuration: const Duration(milliseconds: 300),
         transitionsBuilder: (_, animation, __, child) =>
@@ -338,7 +339,7 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
 
                   // 자치구 드롭다운
                   DropdownButtonFormField<String>(
-                    value: _selectedGu,
+                    initialValue: _selectedGu,
                     decoration: const InputDecoration(
                       labelText: '자치구',
                       border: OutlineInputBorder(),
@@ -354,7 +355,7 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
 
                   // 동 드롭다운
                   DropdownButtonFormField<String>(
-                    value: _selectedDong,
+                    initialValue: _selectedDong,
                     decoration: const InputDecoration(
                       labelText: '동',
                       border: OutlineInputBorder(),

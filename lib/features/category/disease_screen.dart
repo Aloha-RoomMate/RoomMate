@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/introduction_screen.dart';
@@ -14,7 +16,7 @@ class DiseaseScreen extends StatefulWidget {
 }
 
 class _DiseaseScreenState extends State<DiseaseScreen> {
-  TextEditingController _textEditingController = TextEditingController();
+  final TextEditingController _textEditingController = TextEditingController();
   bool _isHealthy = false;
   String _diseases = "";
 
@@ -53,25 +55,34 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
     }
   }
 
-  void _onNextTap() async {
-    if (_isHealthy || _diseases.isNotEmpty) {
-      try {
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance.collection('disease').add(payload);
-        print('data stored!');
+  Future<void> _onNextTap() async {
+    final ok = _isHealthy || _diseases.isNotEmpty;
+    if (!ok) return;
 
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
-            MaterialPageRoute(
-              builder: (context) => IntroductionScreen(),
-            ),
-          );
-        }
-      } catch (e) {
-        print('error occured!');
-      }
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final d = DiseaseInfo(
+        isHealthy: _isHealthy ? true : null,
+        diseases: _isHealthy ? null : _diseases,
+      );
+      await UserRepository().setDisease(d);
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const IntroductionScreen()));
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
     }
   }
 
