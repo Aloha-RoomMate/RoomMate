@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "909707662887-jragudanmnb4656kueksm1sa0i1lgogd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.roommate",
+            "certificate_hash": "ff5a057ddcad619cea958cc9a4c9486084194934"
+          }
+        },
+        {
           "client_id": "909707662887-viqq35ljttgp1qn9sipaddvm02anh2u8.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
