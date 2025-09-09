@@ -58,25 +58,49 @@ class _UserjobScreenState extends State<UserjobScreen> {
   void _onNextTap() {
     if (!_isNextEnabled()) return;
 
-    Route fadeRoute(Widget page) => PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
-      transitionDuration: const Duration(milliseconds: 300),
-      reverseTransitionDuration: const Duration(milliseconds: 300),
-      transitionsBuilder: (_, animation, __, child) =>
-          FadeTransition(opacity: animation, child: child),
-    );
+    final textOptions = ['회사/학교', '재택', '프리랜서', '대학생'];
+    final selectedJobsList = <String>[];
+
+    for (int i = 0; i < _jobSelections.length; i++) {
+      if (_jobSelections[i]) {
+        selectedJobsList.add(textOptions[i]);
+      }
+    }
+
+    final selectedJobs = selectedJobsList.join(', ');
 
     if (_selectedIndex == 0) {
-      Navigator.of(context).push(fadeRoute(const RoomownerScreen()));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => RoomownerScreen(
+            userType: 'roomOwner',
+            jobKinds: selectedJobs,
+          ),
+        ),
+      );
     } else {
-      Navigator.of(context).push(fadeRoute(const SearcherScreen()));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SearcherScreen(
+            userType: 'searcher',
+            jobKinds: selectedJobs,
+          ),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final textOptions = ['회사/학교', '재택', '프리랜서', '대학생'];
+    final selectedJobs = <String>[];
     final bool isNextEnabled = _isNextEnabled();
+
+    for (int i = 0; i < _jobSelections.length; i++) {
+      if (_jobSelections[i]) {
+        selectedJobs.add(textOptions[i]);
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('회원가입')),

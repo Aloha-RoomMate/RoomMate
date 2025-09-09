@@ -1,10 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/widgets/form_button.dart';
-import 'package:roommate/features/category/widgets/selection_chip.dart';
+import 'package:roommate/features/post/widgets/form_button.dart';
+import 'package:http/http.dart' as http;
 
 class RoomOwnerPost extends StatefulWidget {
   const RoomOwnerPost({super.key});
@@ -14,38 +15,89 @@ class RoomOwnerPost extends StatefulWidget {
 }
 
 class _RoomOwnerPostState extends State<RoomOwnerPost> {
-  final List<List<bool>> _chipOptionSelected = [
-    List.filled(4, false),
-    List.filled(4, false),
-    List.filled(2, false),
-    List.filled(2, false),
-  ];
-  final TextEditingController _controller = TextEditingController();
+  final TextEditingController _titleCtrl = TextEditingController();
+  final TextEditingController _addrCtrl = TextEditingController();
+  final TextEditingController _searchCtrl = TextEditingController();
+  final String _apiKey = "devU01TX0FVVEgyMDI1MDkwMjIxNTIzOTExNjEzOTc=";
+  List<dynamic> _addresses = [];
+  bool _isLoading = false;
+  String _errorMessage = '';
 
-  bool _checkNextButtonAvailable() {
-    for (final groupState in _chipOptionSelected) {
-      if (!groupState.contains(true)) {
-        return false;
-      }
+  // 주소 검색 API를 호출하는 함수
+  Future<void> _searchAddress(String keyword) async {
+    if (keyword.isEmpty) {
+      setState(() {
+        _errorMessage = '검색어를 입력해주세요.';
+        _addresses = [];
+      });
+      return;
     }
-    return true;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    final url = Uri.https('www.juso.go.kr', '/addrlink/addrLinkApi.do', {
+      'confmKey': _apiKey,
+      'currentPage': '1',
+      'countPerPage': '20',
+      'keyword': keyword,
+      'resultType': 'json',
+    });
+
+    print('>>> 생성된 url: $url');
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        // jsonDecode: json -> Map
+        final decodedData = jsonDecode(response.body);
+        print(">> API 응답 성공");
+        print(">> DecodeData: $decodedData");
+
+        // API 결과 구조 확인 후 'juso' 리스트 추출
+        if (decodedData['results'] != null &&
+            decodedData['results']['juso'] != null) {
+          setState(() {
+            _addresses = decodedData['results']['juso'];
+            print(_addresses);
+            if (_addresses.isEmpty) {
+              _errorMessage = '검색 결과가 없습니다.';
+            }
+          });
+        } else {
+          // 'common' 객체에서 에러 메시지 확인
+          final commonData = decodedData['results']['common'];
+          setState(() {
+            _errorMessage = commonData['errorMessage'] ?? '알 수 없는 오류가 발생했습니다.';
+            _addresses = [];
+          });
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'API 서버 오류: ${response.statusCode}';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = '데이터 요청 중 오류가 발생했습니다: $e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _onScaffoldTap(BuildContext context) {
     FocusScope.of(context).unfocus();
   }
 
-  void _onChipTap(int groupIndex, int buttonIndex) {
-    setState(() {
-      _chipOptionSelected[groupIndex][buttonIndex] =
-          !_chipOptionSelected[groupIndex][buttonIndex];
-    });
-  }
+  void _onChipTap(int groupIndex, int buttonIndex) {}
 
-  void _onTimePickerChanged(DateTime date) {
-    final textDate = date.toString().split(' ')[0];
-    _controller.value = TextEditingValue(text: textDate);
-  }
+  void _onTimePickerChanged(DateTime date) {}
 
   void _onTimeFieldTap() async {
     await showModalBottomSheet(
@@ -66,12 +118,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
       child: Scaffold(
         appBar: AppBar(
           elevation: 10,
-          title: Text(
-            '게시글 작성',
-            style: TextStyle(
-              fontSize: Sizes.size24,
-            ),
-          ),
+          title: Text('게시글 작성', style: TextStyle(fontSize: Sizes.size24)),
         ),
         body: Padding(
           padding: EdgeInsets.all(24),
@@ -88,6 +135,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                 ),
                 Gaps.v6,
                 TextField(
+                  controller: _titleCtrl,
                   decoration: InputDecoration(
                     hintText: '제목 입력',
                     border: OutlineInputBorder(),
@@ -95,55 +143,42 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                 ),
                 Gaps.v24,
                 Text(
-                  '거주 위치를 입력해주세요!',
+                  '주소를 입력해주세요!',
                   style: TextStyle(
                     fontSize: Sizes.size16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  '보안을 위해 지하철역과의 거리로 입력 받습니다.',
-                  style: TextStyle(
-                    fontSize: Sizes.size14,
-                    color: Colors.grey,
-                  ),
+                  '다른 유저에게는 XX동 \'부근\'으로 보여져요. \n지도에는 실제 주소 반경 200m 내의 랜덤한 위치로 나타나요',
+                  style: TextStyle(fontSize: Sizes.size14, color: Colors.grey),
                 ),
+                Gaps.v6,
                 Row(
                   children: [
                     Expanded(
                       flex: 1,
                       child: TextField(
+                        controller: _addrCtrl,
                         decoration: InputDecoration(
-                          hintText: '지하철역 입력.',
+                          hintText: '주소 입력.',
                           border: OutlineInputBorder(),
                         ),
+                        onSubmitted: (value) => _searchAddress(value),
                       ),
                     ),
                     Gaps.h12,
-                    Expanded(
-                      child: TextField(
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          hintText: '거리 입력 (m).',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
                 Gaps.v24,
+                SizedBox(
+                  height: _addresses.isNotEmpty ? 300 : 0,
+                  child: _buildResults(),
+                ),
                 Wrap(
-                  children: [
-                    SelectionChip(
-                      textOptions: ['원 룸', '투 룸', '빌라', '아파트'],
-                      onChipTap: _onChipTap,
-                      checkList: _chipOptionSelected,
-                      indexOfQuestion: 0,
-                      question: '방 종류/구조',
-                    ),
-                  ],
+                  children: [],
                 ),
-                Gaps.v24,
+                Gaps.v12,
                 Row(
                   children: [
                     Expanded(
@@ -151,9 +186,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: "보증금(만 원)",
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size12,
-                          ),
+                          hintStyle: TextStyle(fontSize: Sizes.size12),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -164,9 +197,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           hintText: "월세(만 원)",
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size12,
-                          ),
+                          hintStyle: TextStyle(fontSize: Sizes.size12),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -177,9 +208,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: "관리비(만 원)",
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size12,
-                          ),
+                          hintStyle: TextStyle(fontSize: Sizes.size12),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -188,15 +217,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                 ),
                 Gaps.v24,
                 Wrap(
-                  children: [
-                    SelectionChip(
-                      textOptions: ['보증금 분담', '월세 분담', '관리비 분담', '공과금 분담'],
-                      onChipTap: _onChipTap,
-                      checkList: _chipOptionSelected,
-                      indexOfQuestion: 1,
-                      question: '지불 구조',
-                    ),
-                  ],
+                  children: [],
                 ),
                 Gaps.v24,
                 Row(
@@ -256,22 +277,6 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   ],
                 ),
                 Gaps.v24,
-                SelectionChip(
-                  textOptions: ['중앙 난방', '개별 난방'],
-                  onChipTap: _onChipTap,
-                  checkList: _chipOptionSelected,
-                  indexOfQuestion: 2,
-                  question: '난방 구조',
-                ),
-                Gaps.v24,
-                SelectionChip(
-                  textOptions: ['있음', '없음'],
-                  onChipTap: _onChipTap,
-                  checkList: _chipOptionSelected,
-                  indexOfQuestion: 3,
-                  question: '엘리베이터',
-                ),
-                Gaps.v24,
                 Text(
                   '입주가능일',
                   style: TextStyle(
@@ -282,14 +287,12 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                 Gaps.v6,
                 TextField(
                   onTap: _onTimeFieldTap,
-                  controller: _controller,
+
                   readOnly: true,
                   decoration: InputDecoration(
                     suffixIcon: Padding(
                       padding: EdgeInsets.all(10),
-                      child: FaIcon(
-                        FontAwesomeIcons.calendar,
-                      ),
+                      child: FaIcon(FontAwesomeIcons.calendar),
                     ),
                     hintText: '입주 가능일',
                     border: OutlineInputBorder(),
@@ -304,9 +307,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: '최소 거주 기간(개월)',
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size14,
-                          ),
+                          hintStyle: TextStyle(fontSize: Sizes.size14),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -317,9 +318,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: '최대 거주 기간(개월)',
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size14,
-                          ),
+                          hintStyle: TextStyle(fontSize: Sizes.size14),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -334,9 +333,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   decoration: InputDecoration(
                     hintText:
                         '자유롭게 글을 작성해주세요!\n취미, 희망 진로, 동거 규칙에 대해 작성해주시면 좋아요!',
-                    hintStyle: TextStyle(
-                      fontSize: Sizes.size14,
-                    ),
+                    hintStyle: TextStyle(fontSize: Sizes.size14),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -348,5 +345,42 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
         ),
       ),
     );
+  }
+
+  void _onResultTap(List addresses, dynamic addr) {}
+
+  Widget _buildResults() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    } else if (_errorMessage.isNotEmpty) {
+      return Center(child: Text(_errorMessage));
+    } else {
+      return ListView.builder(
+        itemCount: _addresses.length,
+        itemBuilder: (context, index) {
+          final address = _addresses[index];
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                _addrCtrl.text = address['roadAddr'] ?? '';
+                _addresses = [];
+                _searchCtrl.clear();
+                print(">> _addrCtrl.text: ${_addrCtrl.text}");
+              });
+            },
+            child: Card(
+              margin: const EdgeInsets.symmetric(vertical: 6),
+              child: ListTile(
+                leading: CircleAvatar(child: Text('${index + 1}')),
+                title: Text(address['roadAddr'] ?? '도로명 주소 없음'), // 도로명 주소
+                subtitle: Text(
+                  '[지번] ${address['jibunAddr'] ?? '지번 주소 없음'}',
+                ), // 지번 주소
+              ),
+            ),
+          );
+        },
+      );
+    }
   }
 }

@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+/* import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
@@ -14,13 +14,13 @@ class SearcherPost extends StatefulWidget {
 }
 
 class _SearcherPostState extends State<SearcherPost> {
-  final List<List<bool>> _chipOptionSelected = [
+  List<List<bool>> _chipOptionSelected = [
     List.filled(1, false),
     List.filled(4, false),
     List.filled(4, false),
     List.filled(2, false),
   ];
-  final TextEditingController _controller = TextEditingController();
+  TextEditingController _controller = TextEditingController();
 
   bool _checkNextButtonAvailable() {
     for (final groupState in _chipOptionSelected) {
@@ -66,12 +66,7 @@ class _SearcherPostState extends State<SearcherPost> {
       child: Scaffold(
         appBar: AppBar(
           elevation: 10,
-          title: Text(
-            '게시글 작성',
-            style: TextStyle(
-              fontSize: Sizes.size24,
-            ),
-          ),
+          title: Text('게시글 작성', style: TextStyle(fontSize: Sizes.size24)),
         ),
         body: Padding(
           padding: EdgeInsets.only(
@@ -138,9 +133,7 @@ class _SearcherPostState extends State<SearcherPost> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: "보증금(만 원)",
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size12,
-                          ),
+                          hintStyle: TextStyle(fontSize: Sizes.size12),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -151,9 +144,7 @@ class _SearcherPostState extends State<SearcherPost> {
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           hintText: "최소 월세(만 원)",
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size10,
-                          ),
+                          hintStyle: TextStyle(fontSize: Sizes.size10),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -164,9 +155,7 @@ class _SearcherPostState extends State<SearcherPost> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: "최대 월세(만 원)",
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size10,
-                          ),
+                          hintStyle: TextStyle(fontSize: Sizes.size10),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -201,9 +190,7 @@ class _SearcherPostState extends State<SearcherPost> {
                   decoration: InputDecoration(
                     suffixIcon: Padding(
                       padding: EdgeInsets.all(10),
-                      child: FaIcon(
-                        FontAwesomeIcons.calendar,
-                      ),
+                      child: FaIcon(FontAwesomeIcons.calendar),
                     ),
                     hintText: '입주 가능일',
                     border: OutlineInputBorder(),
@@ -218,9 +205,7 @@ class _SearcherPostState extends State<SearcherPost> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: '최소 거주 기간(개월)',
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size14,
-                          ),
+                          hintStyle: TextStyle(fontSize: Sizes.size14),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -231,9 +216,7 @@ class _SearcherPostState extends State<SearcherPost> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: '최대 거주 기간(개월)',
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size14,
-                          ),
+                          hintStyle: TextStyle(fontSize: Sizes.size14),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -248,9 +231,7 @@ class _SearcherPostState extends State<SearcherPost> {
                   decoration: InputDecoration(
                     hintText:
                         '자유롭게 글을 작성해주세요!\n취미, 희망 진로, 동거 규칙에 대해 작성해주시면 좋아요!',
-                    hintStyle: TextStyle(
-                      fontSize: Sizes.size14,
-                    ),
+                    hintStyle: TextStyle(fontSize: Sizes.size14),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -264,3 +245,4 @@ class _SearcherPostState extends State<SearcherPost> {
     );
   }
 }
+*/

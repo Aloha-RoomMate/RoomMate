@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:roommate/class/user_repository.dart';
 
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
+import 'package:roommate/features/navigationbar/main_navigation.dart';
 
 /// 기존 kSeoulGuDong은 제거하고, [kSeoulGu]만 사용합니다.
 /// (동 데이터는 API에서 동적으로 로딩)
@@ -36,7 +39,14 @@ const List<String> kSeoulGu = [
 ];
 
 class SearcherScreen extends StatefulWidget {
-  const SearcherScreen({super.key});
+  final String userType; // ✅ 이 줄 추가
+  final String jobKinds;
+
+  const SearcherScreen({
+    super.key,
+    required this.userType,
+    required this.jobKinds,
+  });
   @override
   State<SearcherScreen> createState() => _SearcherScreenState();
 }
@@ -167,8 +177,24 @@ class _SearcherScreenState extends State<SearcherScreen> {
     });
   }
 
-  void _onNextTap() {
+  void _onNextTap() async {
     if (!_isNextEnabled) return;
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+
+      await UserRepository().setUserTypeData(
+        uid: uid,
+        type: 'searcher',
+        jobKinds: widget.jobKinds,
+        address: '',
+        searchAreas: _fav.toList(),
+      );
+    } catch (e) {
+      debugPrint('저장 실패: $e');
+    }
+
+    if (!mounted) return;
     Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => const DailyRythmScreen(),
@@ -414,7 +440,6 @@ class _SearcherScreenState extends State<SearcherScreen> {
                     ),
                   ),
 
-                  // 하단: 찜한 항목 + 다음 버튼 (기존 그대로)
                   Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(top: 12),

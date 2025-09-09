@@ -9,6 +9,7 @@ import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/time_field.dart';
 import 'package:roommate/features/category/work_pattern_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:roommate/features/navigationbar/main_navigation.dart';
 
 /// 요일
 class DayOption {
@@ -69,6 +70,15 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
   final TextEditingController _weekendAwakeCtrl = TextEditingController();
   final TextEditingController _weekendSleepCtrl = TextEditingController();
 
+  int? toMinutes(String textTime) {
+    if (textTime.isEmpty) return null;
+    final p = textTime.replaceAll(' ', '').split(':');
+    if (p.length != 2) return null;
+    final h = int.tryParse(p[0]), m = int.tryParse(p[1]);
+    if (h == null || m == null) return null;
+    return h * 60 + m;
+  }
+
   /// 선택 여부를 리스트에 담는 함수.
   void _onDayChipTap(String day) {
     if (day == '없음') {
@@ -117,11 +127,6 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    int? toMinutes(String t) {
-      return null;
-      /* 네가 쓰던 함수 그대로 */
-    }
-
     try {
       final rhythm = DailyRhythm(
         workDays: _selectedDays.toList(),
@@ -143,7 +148,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
       Navigator.of(context).pop();
       Navigator.of(
         context,
-      ).push(MaterialPageRoute(builder: (_) => const WorkPatternScreen()));
+      ).push(MaterialPageRoute(builder: (_) => const MainNavigation()));
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();

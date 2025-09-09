@@ -5,8 +5,6 @@ import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/etc_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
-
-// ✅ 모델 가져올 때 별칭으로
 import 'package:roommate/class/app_user.dart' as model;
 
 class RoomCleanOption {
@@ -88,15 +86,6 @@ class _CleaningScreenState extends State<CleaningScreen> {
         _selectedCleaningHabit.isNotEmpty;
   }
 
-  // (안 써도 되지만 남겨두고 싶다면 OK)
-  Map<String, dynamic> _buildPayload() {
-    return {
-      'roomClean': _selectedRoomClean.toList(),
-      'bathroomClean': _selectedBathroomCleanOption.toList(),
-      'cleaningLevel': _selectedCleaningHabit.toList(),
-    };
-  }
-
   Future<void> _onNextTap() async {
     if (!_isNextEnable()) return;
 
@@ -114,6 +103,7 @@ class _CleaningScreenState extends State<CleaningScreen> {
         cleaningLevel: _selectedCleaningHabit.toList(),
       );
 
+      /// 이 줄이 firestore 에 데이터를 put 하는 핵심
       await UserRepository().setCleaningHabit(ch);
 
       if (!mounted) return;
