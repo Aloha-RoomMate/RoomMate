@@ -6,6 +6,7 @@ import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/post/widgets/form_button.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RoomOwnerPost extends StatefulWidget {
   const RoomOwnerPost({super.key});
@@ -17,10 +18,22 @@ class RoomOwnerPost extends StatefulWidget {
 class _RoomOwnerPostState extends State<RoomOwnerPost> {
   TextEditingController _titleCtrl = TextEditingController();
   TextEditingController _addrCtrl = TextEditingController();
-  TextEditingController _searchCtrl = TextEditingController();
+  TextEditingController _depositCtrl = TextEditingController();
+  TextEditingController _rentCtrl = TextEditingController();
+  TextEditingController _manageFeeCtrl = TextEditingController();
+  TextEditingController _corFloorCtrl = TextEditingController();
+  TextEditingController _wholeFloorCtrl = TextEditingController();
+  TextEditingController _areaCtrl = TextEditingController();
+  TextEditingController _toiletCtrl = TextEditingController();
+  TextEditingController _movingDateCtrl = TextEditingController();
+  TextEditingController _minContractCtrl = TextEditingController();
+  TextEditingController _maxContractCtrl = TextEditingController();
+  TextEditingController _introductionCtrl = TextEditingController();
+
   final String _apiKey = "devU01TX0FVVEgyMDI1MDkwMjIxNTIzOTExNjEzOTc=";
   List<dynamic> _addresses = [];
   bool _isLoading = false;
+  bool _isPosting = false;
   String _errorMessage = '';
 
   // 주소 검색 API를 호출하는 함수
@@ -46,23 +59,19 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
       'resultType': 'json',
     });
 
-    print('>>> 생성된 url: $url');
-
     try {
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         // jsonDecode: json -> Map
         final decodedData = jsonDecode(response.body);
-        print(">> API 응답 성공");
-        print(">> DecodeData: $decodedData");
 
         // API 결과 구조 확인 후 'juso' 리스트 추출
         if (decodedData['results'] != null &&
             decodedData['results']['juso'] != null) {
           setState(() {
             _addresses = decodedData['results']['juso'];
-            print(_addresses);
+
             if (_addresses.isEmpty) {
               _errorMessage = '검색 결과가 없습니다.';
             }
@@ -95,9 +104,10 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
     FocusScope.of(context).unfocus();
   }
 
-  void _onChipTap(int groupIndex, int buttonIndex) {}
-
-  void _onTimePickerChanged(DateTime date) {}
+  void _onTimePickerChanged(DateTime date) {
+    _movingDateCtrl.text =
+        "${date.year.toString()}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  }
 
   void _onTimeFieldTap() async {
     await showModalBottomSheet(
@@ -105,10 +115,96 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
       builder: (context) {
         return CupertinoDatePicker(
           mode: CupertinoDatePickerMode.date,
-          onDateTimeChanged: _onTimePickerChanged,
+          onDateTimeChanged: (date) => _onTimePickerChanged(date),
+          minimumDate: DateTime.now(),
+          initialDateTime: DateTime.now(),
         );
       },
     );
+  }
+
+  bool _isNextAvailable() {
+    return _titleCtrl.text.isNotEmpty &&
+        _addrCtrl.text.isNotEmpty &&
+        _depositCtrl.text.isNotEmpty &&
+        _rentCtrl.text.isNotEmpty &&
+        _manageFeeCtrl.text.isNotEmpty &&
+        _corFloorCtrl.text.isNotEmpty &&
+        _wholeFloorCtrl.text.isNotEmpty &&
+        _areaCtrl.text.isNotEmpty &&
+        _toiletCtrl.text.isNotEmpty &&
+        _movingDateCtrl.text.isNotEmpty &&
+        _minContractCtrl.text.isNotEmpty &&
+        _maxContractCtrl.text.isNotEmpty &&
+        _introductionCtrl.text.isNotEmpty;
+  }
+
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'title': _titleCtrl.text,
+      'address': _addrCtrl.text,
+      'deposit': _depositCtrl.text,
+      'rent': _rentCtrl.text,
+      'manageFee': _manageFeeCtrl.text,
+      'corFloor': _corFloorCtrl.text,
+      'wholeFloor': _wholeFloorCtrl.text,
+      'minContract': _minContractCtrl.text,
+      'maxContract': _maxContractCtrl.text,
+      'introduction': _introductionCtrl.text,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+  }
+
+  void _onNextTap() async {
+    if (_isNextAvailable()) {
+      try {
+        setState(() {
+          _isPosting = true;
+        });
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance
+            .collection('roomOwnerPost')
+            .add(payload);
+
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('글 포스팅 성공~')));
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('오류 발생~')));
+          Navigator.of(context).pop();
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isPosting = false;
+          });
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _addrCtrl.dispose();
+    _depositCtrl.dispose();
+    _rentCtrl.dispose();
+    _manageFeeCtrl.dispose();
+    _corFloorCtrl.dispose();
+    _wholeFloorCtrl.dispose();
+    _areaCtrl.dispose();
+    _toiletCtrl.dispose();
+    _movingDateCtrl.dispose();
+    _minContractCtrl.dispose();
+    _maxContractCtrl.dispose();
+    _introductionCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -175,15 +271,12 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   height: _addresses.isNotEmpty ? 300 : 0,
                   child: _buildResults(),
                 ),
-                Wrap(children: [
-                    
-                  ],
-                ),
                 Gaps.v12,
                 Row(
                   children: [
                     Expanded(
                       child: TextField(
+                        controller: _depositCtrl,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: "보증금(만 원)",
@@ -195,6 +288,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                     Gaps.h8,
                     Expanded(
                       child: TextField(
+                        controller: _rentCtrl,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           hintText: "월세(만 원)",
@@ -206,6 +300,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                     Gaps.h8,
                     Expanded(
                       child: TextField(
+                        controller: _manageFeeCtrl,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: "관리비(만 원)",
@@ -217,16 +312,12 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   ],
                 ),
                 Gaps.v24,
-                Wrap(children: [
-                    
-                  ],
-                ),
-                Gaps.v24,
                 Row(
                   children: [
                     Expanded(
                       flex: 1,
                       child: TextField(
+                        controller: _corFloorCtrl,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: '해당층',
@@ -237,6 +328,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                     Gaps.h12,
                     Expanded(
                       child: TextField(
+                        controller: _wholeFloorCtrl,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: '건물층',
@@ -259,6 +351,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   children: [
                     Expanded(
                       child: TextField(
+                        controller: _areaCtrl,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: '(평)',
@@ -269,6 +362,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                     Gaps.h12,
                     Expanded(
                       child: TextField(
+                        controller: _toiletCtrl,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: '화장실 개수',
@@ -289,7 +383,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                 Gaps.v6,
                 TextField(
                   onTap: _onTimeFieldTap,
-
+                  controller: _movingDateCtrl,
                   readOnly: true,
                   decoration: InputDecoration(
                     suffixIcon: Padding(
@@ -306,6 +400,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                     Expanded(
                       flex: 1,
                       child: TextField(
+                        controller: _minContractCtrl,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: '최소 거주 기간(개월)',
@@ -317,6 +412,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                     Gaps.h12,
                     Expanded(
                       child: TextField(
+                        controller: _maxContractCtrl,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: '최대 거주 기간(개월)',
@@ -329,6 +425,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                 ),
                 Gaps.v24,
                 TextField(
+                  controller: _introductionCtrl,
                   minLines: 3,
                   maxLines: null,
                   keyboardType: TextInputType.multiline,
@@ -340,7 +437,15 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   ),
                 ),
                 Gaps.v24,
-                FormButton(enabled: true, text: '다음'),
+                GestureDetector(
+                  onTap: _onNextTap,
+                  child: FormButton(
+                    enabled: _isNextAvailable(),
+                    widget: _isPosting
+                        ? CircularProgressIndicator()
+                        : Text('다음'),
+                  ),
+                ),
               ],
             ),
           ),
@@ -348,8 +453,6 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
       ),
     );
   }
-
-  void _onResultTap(List addresses, dynamic addr) {}
 
   Widget _buildResults() {
     if (_isLoading) {
@@ -366,8 +469,6 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
               setState(() {
                 _addrCtrl.text = address['roadAddr'] ?? '';
                 _addresses = [];
-                _searchCtrl.clear();
-                print(">> _addrCtrl.text: ${_addrCtrl.text}");
               });
             },
             child: Card(
