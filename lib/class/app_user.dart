@@ -1,6 +1,7 @@
 // lib/models/app_user.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
+import 'package:flutter/material.dart';
 
 class AppUser {
   final String uid;
@@ -9,9 +10,7 @@ class AppUser {
   final String? photoURL;
   final DateTime? createdAt;
   final DateTime? updatedAt;
-  final DailyRhythm? dailyRhythm; // 이후 온보딩에서 채워짐
-  final String? userType; // "roomOwner" | "searcher"
-  final List<String>? jobKinds; // ['회사/학교','재택',...]
+  final DailyRhythm? dailyRhythm;
   final WorkPattern? workPattern;
   final DiningHabit? diningHabit;
   final SoundProfile? soundProfile;
@@ -19,6 +18,7 @@ class AppUser {
   final EtcLife? etcLife;
   final DiseaseInfo? disease;
   final String? introduction;
+  final UserType? userType;
 
   const AppUser({
     required this.uid,
@@ -27,8 +27,6 @@ class AppUser {
     this.photoURL,
     this.createdAt,
     this.updatedAt,
-    this.userType,
-    this.jobKinds,
     this.dailyRhythm,
     this.workPattern,
     this.diningHabit,
@@ -37,6 +35,7 @@ class AppUser {
     this.etcLife,
     this.disease,
     this.introduction,
+    this.userType,
   });
 
   AppUser copyWith({
@@ -47,7 +46,6 @@ class AppUser {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? userType,
-    List<String>? jobKinds,
     DailyRhythm? dailyRhythm,
     WorkPattern? workPattern,
     DiningHabit? diningHabit,
@@ -64,8 +62,6 @@ class AppUser {
       photoURL: photoURL ?? this.photoURL,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      userType: userType ?? this.userType,
-      jobKinds: jobKinds ?? this.jobKinds,
       dailyRhythm: dailyRhythm ?? this.dailyRhythm,
       workPattern: workPattern ?? this.workPattern,
       diningHabit: diningHabit ?? this.diningHabit,
@@ -96,10 +92,11 @@ class AppUser {
       photoURL: map['photoURL'] as String?,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
-      userType: map['userType'] as String?,
-      jobKinds: (map['jobKinds'] as List?)?.cast<String>(),
       dailyRhythm: DailyRhythm.fromMap(
         map['dailyRhythm'] as Map<String, dynamic>?,
+      ),
+      userType: UserType.fromMap(
+        map['userType'] as Map<String, dynamic>?,
       ),
       workPattern: WorkPattern.fromMap(
         map['workPattern'] as Map<String, dynamic>?,
@@ -128,9 +125,8 @@ class AppUser {
       'email': email,
       'displayName': displayName,
       'photoURL': photoURL,
-      if (userType != null) 'userType': userType,
-      if (jobKinds != null) 'jobKinds': jobKinds,
       if (dailyRhythm != null) 'dailyRhythm': dailyRhythm!.toMap(),
+      if (userType != null) 'userType': userType!.toMap(),
       if (workPattern != null) 'workPattern': workPattern!.toMap(),
       if (diningHabit != null) 'diningHabit': diningHabit!.toMap(),
       if (soundProfile != null) 'soundProfile': soundProfile!.toMap(),
@@ -201,6 +197,37 @@ class DailyRhythm {
       weekendSleepMins: weekend['sleepMins'] as int?,
     );
   }
+}
+
+class UserType {
+  final String type; // 'roomOwner' or 'searcher'
+  final String jobKinds;
+  final String? address;
+  final List<String>? searchAreas;
+
+  const UserType({
+    required this.type,
+    required this.jobKinds,
+    this.address,
+    this.searchAreas,
+  });
+
+  factory UserType.fromMap(Map<String, dynamic>? map) {
+    if (map == null) return const UserType(type: 'searcher', jobKinds: "");
+    return UserType(
+      type: map['type'] ?? 'searcher',
+      jobKinds: map['jobKinds'] ?? [],
+      address: map['address'],
+      searchAreas: (map['searchAreas'] as List?)?.cast<String>(),
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+    'type': type,
+    'jobKinds': jobKinds,
+    'address': address,
+    'searchAreas': searchAreas,
+  };
 }
 
 class WorkPattern {

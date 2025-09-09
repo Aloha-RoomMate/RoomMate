@@ -1,14 +1,5 @@
-// lib/data/user_repository.dart
-//
-// Firestore I/O for AppUser and all onboarding sections.
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
-
-// ⬇️ AppUser / DailyRhythm / WorkPattern ... 가 정의된 실제 경로로 바꿔주세요.
-// 예) models 폴더면 아래 줄:
-// import 'package:roommate/models/app_user.dart';
-// 지금 네 코드가 class/app_user.dart 라면 그대로 두세요:
 import 'package:roommate/class/app_user.dart';
 
 class UserRepository {
@@ -21,7 +12,7 @@ class UserRepository {
   }) : _db = db ?? FirebaseFirestore.instance,
        _auth = authInstance ?? auth.FirebaseAuth.instance;
 
-  /// users/{uid} reference for current logged-in user.
+  /// 로그인 한 유저의 firestore 경로 : _meDoc()
   DocumentReference<Map<String, dynamic>> _meDoc() {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
@@ -30,9 +21,6 @@ class UserRepository {
     return _db.collection('users').doc(uid);
   }
 
-  /// Create or merge users/{uid} from FirebaseAuth user profile.
-  /// - Sets createdAt only on first creation
-  /// - Always updates updatedAt with server timestamp
   Future<void> upsertFromAuth() async {
     final u = _auth.currentUser;
     if (u == null) throw StateError('로그인 필요');
@@ -63,27 +51,6 @@ class UserRepository {
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // Section writers (each one merges into users/{uid} nested fields)
-  // ---------------------------------------------------------------------------
-
-  /// 1) User type & job kinds
-  /// userType: "roomOwner" | "searcher"
-  /// jobKinds example: ['회사/학교','재택',...]
-  Future<void> setUserTypeAndJobs({
-    required String userType,
-    required List<String> jobKinds,
-  }) async {
-    await _meDoc().set(
-      {
-        'userType': userType,
-        'jobKinds': jobKinds,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-  }
-
   /// 2) Daily rhythm (nested object)
   Future<void> setDailyRhythm(DailyRhythm rhythm) async {
     await _meDoc().set(
@@ -95,7 +62,24 @@ class UserRepository {
     );
   }
 
-  /// 3) Work pattern (lates/drinks)
+  Future<void> setUserTypeData({
+    required String uid,
+    required String type,
+    required String jobKinds, // ✅ String으로 수정
+    required String address,
+    List<String>? searchAreas,
+  }) async {
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      'userType': {
+        'type': type,
+        'jobKinds': jobKinds, // ✅ 문자열로 저장
+        'address': address,
+        'searchAreas': searchAreas,
+      },
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<void> setWorkPattern(WorkPattern wp) async {
     await _meDoc().set(
       {
@@ -131,8 +115,11 @@ class UserRepository {
   /// 6) Cleaning habit
   Future<void> setCleaningHabit(CleaningHabit ch) async {
     await _meDoc().set(
+      /// .set : firestore 에 병합 저장 실행
       {
         'cleaningHabit': ch.toMap(),
+
+        /// 객체를 JSON 형태로 변환
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
