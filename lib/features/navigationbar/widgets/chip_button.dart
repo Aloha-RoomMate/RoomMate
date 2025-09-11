@@ -15,21 +15,25 @@ class ChipButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(
-        vertical: Sizes.size6,
-        horizontal: Sizes.size18,
+        vertical: Sizes.size4,
+        horizontal: Sizes.size14,
       ),
       decoration: BoxDecoration(
+        border: BoxBorder.all(color: Colors.black38),
+
         color: isSelected
             ? Theme.of(context).primaryColor
-            : Colors.grey.shade200,
+            // : Colors.grey.shade200,
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(
-          Sizes.size12,
+          Sizes.size18,
         ),
       ),
       child: Text(
         text,
         style: TextStyle(
-          color: isSelected ? Colors.white : Colors.black,
+          fontSize: Sizes.size12,
+          color: isSelected ? Colors.white : Colors.black87,
         ),
       ),
     );
