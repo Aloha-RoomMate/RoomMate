@@ -196,7 +196,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(
-            '하루 리듬을 선택해주세요!',
+            '생활 리듬을 선택해주세요!',
             style: TextStyle(
               fontSize: Sizes.size20 + Sizes.size2,
             ),
