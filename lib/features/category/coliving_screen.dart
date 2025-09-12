@@ -4,11 +4,9 @@ import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/dining_habit_screen.dart';
 import 'package:roommate/features/category/disease_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// 공용 공간 사용
 class CoSpaceOption {
@@ -132,6 +130,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
       _selectedCoSpace.clear();
     }
     _selectedCoSpace.add(option);
+    setState(() {});
   }
 
   void _onInteractionTap(String option) {
@@ -139,6 +138,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
       _selectedInteraction.clear();
     }
     _selectedInteraction.add(option);
+    setState(() {});
   }
 
   void _onCleaningTap(String option) {
@@ -146,6 +146,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
       _selectedCleaning.clear();
     }
     _selectedCleaning.add(option);
+    setState(() {});
   }
 
   void _onBathroomTap(String option) {
@@ -153,6 +154,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
       _selectedBathroom.clear();
     }
     _selectedBathroom.add(option);
+    setState(() {});
   }
 
   void _onSmokingTap(bool newValue) {
@@ -171,6 +173,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
         ..remove('없음')
         ..add(option);
     }
+    setState(() {});
   }
 
   void _onMbtiTap(String option) {
@@ -183,10 +186,16 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
         ..remove('모름')
         ..add(option);
     }
+    setState(() {});
   }
 
   bool _isNextEnable() {
-    return true;
+    return (_selectedCoSpace.isNotEmpty &&
+        _selectedInteraction.isNotEmpty &&
+        _selectedCleaning.isNotEmpty &&
+        _selectedBathroom.isNotEmpty &&
+        _selectedPet.isNotEmpty &&
+        _selectedMbti.isNotEmpty);
   }
 
   void _onNextTap() async {
