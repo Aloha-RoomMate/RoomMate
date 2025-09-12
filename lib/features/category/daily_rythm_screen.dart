@@ -7,7 +7,7 @@ import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/time_field.dart';
-import 'package:roommate/features/category/work_pattern_screen.dart';
+import 'package:roommate/features/category/coliving_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// 요일
@@ -116,7 +116,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
             context,
           ).push(
             MaterialPageRoute(
-              builder: (context) => WorkPatternScreen(),
+              builder: (context) => ColivingScreen(),
             ),
           );
         }
@@ -201,7 +201,6 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
               fontSize: Sizes.size20 + Sizes.size2,
             ),
           ),
-          centerTitle: true,
         ),
         body: Padding(
           padding: EdgeInsets.only(

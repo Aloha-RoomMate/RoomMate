@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/work_pattern_screen.dart';
+import 'package:roommate/features/category/coliving_screen.dart';
 
 class FormButton extends StatelessWidget {
   const FormButton({super.key, required this.enabled, required this.widget});
