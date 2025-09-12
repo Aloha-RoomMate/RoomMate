@@ -12,12 +12,9 @@ class CookOption {
 }
 
 const keyCook = [
-  CookOption('전혀 안 해요'),
-  CookOption('1-2회'),
-  CookOption('2-3회'),
-  CookOption('3-4회'),
-  CookOption('4-5회'),
-  CookOption('5회 이상'),
+  CookOption('자주'),
+  CookOption('보통'),
+  CookOption('거의 안 해요'),
 ];
 
 class SmellOption {
@@ -36,21 +33,12 @@ class DishOption {
   const DishOption(this.label);
 }
 
-const keyDishes = [DishOption('같이 써요'), DishOption('개인 식기를 선호해요')];
+const keyDishes = [DishOption('공용 식기'), DishOption('개인 식기')];
 
 class DeliveryOption {
   final String label;
   const DeliveryOption(this.label);
 }
-
-const keyDelivery = [
-  DeliveryOption('전혀 안 시켜요'),
-  DeliveryOption('1-2회'),
-  DeliveryOption('2-3회'),
-  DeliveryOption('3-4회'),
-  DeliveryOption('4-5회'),
-  DeliveryOption('5회 이상'),
-];
 
 class DiningHabitScreen extends StatefulWidget {
   const DiningHabitScreen({super.key});
@@ -64,13 +52,15 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
   final Set<String> _selectedSmell = {};
   final Set<String> _selectedDishes = {};
   final Set<String> _selectedDelivery = {};
+  bool _isSending = false;
 
   void _onCookChipTap(String option) {
     if (_selectedCook.contains(option)) {
       _selectedCook.remove(option);
-    } else {
-      _selectedCook.add(option);
+    } else if (_selectedCook.isNotEmpty) {
+      _selectedCook.clear();
     }
+    _selectedCook.add(option);
     setState(() {});
   }
 
@@ -92,15 +82,6 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
     setState(() {});
   }
 
-  void _onDeliveryChipTap(String option) {
-    if (_selectedDelivery.contains(option)) {
-      _selectedDelivery.remove(option);
-    } else {
-      _selectedDelivery.add(option);
-    }
-    setState(() {});
-  }
-
   bool _isNextEnable() {
     return _selectedCook.isNotEmpty &&
         _selectedSmell.isNotEmpty &&
@@ -111,6 +92,9 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
   void _onNextTap() async {
     if (_isNextEnable()) {
       try {
+        setState(() {
+          _isSending = true;
+        });
         final payload = _buildPayload();
         await FirebaseFirestore.instance
             .collection('diningPattern')
@@ -128,6 +112,10 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
         }
       } catch (e) {
         print('error occured!');
+      } finally {
+        if (mounted) {
+          _isSending = false;
+        }
       }
     }
   }
@@ -206,7 +194,7 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
               ),
               Gaps.v12,
               Text(
-                '공용 식기 선호도를 알려주세요',
+                '식기 선호도를 알려주세요',
                 style: TextStyle(
                   fontSize: Sizes.size16,
                   fontWeight: FontWeight.w600,
@@ -226,32 +214,20 @@ class _DiningHabitScreenState extends State<DiningHabitScreen> {
                 ],
               ),
               Gaps.v12,
-              Text(
-                '주 배달 횟수를 선택하세요',
-                style: TextStyle(
-                  fontSize: Sizes.size16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Gaps.v6,
-              Wrap(
-                spacing: Sizes.size8,
-                runSpacing: Sizes.size8,
-                children: [
-                  for (final delivery in keyDelivery)
-                    CategoryButton(
-                      text: delivery.label,
-                      myonTap: () => _onDeliveryChipTap(delivery.label),
-                      isSelected: _selectedDelivery.contains(delivery.label),
-                    ),
-                ],
-              ),
-              Gaps.v12,
               GestureDetector(
                 onTap: _onNextTap,
                 child: FormButton(
                   enabled: _isNextEnable(),
-                  text: "다음",
+                  widget: _isSending
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          '다음',
+                          textAlign: TextAlign.center,
+                        ),
                 ),
               ),
             ],
