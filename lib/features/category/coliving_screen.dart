@@ -117,13 +117,6 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
   final Set<String> _selectedPet = {};
   final Set<String> _selectedMbti = {};
 
-  TextEditingController _coSpaceCtrl = TextEditingController();
-  TextEditingController _interactionCtrl = TextEditingController();
-  TextEditingController _cleaningCtrl = TextEditingController();
-  TextEditingController _bathroomCtrl = TextEditingController();
-  TextEditingController _petCtrl = TextEditingController();
-  TextEditingController _mbtiCtrl = TextEditingController();
-
   /// 선택 함수들 선언
   void _onCoSpaceTap(String option) {
     if (_selectedCoSpace.isNotEmpty) {
@@ -182,9 +175,11 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
         ..clear()
         ..add(option);
     } else {
-      _selectedMbti
-        ..remove('모름')
-        ..add(option);
+      _selectedMbti.add('모름');
+      if (_selectedMbti.isNotEmpty) {
+        _selectedMbti.clear();
+      }
+      _selectedMbti.add(option);
     }
     setState(() {});
   }
@@ -266,7 +261,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Gaps.v12,
+              Gaps.v24,
               Text(
                 '공용 공간 사용 선호도를 알려주세요!',
                 style: TextStyle(
@@ -287,7 +282,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     ),
                 ],
               ),
-              Gaps.v12,
+              Gaps.v24,
               Text(
                 '룸메이트와의 선호 교류 타입을 알려주세요!',
                 style: TextStyle(
@@ -308,7 +303,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     ),
                 ],
               ),
-              Gaps.v12,
+              Gaps.v24,
               Text(
                 '정리정돈 성향을 알려주세요!',
                 style: TextStyle(
@@ -329,7 +324,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     ),
                 ],
               ),
-              Gaps.v12,
+              Gaps.v24,
               Text(
                 '화장실 청결 민감도를 알려주세요!',
                 style: TextStyle(
@@ -350,7 +345,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     ),
                 ],
               ),
-              Gaps.v12,
+              Gaps.v24,
               Row(
                 children: [
                   Text(
@@ -363,13 +358,12 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                   Gaps.h10,
                   CupertinoSwitch(
                     value: _isSmoking,
-                    onChanged: (newValue) => _onSmokingTap,
+                    onChanged: _onSmokingTap,
                   ),
                   // Dart가 알아서 바뀐 newValue 넘겨줌.
                 ],
               ),
-              Gaps.v6,
-              Gaps.v12,
+              Gaps.v24,
               Text(
                 '반려동물 여부를 알려주세요!',
                 style: TextStyle(
@@ -390,7 +384,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     ),
                 ],
               ),
-              Gaps.v12,
+              Gaps.v24,
               Text(
                 'MBTI를 알려주세요!',
                 style: TextStyle(
@@ -411,7 +405,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     ),
                 ],
               ),
-              Gaps.v12,
+              Gaps.v24,
               GestureDetector(
                 onTap: _onNextTap,
                 child: FormButton(
