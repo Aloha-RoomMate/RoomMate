@@ -247,7 +247,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
         title: Text(
           '공동 생활 성향에 대해 알려주세요!',
           style: TextStyle(
-            fontSize: Sizes.size20 + Sizes.size2,
+            fontSize: Sizes.size16 + Sizes.size3,
           ),
         ),
       ),
