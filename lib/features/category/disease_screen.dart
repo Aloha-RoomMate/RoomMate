@@ -17,6 +17,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
   TextEditingController _textEditingController = TextEditingController();
   bool _isHealthy = false;
   String _diseases = "";
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -56,6 +57,9 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
   void _onNextTap() async {
     if (_isHealthy || _diseases.isNotEmpty) {
       try {
+        setState(() {
+          _isSending = true;
+        });
         final payload = _buildPayload();
         await FirebaseFirestore.instance.collection('disease').add(payload);
         print('data stored!');
@@ -71,6 +75,12 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
         }
       } catch (e) {
         print('error occured!');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSending = false;
+          });
+        }
       }
     }
   }
@@ -133,7 +143,16 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
                   onTap: _onNextTap,
                   child: FormButton(
                     enabled: _isHealthy == true || _diseases.isNotEmpty,
-                    text: '다음',
+                    widget: _isSending
+                        ? Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            '다음',
+                            textAlign: TextAlign.center,
+                          ),
                   ),
                 ),
               ],
