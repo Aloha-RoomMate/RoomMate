@@ -8,7 +8,6 @@ import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/time_field.dart';
 import 'package:roommate/features/category/coliving_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// 요일
 class DayOption {
@@ -188,7 +187,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
     final daysCheck = _selectedDays.isNotEmpty;
     final timesCheck = _timesCheck();
 
-    return (daysCheck || _isJobLess) && timesCheck;
+    return (_isJobLess) || (daysCheck && timesCheck);
   }
 
   @override
