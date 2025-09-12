@@ -155,7 +155,6 @@ class HobbyScreenState extends State<HobbyScreen> {
               const Divider(height: 1, color: Colors.black12),
               const SizedBox(height: Sizes.size14),
 
-              // ✅ 섹션들
               Expanded(
                 child: SingleChildScrollView(
                   child: Padding(
@@ -163,8 +162,12 @@ class HobbyScreenState extends State<HobbyScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        HobbyWidgetStateful(section: sportSection),
-                        HobbyWidgetStateful(section: foodSection),
+                        HobbyWidgetStateful(
+                          section: sportSection,
+                        ), //위에서 section 정의를 먼저 하고 사용
+                        HobbyWidgetStateful(
+                          section: foodSection,
+                        ), // 자세한 내용은 hobby_widget.dart 를 참고할 것.
                         HobbyWidgetStateful(section: interestSection),
                         const SizedBox(height: Sizes.size10),
                         GestureDetector(

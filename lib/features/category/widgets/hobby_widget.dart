@@ -82,6 +82,7 @@ class _HobbyWidgetState extends State<HobbyWidgetStateful> {
               child: Divider(color: Colors.black26, thickness: 1, endIndent: 8),
             ),
             TextButton.icon(
+              // _expanded에 따라 상태 달라지게 음음
               onPressed: () {
                 setState(() {
                   _expanded = !_expanded;
