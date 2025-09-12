@@ -15,7 +15,7 @@ class LoginScreen extends StatelessWidget {
 
   void _onSignupTap(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const DailyRythmScreen()),
+      MaterialPageRoute(builder: (_) => const DailyRhythmScreen()),
     );
   }
 
@@ -42,7 +42,7 @@ class LoginScreen extends StatelessWidget {
 
       if (!context.mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const DailyRythmScreen()),
+        MaterialPageRoute(builder: (_) => const DailyRhythmScreen()),
       );
     } on FirebaseAuthException catch (e) {
       if (!context.mounted) return;
