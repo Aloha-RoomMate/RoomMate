@@ -178,7 +178,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
     final daysCheck = _selectedDays.isNotEmpty;
     final timesCheck = _timesCheck();
 
-    return daysCheck && timesCheck;
+    return (daysCheck || _isJobLess) && timesCheck;
   }
 
   @override
