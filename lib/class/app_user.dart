@@ -10,11 +10,7 @@ class AppUser {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DailyRhythm? dailyRhythm;
-  final WorkPattern? workPattern;
-  final DiningHabit? diningHabit;
-  final SoundScreen? soundScreen;
-  final CleaningHabit? cleaningHabit;
-  final EtcLife? etcLife;
+  final Coliving? coliving;
   final DiseaseInfo? disease;
   final String? introduction;
   final UserType? userType;
@@ -27,11 +23,7 @@ class AppUser {
     this.createdAt,
     this.updatedAt,
     this.dailyRhythm,
-    this.workPattern,
-    this.diningHabit,
-    this.soundScreen,
-    this.cleaningHabit,
-    this.etcLife,
+    this.coliving,
     this.disease,
     this.introduction,
     this.userType,
@@ -48,11 +40,7 @@ class AppUser {
     DateTime? updatedAt,
     String? userType,
     DailyRhythm? dailyRhythm,
-    WorkPattern? workPattern,
-    DiningHabit? diningHabit,
-    SoundScreen? soundScreen,
-    CleaningHabit? cleaningHabit,
-    EtcLife? etcLife,
+    Coliving? coliving,
     DiseaseInfo? disease,
     String? introduction,
   }) {
@@ -65,11 +53,7 @@ class AppUser {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       dailyRhythm: dailyRhythm ?? this.dailyRhythm,
-      workPattern: workPattern ?? this.workPattern,
-      diningHabit: diningHabit ?? this.diningHabit,
-      soundScreen: soundScreen ?? this.soundScreen,
-      cleaningHabit: cleaningHabit ?? this.cleaningHabit,
-      etcLife: etcLife ?? this.etcLife,
+      coliving: coliving ?? this.coliving,
       disease: disease ?? this.disease,
       introduction: introduction ?? this.introduction,
     );
@@ -106,19 +90,9 @@ class AppUser {
       userType: UserType.fromMap(
         map['userType'] as Map<String, dynamic>?,
       ),
-      workPattern: WorkPattern.fromMap(
-        map['workPattern'] as Map<String, dynamic>?,
+      coliving: Coliving.fromMap(
+        map['coliving'] as Map<String, dynamic>?,
       ),
-      diningHabit: DiningHabit.fromMap(
-        map['diningHabit'] as Map<String, dynamic>?,
-      ),
-      soundScreen: SoundScreen.fromMap(
-        map['soundScreen'] as Map<String, dynamic>?,
-      ),
-      cleaningHabit: CleaningHabit.fromMap(
-        map['cleaningHabit'] as Map<String, dynamic>?,
-      ),
-      etcLife: EtcLife.fromMap(map['etcLife'] as Map<String, dynamic>?),
       disease: DiseaseInfo.fromMap(map['disease'] as Map<String, dynamic>?),
       introduction: map['introduction'] as String?,
     );
@@ -135,11 +109,7 @@ class AppUser {
       'photoURL': photoURL,
       if (dailyRhythm != null) 'dailyRhythm': dailyRhythm!.toMap(),
       if (userType != null) 'userType': userType!.toMap(),
-      if (workPattern != null) 'workPattern': workPattern!.toMap(),
-      if (diningHabit != null) 'diningHabit': diningHabit!.toMap(),
-      if (soundScreen != null) 'soundScreen': soundScreen!.toMap(),
-      if (cleaningHabit != null) 'cleaningHabit': cleaningHabit!.toMap(),
-      if (etcLife != null) 'etcLife': etcLife!.toMap(),
+      if (coliving != null) 'coliving': coliving!.toMap(),
       if (disease != null) 'disease': disease!.toMap(),
       if (introduction != null) 'introduction': introduction,
     };
@@ -178,7 +148,6 @@ class DailyRhythm {
   static DailyRhythm? fromMap(Map<String, dynamic>? map) {
     if (map == null) return null;
     final week = (map['week'] as Map<String, dynamic>?) ?? const {};
-    final weekend = (map['weekend'] as Map<String, dynamic>?) ?? const {};
     return DailyRhythm(
       // <String>으로 하면 dynamic인 map value들로부터 보호 가능
       workDays: List<String>.from(map['workDays'] ?? const []),
@@ -220,116 +189,41 @@ class UserType {
   };
 }
 
-class WorkPattern {
-  final List<String> lates; // 늦은 귀가 빈도
-  final List<String> drinks; // 주 음주 횟수
-  const WorkPattern({required this.lates, required this.drinks});
-  Map<String, dynamic> toMap() => {'lates': lates, 'drinks': drinks};
-  static WorkPattern? fromMap(Map<String, dynamic>? m) {
-    if (m == null) return null;
-    return WorkPattern(
-      lates: List<String>.from(m['lates'] ?? const []),
-      drinks: List<String>.from(m['drinks'] ?? const []),
-    );
-  }
-}
-
-class DiningHabit {
-  final List<String> weeklyCooking;
-  final List<String> smellSense;
-  final List<String> dishShare;
-  const DiningHabit({
-    required this.weeklyCooking,
-    required this.smellSense,
-    required this.dishShare,
-  });
-  Map<String, dynamic> toMap() => {
-    'weeklyCooking': weeklyCooking,
-    'smellSense': smellSense,
-    'dishShare': dishShare,
-  };
-  static DiningHabit? fromMap(Map<String, dynamic>? m) {
-    if (m == null) return null;
-    return DiningHabit(
-      weeklyCooking: List<String>.from(m['weeklyCooking'] ?? const []),
-      smellSense: List<String>.from(m['smellSense'] ?? const []),
-      dishShare: List<String>.from(m['dishShare'] ?? const []),
-    );
-  }
-}
-
-class SoundScreen {
-  final List<String> sleepSound;
-  final List<String> sleepHabit;
-  final List<String> soundMode;
-  final List<String> earPhone;
-  const SoundScreen({
-    required this.sleepSound,
-    required this.sleepHabit,
-    required this.soundMode,
-    required this.earPhone,
-  });
-  Map<String, dynamic> toMap() => {
-    'sleepSound': sleepSound,
-    'sleepHabit': sleepHabit,
-    'soundMode': soundMode,
-    'earPhone': earPhone,
-  };
-  static SoundScreen? fromMap(Map<String, dynamic>? m) {
-    if (m == null) return null;
-    return SoundScreen(
-      sleepSound: List<String>.from(m['sleepSound'] ?? const []),
-      sleepHabit: List<String>.from(m['sleepHabit'] ?? const []),
-      soundMode: List<String>.from(m['soundMode'] ?? const []),
-      earPhone: List<String>.from(m['earPhone'] ?? const []),
-    );
-  }
-}
-
-class CleaningHabit {
-  final List<String> roomClean;
-  final List<String> bathroomClean;
-  final List<String> cleaningLevel;
-  const CleaningHabit({
-    required this.roomClean,
-    required this.bathroomClean,
-    required this.cleaningLevel,
-  });
-  Map<String, dynamic> toMap() => {
-    'roomClean': roomClean,
-    'bathroomClean': bathroomClean,
-    'cleaningLevel': cleaningLevel,
-  };
-  static CleaningHabit? fromMap(Map<String, dynamic>? m) {
-    if (m == null) return null;
-    return CleaningHabit(
-      roomClean: List<String>.from(m['roomClean'] ?? const []),
-      bathroomClean: List<String>.from(m['bathroomClean'] ?? const []),
-      cleaningLevel: List<String>.from(m['cleaningLevel'] ?? const []),
-    );
-  }
-}
-
-class EtcLife {
-  final List<String> smoking;
-  final List<String> insideSmoking;
+class Coliving {
+  final String coSpace;
+  final String interaction;
+  final String bathroom;
+  final bool smoking;
   final List<String> pet;
-  const EtcLife({
+  final String mbti;
+
+  const Coliving({
+    required this.coSpace,
+    required this.interaction,
+    required this.bathroom,
     required this.smoking,
-    required this.insideSmoking,
     required this.pet,
+    required this.mbti,
   });
+
   Map<String, dynamic> toMap() => {
+    'coSpace': coSpace,
+    'interaction': interaction,
+    'bathroom': bathroom,
     'smoking': smoking,
-    'insideSmoking': insideSmoking,
-    'pet': pet,
+    "pet": pet,
+    'mbti': mbti,
   };
-  static EtcLife? fromMap(Map<String, dynamic>? m) {
-    if (m == null) return null;
-    return EtcLife(
-      smoking: List<String>.from(m['smoking'] ?? const []),
-      insideSmoking: List<String>.from(m['insideSmoking'] ?? const []),
-      pet: List<String>.from(m['pet'] ?? const []),
+
+  static Coliving? fromMap(Map<String, dynamic>? map) {
+    if (map == null) return null; // 없으면
+    return Coliving(
+      coSpace: map['coSpace'],
+      interaction: map['interaction'],
+      bathroom: map['bathroom'],
+      smoking: map['smoking'],
+      pet: List<String>.from(map['pet'] ?? const []),
+      mbti: map['mbti'],
     );
   }
 }
