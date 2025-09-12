@@ -17,6 +17,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   final TextEditingController _controller = TextEditingController();
   static const _limit = 300;
   String _introduction = "";
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -38,6 +39,9 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   void _onNextTap() async {
     if (_introduction.length >= 50 && _introduction.length <= 300) {
       try {
+        setState(() {
+          _isSending = true;
+        });
         final payload = _buildPayload();
         await FirebaseFirestore.instance
             .collection('introduction')
@@ -55,6 +59,12 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         }
       } catch (e) {
         print('error occured!');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSending = false;
+          });
+        }
       }
     }
   }
@@ -122,7 +132,16 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                     enabled:
                         _introduction.length >= 50 &&
                         _introduction.length <= 300,
-                    text: "다음",
+                    widget: _isSending
+                        ? Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            '다음',
+                            textAlign: TextAlign.center,
+                          ),
                   ),
                 ),
               ],
