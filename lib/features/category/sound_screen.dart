@@ -66,6 +66,7 @@ class _SoundScreenState extends State<SoundScreen> {
   final Set<String> _selectedSleepHabit = {};
   final Set<String> _selectedSoundMode = {};
   final Set<String> _selectedEarPhone = {};
+  bool _isSending = false;
 
   void _onSleepSoundChipTap(String option) {
     if (_selectedSleepSound.contains(option)) {
@@ -113,6 +114,9 @@ class _SoundScreenState extends State<SoundScreen> {
   void _onNextTap() async {
     if (_isNextEnable()) {
       try {
+        setState(() {
+          _isSending = true;
+        });
         final payload = _buildPayload();
         await FirebaseFirestore.instance
             .collection('soundSensitivity')
@@ -130,6 +134,10 @@ class _SoundScreenState extends State<SoundScreen> {
         }
       } catch (e) {
         print('error occured!');
+      } finally {
+        if (mounted) {
+          _isSending = false;
+        }
       }
     }
   }
@@ -253,7 +261,16 @@ class _SoundScreenState extends State<SoundScreen> {
                 onTap: _onNextTap,
                 child: FormButton(
                   enabled: _isNextEnable(),
-                  text: "다음",
+                  widget: _isSending
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          '다음',
+                          textAlign: TextAlign.center,
+                        ),
                 ),
               ),
             ],
