@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/disease_screen.dart';
@@ -57,6 +58,7 @@ class _EtcScreenState extends State<EtcScreen> {
   final Set<String> _selectedSmoke = {};
   final Set<String> _selectedInsideSmoke = {};
   final Set<String> _selectedPet = {};
+  bool _isSending = false;
 
   void _onSmokeChipTap(String option) {
     if (_selectedSmoke.contains(option)) {
@@ -102,6 +104,9 @@ class _EtcScreenState extends State<EtcScreen> {
   void _onNextTap() async {
     if (_isNextEnable()) {
       try {
+        setState(() {
+          _isSending = true;
+        });
         final payload = _buildPayload();
         await FirebaseFirestore.instance.collection('etcLife').add(payload);
         print('data stored!');
@@ -117,6 +122,10 @@ class _EtcScreenState extends State<EtcScreen> {
         }
       } catch (e) {
         print('error occured!');
+      } finally {
+        if (mounted) {
+          _isSending = false;
+        }
       }
     }
   }
@@ -212,7 +221,16 @@ class _EtcScreenState extends State<EtcScreen> {
                 onTap: _onNextTap,
                 child: FormButton(
                   enabled: _isNextEnable(),
-                  text: "다음",
+                  widget: _isSending
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          '다음',
+                          textAlign: TextAlign.center,
+                        ),
                 ),
               ),
             ],
