@@ -85,7 +85,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
     // 따라서 바뀐 bool 값으로 카테고리 버튼 색깔이 바뀜
   }
 
-  /// int로 바꿔주면 나중에 편함.
+  /// 시간 int로 바꿔주면 나중에 편함.
   int? toMinutes(String textTime) {
     if (textTime.isEmpty) return null;
     final p = textTime.replaceAll(' ', '').split(':');
@@ -108,6 +108,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
           weekSleepMins: _isJobLess ? null : toMinutes(_weekSleepCtrl.text),
         );
 
+        // 실제 데이터 넘기는 부분
         await _userRepository.setDailyRhythm(rhythm);
 
         if (mounted) {
