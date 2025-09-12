@@ -112,16 +112,25 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
         await _userRepository.setDailyRhythm(rhythm);
 
         if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('저장 성공'),
+            ),
+          );
+          Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => ColivingScreen(),
             ),
           );
         }
       } catch (e) {
-        print('데이터 저장 중 에러 발생');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('데이터 저장 중 에러 발생'),
+          ),
+        );
+        // context 쓸거면 mounted 확인
       } finally {
         if (mounted) {
           setState(() {
