@@ -6,21 +6,6 @@ import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// 늦는 횟수
-class LateOption {
-  final String label;
-  const LateOption(this.label);
-}
-
-const keyLate = [
-  LateOption('0회'),
-  LateOption('1-2회'),
-  LateOption('2-3회'),
-  LateOption('3-4회'),
-  LateOption('4-5회'),
-  LateOption('5회 이상'),
-];
-
 class DrinkOption {
   final String label;
   const DrinkOption(this.label);
@@ -43,37 +28,32 @@ class WorkPatternScreen extends StatefulWidget {
 }
 
 class _WorkPatternScreenState extends State<WorkPatternScreen> {
-  final Set<String> _selectedLates = {};
   final Set<String> _selectedDrinks = {};
-
-  void _onLateOptionTap(String option) {
-    if (_selectedLates.contains(option)) {
-      _selectedLates.remove(option);
-    } else {
-      _selectedLates.add(option);
-    }
-    setState(() {});
-  }
+  bool _isSending = false;
 
   void _onDrinkTap(String option) {
     if (_selectedDrinks.contains(option)) {
       _selectedDrinks.remove(option);
-    } else {
-      _selectedDrinks.add(option);
+    } else if (_selectedDrinks.isNotEmpty) {
+      _selectedDrinks.clear();
     }
+    _selectedDrinks.add(option);
     setState(() {});
   }
 
   bool _isNextEnable() {
-    return (_selectedLates.isNotEmpty && _selectedDrinks.isNotEmpty);
+    return (_selectedDrinks.isNotEmpty);
   }
 
   void _onNextTap() async {
     if (_isNextEnable()) {
       try {
+        setState(() {
+          _isSending = true;
+        });
         final payload = _buildPayload();
         await FirebaseFirestore.instance.collection('latePattern').add(payload);
-        print('data stored!');
+        print('>> 데이터 저장 성공');
 
         if (mounted) {
           Navigator.of(
@@ -86,13 +66,16 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
         }
       } catch (e) {
         print('데이터 저장 중 에러 발생');
+      } finally {
+        if (mounted) {
+          _isSending = false;
+        }
       }
     }
   }
 
   Map<String, dynamic> _buildPayload() {
     return {
-      'lates': _selectedLates.toList(),
       'drinks': _selectedDrinks.toList(),
     };
   }
@@ -119,26 +102,6 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '늦은 귀가에 빈도에 대해 알려주세요!',
-                style: TextStyle(
-                  fontSize: Sizes.size16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Gaps.v6,
-              Wrap(
-                spacing: Sizes.size8,
-                runSpacing: Sizes.size8,
-                children: [
-                  for (final late in keyLate)
-                    CategoryButton(
-                      text: late.label,
-                      myonTap: () => _onLateOptionTap(late.label),
-                      isSelected: _selectedLates.contains(late.label),
-                    ),
-                ],
-              ),
               Gaps.v12,
               Text(
                 '주 음주 횟수를 알려주세요',
@@ -160,13 +123,21 @@ class _WorkPatternScreenState extends State<WorkPatternScreen> {
                     ),
                 ],
               ),
-
               Gaps.v12,
               GestureDetector(
                 onTap: _onNextTap,
                 child: FormButton(
                   enabled: _isNextEnable(),
-                  text: "다음",
+                  widget: _isSending
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          '다음',
+                          textAlign: TextAlign.center,
+                        ),
                 ),
               ),
             ],
