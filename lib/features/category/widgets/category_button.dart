@@ -23,7 +23,7 @@ class CategoryButton extends StatelessWidget {
         ),
         padding: EdgeInsets.symmetric(
           vertical: Sizes.size6,
-          horizontal: Sizes.size18,
+          horizontal: Sizes.size12,
         ),
         decoration: BoxDecoration(
           color: isSelected
