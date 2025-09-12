@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/authentication/signup/welcome_screen.dart';
+import 'package:roommate/features/authentication/login/welcome_screen.dart';
 import 'package:roommate/features/authentication/widgets/auth_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -65,18 +65,31 @@ class LoginScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: Sizes.size40),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Gaps.v80,
-              const Text(
-                '로그인',
+              Gaps.v10,
+              Text(
+                'RoomMate',
                 style: TextStyle(
-                  fontSize: Sizes.size28,
-                  fontWeight: FontWeight.w600,
+                  letterSpacing: 3,
+                  fontSize: Sizes.size32,
+                  fontWeight: FontWeight.w900,
+                  foreground: Paint()
+                    ..shader = LinearGradient(
+                      colors: <Color>[
+                        Colors.yellow,
+                        Theme.of(context).primaryColor,
+                        Colors.green,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ).createShader(Rect.fromLTWH(0.0, 10.0, 1000, 00)),
                 ),
               ),
               Gaps.v20,
               const Text(
-                '나의 룸메이트를 찾아보기',
+                '나와 맞는 룸메이트 찾기',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
@@ -85,45 +98,14 @@ class LoginScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               Gaps.v1,
-              Text(
-                'RoomMate',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: Sizes.size20,
-                  color: Theme.of(context).primaryColor,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              Gaps.v48,
+              Gaps.v96,
+              Gaps.v96,
               InkWell(
                 onTap: () => _signInWithGoogle(context),
                 borderRadius: BorderRadius.circular(12),
-                child: const AuthButton(
-                  icon: FaIcon(FontAwesomeIcons.google),
-                  text: 'Continue with Google',
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: BottomAppBar(
-        elevation: 1,
-        color: Colors.grey[100],
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: Sizes.size10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text("Dont have account?  "),
-              GestureDetector(
-                onTap: () => _onSignupTap(context),
-                child: Text(
-                  'Sign up',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context).primaryColor,
-                  ),
+                child: AuthButton(
+                  icon: FaIcon(FontAwesomeIcons.google, color: Colors.white),
+                  text: '구글로 계속하기',
                 ),
               ),
             ],
