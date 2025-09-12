@@ -32,13 +32,19 @@ class _DemandButtonState extends State<DemandButton> {
         decoration: BoxDecoration(
           color: _isSelected
               ? Theme.of(context).primaryColor
-              : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(Sizes.size12),
-          border: Border.all(color: Colors.black.withAlpha(5)),
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(Sizes.size18),
+          border: Border.all(
+            color: _isSelected ? Colors.transparent : Colors.black38,
+          ),
         ),
         child: Text(
           widget.text,
-          style: TextStyle(color: _isSelected ? Colors.white : Colors.black),
+          style: TextStyle(
+            fontSize: Sizes.size12,
+            color: _isSelected ? Colors.white : Colors.black,
+            fontWeight: _isSelected ? FontWeight.w500 : FontWeight.w400,
+          ),
         ),
       ),
     );

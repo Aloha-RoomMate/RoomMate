@@ -1,3 +1,5 @@
+// 화면 깜빡임을 줄이기 위해 빌드를 너무 자주하게 하면 안된다.
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
@@ -20,6 +22,15 @@ class _UserjobScreenState extends State<UserjobScreen> {
   int? _selectedIndex;
   Key _leftKey = UniqueKey();
   Key _rightKey = UniqueKey();
+
+  late Future<User?> _userFuture; // ✅ 캐싱용 Future
+
+  @override
+  void initState() {
+    super.initState();
+    _userFuture = Future.value(FirebaseAuth.instance.currentUser);
+    // 이미 로그인된 사용자라면 한 번만 가져오면 됨
+  }
 
   void _onJobTap(int index) {
     setState(() => _jobSelections[index] = !_jobSelections[index]);
@@ -95,190 +106,227 @@ class _UserjobScreenState extends State<UserjobScreen> {
     final textOptions = ['회사/학교', '재택', '프리랜서', '대학생'];
     final selectedJobs = <String>[];
     final bool isNextEnabled = _isNextEnabled();
-
     for (int i = 0; i < _jobSelections.length; i++) {
       if (_jobSelections[i]) {
         selectedJobs.add(textOptions[i]);
       }
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('회원가입')),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Padding(
-              padding: const EdgeInsets.all(Sizes.size16),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '출퇴근 형태를 알려주세요',
-                      style: TextStyle(
-                        fontSize: Sizes.size16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Gaps.v6,
-                    Wrap(
-                      spacing: Sizes.size10,
-                      runSpacing: Sizes.size10,
-                      children: List.generate(4, (i) {
-                        return CategoryButton(
-                          text: textOptions[i],
-                          myonTap: () => _onJobTap(i),
-                          isSelected: _jobSelections[i],
-                        );
-                      }),
-                    ),
+    return FutureBuilder<User?>(
+      future: _userFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data == null) {
+          return const Center(child: Text("데이터가 없습니다."));
+        }
+        final data = snapshot.data!;
 
-                    const SizedBox(height: Sizes.size32),
-
-                    const Text(
-                      '유저 타입을 선택해주세요',
-                      style: TextStyle(
-                        fontSize: Sizes.size16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: Sizes.size20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        DemandButton(
-                          key: _leftKey,
-                          text: "Room-owner",
-                          myonTap: _onTapLeft,
+        return Scaffold(
+          appBar: AppBar(title: const Text('')),
+          body: SafeArea(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 20, right: 20),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '현재 하시고 계신 일에\n대해 알려주세요 !',
+                        style: TextStyle(
+                          fontSize: Sizes.size28,
+                          fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(width: Sizes.size56),
-                        DemandButton(
-                          key: _rightKey,
-                          text: "Searcher",
-                          myonTap: _onTapRight,
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        "나중에 더 찰떡궁합 룸메이트를 찾는데 사용되요.",
+                        style: TextStyle(
+                          fontSize: Sizes.size14,
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w300,
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: Sizes.size16),
+                      const Divider(height: 1, color: Colors.black12),
+                      const SizedBox(height: Sizes.size16),
 
-                    const SizedBox(height: Sizes.size24),
+                      Center(
+                        child: Wrap(
+                          spacing: Sizes.size10,
+                          runSpacing: Sizes.size10,
+                          children: List.generate(4, (i) {
+                            return CategoryButton(
+                              text: textOptions[i],
+                              myonTap: () => _onJobTap(i),
+                              isSelected: _jobSelections[i],
+                            );
+                          }),
+                        ),
+                      ),
 
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: (child, animation) {
-                        final offsetTween = Tween<Offset>(
-                          begin: const Offset(0, 1),
-                          end: Offset.zero,
-                        );
-                        return SlideTransition(
-                          position: offsetTween.animate(animation),
-                          child: FadeTransition(
-                            opacity: animation,
-                            child: child,
+                      const SizedBox(height: Sizes.size80),
+
+                      const Text(
+                        '현재 RoomMate를 \n이용하는 이유는 무엇인가요 ?',
+                        style: TextStyle(
+                          fontSize: Sizes.size28,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        "나중에도 변경가능해요 !",
+                        style: TextStyle(
+                          fontSize: Sizes.size14,
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                      const SizedBox(height: Sizes.size16),
+                      const Divider(height: 1, color: Colors.black12),
+                      const SizedBox(height: Sizes.size16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          DemandButton(
+                            key: _leftKey,
+                            text: "Room-owner",
+                            myonTap: _onTapLeft,
                           ),
-                        );
-                      },
-                      child: _buildDescriptionCard(context, _selectedIndex),
-                    ),
+                          const SizedBox(width: Sizes.size56),
+                          DemandButton(
+                            key: _rightKey,
+                            text: "Searcher",
+                            myonTap: _onTapRight,
+                          ),
+                        ],
+                      ),
 
-                    const SizedBox(height: Sizes.size28),
+                      const SizedBox(height: Sizes.size24),
 
-                    GestureDetector(
-                      onTap: isNextEnabled ? _onNextTap : null,
-                      child: _supportsEnabledProp()
-                          ? FormButton(enabled: isNextEnabled, text: "다음")
-                          : FormButton(enabled: !isNextEnabled, text: "다음"),
-                    ),
-                  ],
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) {
+                          final offsetTween = Tween<Offset>(
+                            begin: const Offset(0, 0.3),
+                            end: Offset.zero,
+                          );
+                          return SlideTransition(
+                            position: offsetTween.animate(animation),
+                            child: FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: _buildDescriptionCard(
+                          context,
+                          _selectedIndex,
+                          data,
+                        ),
+                      ),
+
+                      const SizedBox(height: Sizes.size28),
+
+                      GestureDetector(
+                        onTap: isNextEnabled ? _onNextTap : null,
+                        child: FormButton(
+                          enabled: isNextEnabled,
+                          text: "다음",
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
+        );
+      },
+    );
+  }
+}
+
+Widget _buildDescriptionCard(BuildContext context, int? index, User data) {
+  if (index == null) {
+    return const SizedBox(
+      height: Sizes.size96 + Sizes.size56 + Sizes.size1,
+    );
+  }
+
+  final bool isOwner = index == 0;
+  final String title = isOwner ? "Room-owner" : "Co-searcher";
+
+  final String ownerDesc =
+      "${data.displayName ?? ''}님이 현재 방을 가지고 있고,\n"
+      "월세를 같이 부담할 룸메이트를 찾고계시다면 \nRoom-owner입니다 !\n";
+  final String searcherDesc =
+      "${data.displayName ?? ''}님이 현재 방을 가지고 있지 않지만,\n"
+      "월세를 같이 부담하며 누군가의 \n룸메이트가 되려한다면 Searcher입니다.\n";
+
+  final String desc = isOwner ? ownerDesc : searcherDesc;
+  final IconData icon = isOwner ? Icons.home_rounded : Icons.search_rounded;
+
+  return Container(
+    key: ValueKey(title),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(Sizes.size18),
+      color: Colors.transparent,
+      border: Border.all(color: Colors.black.withAlpha(15)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.black.withAlpha(15)),
+            color: Theme.of(context).primaryColor,
+            borderRadius: BorderRadius.circular(Sizes.size10),
+          ),
+          child: Icon(icon, color: Colors.white),
         ),
-      ),
-    );
-  }
-
-  // 원래 설명 카드 빌더
-  Widget _buildDescriptionCard(BuildContext context, int? index) {
-    if (index == null) {
-      return const SizedBox.shrink(key: ValueKey('empty'));
-    }
-
-    final bool isOwner = index == 0;
-    final String title = isOwner ? "Room-owner" : "Co-searcher";
-
-    const String ownerDesc =
-        "Room-owner 는 현재 방을 가지고 있고,\n월세를 같이 부담할 룸메이트를 찾는 사람입니다.\n";
-    const String searcherDesc =
-        "Searcher 는 현재 방을 가지고 있지 않지만,\n월세를 같이 부담하며 누군가의 룸메이트가 되려는 사람입니다.";
-
-    final String desc = isOwner ? ownerDesc : searcherDesc;
-    final IconData icon = isOwner ? Icons.home_rounded : Icons.search_rounded;
-
-    return Container(
-      key: ValueKey(title),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: Theme.of(context).colorScheme.surface.withAlpha(120),
-        border: Border.all(color: Colors.black.withAlpha(15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(30),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withAlpha(25),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: Theme.of(context).primaryColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  desc,
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.5,
-                    color: Colors.black.withAlpha(170),
-                  ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                desc,
+                style: TextStyle(
+                  fontSize: Sizes.size12,
+                  height: 1.6,
+                  color: Colors.black.withAlpha(170),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
-  // 프로젝트마다 FormButton 시그니처가 달라 충돌 방지용 헬퍼
-  bool _supportsEnabledProp() {
-    // enabled/disabled 중 어떤 생성자를 쓰는지 컴파일 타임에 결정되므로
-    // 실제론 둘 중 하나만 남기면 됩니다.
-    // 팀 컨벤션에 맞춰 하나로 통일해 주세요.
-    return true;
-  }
+// 프로젝트마다 FormButton 시그니처가 달라 충돌 방지용 헬퍼
+bool _supportsEnabledProp() {
+  // enabled/disabled 중 어떤 생성자를 쓰는지 컴파일 타임에 결정되므로
+  // 실제론 둘 중 하나만 남기면 됩니다.
+  // 팀 컨벤션에 맞춰 하나로 통일해 주세요.
+  return true;
 }

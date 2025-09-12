@@ -26,17 +26,22 @@ class CategoryButton extends StatelessWidget {
           horizontal: Sizes.size18,
         ),
         decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? Colors.transparent : Colors.black38,
+          ),
           color: isSelected
               ? Theme.of(context).primaryColor
-              : Colors.grey.shade200,
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(
-            Sizes.size12,
+            Sizes.size18,
           ),
         ),
         child: Text(
           text,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black,
+            fontSize: Sizes.size12,
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
           ),
         ),
       ),
