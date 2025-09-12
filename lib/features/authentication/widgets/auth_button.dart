@@ -15,8 +15,18 @@ class AuthButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(Sizes.size16),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.white, width: Sizes.size1),
-          color: Colors.white,
+          border: Border.all(color: Colors.transparent, width: Sizes.size1),
+
+          gradient: LinearGradient(
+            colors: [
+              Colors.yellow,
+              Theme.of(context).primaryColor,
+              Colors.teal,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -34,7 +44,7 @@ class AuthButton extends StatelessWidget {
               text,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.black,
+                color: Colors.white,
                 fontWeight: FontWeight.w700,
                 fontSize: Sizes.size16,
               ),
