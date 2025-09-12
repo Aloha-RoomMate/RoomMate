@@ -1,7 +1,11 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/dining_habit_screen.dart';
+import 'package:roommate/features/category/disease_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,7 +16,7 @@ class CoSpaceOption {
   const CoSpaceOption(this.label);
 }
 
-const keyDrink = [
+const keyCoSpace = [
   CoSpaceOption('활발'),
   CoSpaceOption('중간'),
   CoSpaceOption('거의 사용 안 함'),
@@ -24,7 +28,7 @@ class InteractionOption {
   const InteractionOption(this.label);
 }
 
-const keyInteractioin = [
+const keyInteraction = [
   InteractionOption('친하게'),
   InteractionOption('적당히 거리두며'),
   InteractionOption('거의 없이'),
@@ -105,22 +109,84 @@ class ColivingScreen extends StatefulWidget {
 }
 
 class _WorkPatternScreenState extends State<ColivingScreen> {
-  final Set<String> _selectedDrinks = {};
   bool _isSmoking = false;
   bool _isSending = false;
 
-  void _onDrinkTap(String option) {
-    if (_selectedDrinks.contains(option)) {
-      _selectedDrinks.remove(option);
-    } else if (_selectedDrinks.isNotEmpty) {
-      _selectedDrinks.clear();
+  final Set<String> _selectedCoSpace = {};
+  final Set<String> _selectedInteraction = {};
+  final Set<String> _selectedCleaning = {};
+  final Set<String> _selectedBathroom = {};
+  final Set<String> _selectedPet = {};
+  final Set<String> _selectedMbti = {};
+
+  TextEditingController _coSpaceCtrl = TextEditingController();
+  TextEditingController _interactionCtrl = TextEditingController();
+  TextEditingController _cleaningCtrl = TextEditingController();
+  TextEditingController _bathroomCtrl = TextEditingController();
+  TextEditingController _petCtrl = TextEditingController();
+  TextEditingController _mbtiCtrl = TextEditingController();
+
+  /// 선택 함수들 선언
+  void _onCoSpaceTap(String option) {
+    if (_selectedCoSpace.isNotEmpty) {
+      _selectedCoSpace.clear();
     }
-    _selectedDrinks.add(option);
-    setState(() {});
+    _selectedCoSpace.add(option);
+  }
+
+  void _onInteractionTap(String option) {
+    if (_selectedInteraction.isNotEmpty) {
+      _selectedInteraction.clear();
+    }
+    _selectedInteraction.add(option);
+  }
+
+  void _onCleaningTap(String option) {
+    if (_selectedCleaning.isNotEmpty) {
+      _selectedCleaning.clear();
+    }
+    _selectedCleaning.add(option);
+  }
+
+  void _onBathroomTap(String option) {
+    if (_selectedBathroom.isNotEmpty) {
+      _selectedBathroom.clear();
+    }
+    _selectedBathroom.add(option);
+  }
+
+  void _onSmokingTap(bool newValue) {
+    setState(() {
+      _isSmoking = newValue;
+    });
+  }
+
+  void _onPetTap(String option) {
+    if (option == '없음') {
+      _selectedPet
+        ..clear()
+        ..add(option);
+    } else {
+      _selectedPet
+        ..remove('없음')
+        ..add(option);
+    }
+  }
+
+  void _onMbtiTap(String option) {
+    if (option == '모름') {
+      _selectedMbti
+        ..clear()
+        ..add(option);
+    } else {
+      _selectedMbti
+        ..remove('모름')
+        ..add(option);
+    }
   }
 
   bool _isNextEnable() {
-    return (_selectedDrinks.isNotEmpty);
+    return true;
   }
 
   void _onNextTap() async {
@@ -129,21 +195,39 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
         setState(() {
           _isSending = true;
         });
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance.collection('latePattern').add(payload);
-        print('>> 데이터 저장 성공');
+        final coliving = Coliving(
+          coSpace: _selectedCoSpace.first, // 그냥 .toString 하면 "{'활발'}". 껍데기까지.
+          interaction: _selectedInteraction.first,
+          bathroom: _selectedBathroom.first,
+          smoking: _isSmoking,
+          pet: _selectedPet.toList(),
+          mbti: _selectedMbti.first,
+        );
+
+        // 실제 데이터 넘기기
+        // USRREPO 선언 바로 할 수 있음.
+        await UserRepository().setColiving(coliving);
 
         if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('저장 성공'),
+            ),
+          );
+
+          Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => DiningHabitScreen(),
+              builder: (context) => DiseaseScreen(),
             ),
           );
         }
       } catch (e) {
-        print('데이터 저장 중 에러 발생');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('데이터 저장 중 에러 발생'),
+          ),
+        );
       } finally {
         if (mounted) {
           _isSending = false;
@@ -152,23 +236,16 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
     }
   }
 
-  Map<String, dynamic> _buildPayload() {
-    return {
-      'drinks': _selectedDrinks.toList(),
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '공용 공간 사용 선호도를 알려주세요!',
+          '공동 생활 성향에 대해 알려주세요!',
           style: TextStyle(
             fontSize: Sizes.size20 + Sizes.size2,
           ),
         ),
-        centerTitle: true,
       ),
       body: Padding(
         padding: EdgeInsets.only(
@@ -182,7 +259,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
             children: [
               Gaps.v12,
               Text(
-                '주 음주 횟수를 알려주세요',
+                '공용 공간 사용 선호도를 알려주세요!',
                 style: TextStyle(
                   fontSize: Sizes.size16,
                   fontWeight: FontWeight.w600,
@@ -193,11 +270,135 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                 spacing: Sizes.size8,
                 runSpacing: Sizes.size8,
                 children: [
-                  for (final drink in keyDrink)
+                  for (final option in keyCoSpace)
                     CategoryButton(
-                      text: drink.label,
-                      myonTap: () => _onDrinkTap(drink.label),
-                      isSelected: _selectedDrinks.contains(drink.label),
+                      text: option.label,
+                      myonTap: () => _onCoSpaceTap(option.label),
+                      isSelected: _selectedCoSpace.contains(option.label),
+                    ),
+                ],
+              ),
+              Gaps.v12,
+              Text(
+                '룸메이트와의 선호 교류 타입을 알려주세요!',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final option in keyInteraction)
+                    CategoryButton(
+                      text: option.label,
+                      myonTap: () => _onInteractionTap(option.label),
+                      isSelected: _selectedInteraction.contains(option.label),
+                    ),
+                ],
+              ),
+              Gaps.v12,
+              Text(
+                '정리정돈 성향을 알려주세요!',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final option in keyCleanOption)
+                    CategoryButton(
+                      text: option.label,
+                      myonTap: () => _onCleaningTap(option.label),
+                      isSelected: _selectedCleaning.contains(option.label),
+                    ),
+                ],
+              ),
+              Gaps.v12,
+              Text(
+                '화장실 청결 민감도를 알려주세요!',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final option in keyBathroomClean)
+                    CategoryButton(
+                      text: option.label,
+                      myonTap: () => _onBathroomTap(option.label),
+                      isSelected: _selectedBathroom.contains(option.label),
+                    ),
+                ],
+              ),
+              Gaps.v12,
+              Row(
+                children: [
+                  Text(
+                    '흡연 여부를 알려주세요!',
+                    style: TextStyle(
+                      fontSize: Sizes.size16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Gaps.h10,
+                  CupertinoSwitch(
+                    value: _isSmoking,
+                    onChanged: (newValue) => _onSmokingTap,
+                  ),
+                  // Dart가 알아서 바뀐 newValue 넘겨줌.
+                ],
+              ),
+              Gaps.v6,
+              Gaps.v12,
+              Text(
+                '반려동물 여부를 알려주세요!',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final option in keyPet)
+                    CategoryButton(
+                      text: option.label,
+                      myonTap: () => _onPetTap(option.label),
+                      isSelected: _selectedPet.contains(option.label),
+                    ),
+                ],
+              ),
+              Gaps.v12,
+              Text(
+                'MBTI를 알려주세요!',
+                style: TextStyle(
+                  fontSize: Sizes.size16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gaps.v6,
+              Wrap(
+                spacing: Sizes.size8,
+                runSpacing: Sizes.size8,
+                children: [
+                  for (final option in keyMbti)
+                    CategoryButton(
+                      text: option.label,
+                      myonTap: () => _onMbtiTap(option.label),
+                      isSelected: _selectedMbti.contains(option.label),
                     ),
                 ],
               ),
