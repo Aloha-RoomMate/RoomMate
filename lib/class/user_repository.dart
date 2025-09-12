@@ -83,10 +83,10 @@ class UserRepository {
   }
 
   /// 3) Coliving
-  Future<void> setWorkPattern(Coliving cl) async {
+  Future<void> setColiving(Coliving cl) async {
     await _meDoc().set(
       {
-        'workPattern': cl.toMap(),
+        'coliving': cl.toMap(),
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
