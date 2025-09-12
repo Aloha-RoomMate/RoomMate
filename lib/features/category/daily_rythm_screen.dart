@@ -222,7 +222,6 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
     return daysCheck && alarmsCheck && timesCheck;
   }
 
-  // Firestore 저장/전송용 페이로드 (한국어 값 그대로)
   Map<String, dynamic> _buildPayload() {
     int? toMinutes(String textTime) {
       if (textTime.isEmpty) return null;
