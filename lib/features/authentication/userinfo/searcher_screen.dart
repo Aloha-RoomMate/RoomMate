@@ -6,6 +6,7 @@ import 'package:roommate/class/user_repository.dart';
 
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
+import 'package:roommate/features/category/hobby_screen.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 
 /// 기존 kSeoulGuDong은 제거하고, [kSeoulGu]만 사용합니다.
@@ -52,13 +53,11 @@ class SearcherScreen extends StatefulWidget {
 }
 
 class _SearcherScreenState extends State<SearcherScreen> {
-  // ---- 새로 추가된 상태들 ----
-  final String _apiKey = 'devU01TX0FVVEgyMDI1MDkwMjIxNTIzOTExNjEzOTc=';
-  final Map<String, List<String>> _dongCache = {}; // 구별 동 목록 캐시
+  final String _apiKey = 'devU01TX0FVVEgyMDI1MDkxMTE3MzcyNzExNjE3NjI=';
+  final Map<String, List<String>> _dongCache = {}; // 구별 동 목록
   bool _isLoadingDongs = false;
   String _errorMessage = '';
 
-  // ---- 기존 상태들 ----
   final Set<String> _fav = {}; // "구/동" 저장
   late final List<String> _guList = (kSeoulGu.toList()..sort());
   String? _selectedGu;
@@ -74,7 +73,6 @@ class _SearcherScreenState extends State<SearcherScreen> {
     }
   }
 
-  // ---- JUSO API에서 동 목록 로딩 ----
   Future<void> _fetchDongsForGu(String gu) async {
     if (_dongCache.containsKey(gu)) return; // 이미 가져온 구는 캐시 사용
 
@@ -197,7 +195,7 @@ class _SearcherScreenState extends State<SearcherScreen> {
     if (!mounted) return;
     Navigator.of(context).push(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const DailyRythmScreen(),
+        pageBuilder: (_, __, ___) => const HobbyScreen(),
         transitionDuration: const Duration(milliseconds: 300),
         reverseTransitionDuration: const Duration(milliseconds: 300),
         transitionsBuilder: (_, animation, __, child) =>

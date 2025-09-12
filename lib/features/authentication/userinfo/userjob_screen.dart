@@ -67,7 +67,7 @@ class _UserjobScreenState extends State<UserjobScreen> {
       }
     }
 
-    final selectedJobs = selectedJobsList.join(', ');
+    final selectedJobs = selectedJobsList.join('');
 
     if (_selectedIndex == 0) {
       Navigator.of(context).push(
