@@ -12,9 +12,9 @@ class RoomCleanOption {
 }
 
 const keyRoomClean = [
-  RoomCleanOption('잘 하지 않아요'),
-  RoomCleanOption('더러워지면 해요'),
-  RoomCleanOption('주 1-2회 정리해요'),
+  RoomCleanOption('항상 제자리에 둬요'),
+  RoomCleanOption('대체로 정돈된 편이예요'),
+  RoomCleanOption('어지르는 편이예요'),
 ];
 
 class BathroomCleanOption {
@@ -23,9 +23,9 @@ class BathroomCleanOption {
 }
 
 const keyBathroomClean = [
-  BathroomCleanOption('주 1회 교대로 청소해요'),
-  BathroomCleanOption('더러워지면 청소해요'),
-  BathroomCleanOption('사용 후 그때그때 청소해요'),
+  BathroomCleanOption('둔감해요'),
+  BathroomCleanOption('보통이예요'),
+  BathroomCleanOption('예민해요'),
 ];
 
 class CleaningHabit {
@@ -50,6 +50,7 @@ class _CleaningScreenState extends State<CleaningScreen> {
   final Set<String> _selectedRoomClean = {};
   final Set<String> _selectedBathroomCleanOption = {};
   final Set<String> _selectedCleaningHabit = {};
+  bool _isSending = false;
 
   void _onSleepSoundChipTap(String option) {
     if (_selectedRoomClean.contains(option)) {
@@ -95,6 +96,9 @@ class _CleaningScreenState extends State<CleaningScreen> {
   void _onNextTap() async {
     if (_isNextEnable()) {
       try {
+        setState(() {
+          _isSending = true;
+        });
         final payload = _buildPayload();
         await FirebaseFirestore.instance
             .collection('cleaningHabit')
@@ -112,6 +116,10 @@ class _CleaningScreenState extends State<CleaningScreen> {
         }
       } catch (e) {
         print('error occured!');
+      } finally {
+        if (mounted) {
+          _isSending = false;
+        }
       }
     }
   }
@@ -208,7 +216,16 @@ class _CleaningScreenState extends State<CleaningScreen> {
                 onTap: _onNextTap,
                 child: FormButton(
                   enabled: _isNextEnable(),
-                  text: "다음",
+                  widget: _isSending
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          '다음',
+                          textAlign: TextAlign.center,
+                        ),
                 ),
               ),
             ],
