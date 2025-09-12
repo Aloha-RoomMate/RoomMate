@@ -82,64 +82,18 @@ class UserRepository {
     }, SetOptions(merge: true));
   }
 
-  Future<void> setWorkPattern(WorkPattern wp) async {
+  /// 3) Coliving
+  Future<void> setWorkPattern(Coliving cl) async {
     await _meDoc().set(
       {
-        'workPattern': wp.toMap(),
+        'workPattern': cl.toMap(),
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
   }
 
-  /// 4) Dining habit
-  Future<void> setDiningHabit(DiningHabit dh) async {
-    await _meDoc().set(
-      {
-        'diningHabit': dh.toMap(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-  }
-
-  /// 5) Sound profile
-  Future<void> setSoundProfile(SoundScreen sp) async {
-    await _meDoc().set(
-      {
-        'soundProfile': sp.toMap(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-  }
-
-  /// 6) Cleaning habit
-  Future<void> setCleaningHabit(CleaningHabit ch) async {
-    await _meDoc().set(
-      /// .set : firestore 에 병합 저장 실행
-      {
-        'cleaningHabit': ch.toMap(),
-
-        /// 객체를 JSON 형태로 변환
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-  }
-
-  /// 7) Etc life (smoking/pet/etc)
-  Future<void> setEtcLife(EtcLife etc) async {
-    await _meDoc().set(
-      {
-        'etcLife': etc.toMap(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-  }
-
-  /// 8) Disease info
+  /// 4) Disease info
   Future<void> setDisease(DiseaseInfo d) async {
     await _meDoc().set(
       {
@@ -150,7 +104,7 @@ class UserRepository {
     );
   }
 
-  /// 9) Introduction text
+  /// 5) Introduction text
   Future<void> setIntroduction(String introduction) async {
     await _meDoc().set(
       {
