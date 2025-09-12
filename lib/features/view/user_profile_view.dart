@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/widgets/form_button.dart';
+import 'package:roommate/features/view/widget/form_button.dart';
 import 'package:roommate/features/view/widget/appbar_chip.dart';
 import 'package:roommate/features/view/widget/view_button.dart';
 
