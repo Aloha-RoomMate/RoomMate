@@ -90,8 +90,8 @@ class _HobbyWidgetState extends State<HobbyWidgetStateful> {
               },
               icon: Icon(
                 _expanded
-                    ? Icons.keyboard_arrow_down_rounded
-                    : Icons.keyboard_arrow_up_rounded,
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
                 color: Colors.black,
                 size: Sizes.size20,
               ),
