@@ -212,7 +212,7 @@ class _SearcherScreenState extends State<SearcherScreen> {
         : (_dongCache[_selectedGu!] ?? <String>[]);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('희망 거주지역 선택')),
+      appBar: AppBar(title: const Text('')),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -223,220 +223,215 @@ class _SearcherScreenState extends State<SearcherScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    '서울 자치구와 동을 선택하세요',
+                    '서울 자치구와 동을 \n선택하세요',
                     style: TextStyle(
-                      fontSize: Sizes.size16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: Sizes.size28,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "룸메이트와 좋아하는 취미를 공유할 수도 있어요.",
+                    style: TextStyle(
+                      fontSize: Sizes.size14,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                  const SizedBox(height: Sizes.size16),
+                  const Divider(height: 1, color: Colors.black12),
+                  const SizedBox(height: Sizes.size16),
 
-                  // 상단 컨텐트: 좌(구) : 우(동)
-                  Expanded(
-                    child: Row(
-                      children: [
-                        // 좌측: 자치구 목록
-                        Expanded(
-                          flex: 3,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(12),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Container(
+                          height: Sizes.size96 * 3,
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            border: Border.all(color: Colors.black38),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: ListView.separated(
+                            itemCount: _guList.length,
+                            separatorBuilder: (_, __) => Divider(
+                              height: 1,
+                              color: Colors.black38,
                             ),
-                            child: ListView.separated(
-                              itemCount: _guList.length,
-                              separatorBuilder: (_, __) => Divider(
-                                height: 1,
-                                color: Colors.grey.shade300,
-                              ),
-                              itemBuilder: (context, index) {
-                                final gu = _guList[index];
-                                final selected = gu == _selectedGu;
-                                final favCount = _fav
-                                    .where((k) => k.startsWith('$gu/'))
-                                    .length;
-
-                                return Material(
-                                  color: selected
-                                      ? primary.withAlpha(50)
-                                      : Colors.transparent,
-                                  child: ListTile(
-                                    dense: true,
-                                    title: Text(
-                                      gu,
-                                      style: TextStyle(
-                                        fontSize: Sizes.size12,
-                                        fontWeight: selected
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
-                                        color: selected
-                                            ? primary
-                                            : Colors.black87,
-                                      ),
+                            itemBuilder: (context, index) {
+                              final gu = _guList[index];
+                              final selected = gu == _selectedGu;
+                              return Material(
+                                color: selected
+                                    ? primary.withAlpha(50)
+                                    : Colors.transparent,
+                                child: ListTile(
+                                  dense: true,
+                                  title: Text(
+                                    gu,
+                                    style: TextStyle(
+                                      fontSize: Sizes.size12,
+                                      fontWeight: selected
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                      color: selected
+                                          ? primary
+                                          : Colors.black87,
                                     ),
-                                    trailing: favCount > 0
-                                        ? Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                '$favCount',
-                                                style: TextStyle(
-                                                  color: primary,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w400,
-                                                ),
-                                              ),
-                                            ],
-                                          )
-                                        : null,
-                                    onTap: () {
-                                      setState(() => _selectedGu = gu);
-                                      _fetchDongsForGu(gu); // 구 변경 시 동 목록 로딩
-                                    },
+                                    textAlign: TextAlign.center,
                                   ),
-                                );
-                              },
-                            ),
+
+                                  onTap: () {
+                                    setState(() => _selectedGu = gu);
+                                    _fetchDongsForGu(gu); // 구 변경 시 동 목록 로딩
+                                  },
+                                ),
+                              );
+                            },
                           ),
                         ),
+                      ),
 
-                        const SizedBox(width: 12),
+                      const SizedBox(width: 12),
 
-                        // 우측: 선택한 자치구의 동 목록
-                        Expanded(
-                          flex: 5,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: _selectedGu == null
-                                ? const Center(child: Text('좌측에서 자치구를 선택하세요'))
-                                : Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      // 우측 헤더
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 10,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey.shade50,
-                                          borderRadius:
-                                              const BorderRadius.vertical(
-                                                top: Radius.circular(12),
-                                              ),
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: Colors.grey.shade300,
+                      Expanded(
+                        flex: 5,
+                        child: Container(
+                          width: Sizes.size1,
+                          height: Sizes.size96 * 3,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.black38),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: _selectedGu == null
+                              ? const Center(child: Text('좌측에서 자치구를 선택하세요'))
+                              : Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    // 우측 헤더
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.transparent,
+                                        borderRadius:
+                                            const BorderRadius.vertical(
+                                              top: Radius.circular(12),
                                             ),
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: Colors.black38,
                                           ),
                                         ),
-                                        child: Row(
-                                          children: [
-                                            Text(
-                                              _selectedGu!,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 16,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            if (_isLoadingDongs)
-                                              const Text('(로딩 중...)')
-                                            else
-                                              Text('(${dongs.length}개 동)'),
-                                          ],
-                                        ),
                                       ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            _selectedGu!,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          if (_isLoadingDongs)
+                                            const Text('(로딩 중...)')
+                                          else
+                                            Text('(${dongs.length}개 동)'),
+                                        ],
+                                      ),
+                                    ),
 
-                                      // 동 리스트
-                                      Expanded(
-                                        child: _isLoadingDongs
-                                            ? const Center(
-                                                child:
-                                                    CircularProgressIndicator(),
-                                              )
-                                            : _errorMessage.isNotEmpty
-                                            ? Center(
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(
-                                                    16,
-                                                  ),
-                                                  child: Text(
-                                                    _errorMessage,
-                                                    textAlign: TextAlign.center,
-                                                  ),
+                                    Expanded(
+                                      child: _isLoadingDongs
+                                          ? const Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            )
+                                          : _errorMessage.isNotEmpty
+                                          ? Center(
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(
+                                                  16,
                                                 ),
-                                              )
-                                            : ListView.separated(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      vertical: 4,
+                                                child: Text(
+                                                  _errorMessage,
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            )
+                                          : ListView.separated(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 4,
+                                                  ),
+                                              itemCount: dongs.length,
+                                              separatorBuilder: (_, __) =>
+                                                  Divider(
+                                                    height: 1,
+                                                    color: Colors.black38,
+                                                  ),
+                                              itemBuilder: (context, idx) {
+                                                final dong = dongs[idx];
+                                                final key =
+                                                    '$_selectedGu/$dong';
+                                                final selected = _fav.contains(
+                                                  key,
+                                                );
+                                                return ListTile(
+                                                  dense: true,
+                                                  title: Text(dong),
+                                                  trailing: IconButton(
+                                                    padding: EdgeInsets.zero,
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                          minWidth: 32,
+                                                          minHeight: 32,
+                                                        ),
+                                                    iconSize: 25,
+                                                    icon: Icon(
+                                                      selected
+                                                          ? Icons.favorite
+                                                          : Icons
+                                                                .favorite_border,
+                                                      size: 25,
+                                                      color: selected
+                                                          ? primary
+                                                          : Colors
+                                                                .grey
+                                                                .shade500,
                                                     ),
-                                                itemCount: dongs.length,
-                                                separatorBuilder: (_, __) =>
-                                                    Divider(
-                                                      height: 1,
-                                                      color:
-                                                          Colors.grey.shade200,
-                                                    ),
-                                                itemBuilder: (context, idx) {
-                                                  final dong = dongs[idx];
-                                                  final key =
-                                                      '$_selectedGu/$dong';
-                                                  final selected = _fav
-                                                      .contains(key);
-                                                  return ListTile(
-                                                    dense: true,
-                                                    title: Text(dong),
-                                                    trailing: IconButton(
-                                                      padding: EdgeInsets.zero,
-                                                      constraints:
-                                                          const BoxConstraints(
-                                                            minWidth: 32,
-                                                            minHeight: 32,
-                                                          ),
-                                                      iconSize: 25,
-                                                      icon: Icon(
-                                                        selected
-                                                            ? Icons.favorite
-                                                            : Icons
-                                                                  .favorite_border,
-                                                        size: 25,
-                                                        color: selected
-                                                            ? primary
-                                                            : Colors
-                                                                  .grey
-                                                                  .shade500,
-                                                      ),
-                                                      onPressed: () =>
-                                                          _toggleFav(
-                                                            _selectedGu!,
-                                                            dong,
-                                                          ),
-                                                      tooltip: selected
-                                                          ? '찜 해제'
-                                                          : '찜하기',
-                                                    ),
-                                                    onTap: () => _toggleFav(
+                                                    onPressed: () => _toggleFav(
                                                       _selectedGu!,
                                                       dong,
                                                     ),
-                                                  );
-                                                },
-                                              ),
-                                      ),
-                                    ],
-                                  ),
-                          ),
+                                                    tooltip: selected
+                                                        ? '찜 해제'
+                                                        : '찜하기',
+                                                  ),
+                                                  onTap: () => _toggleFav(
+                                                    _selectedGu!,
+                                                    dong,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                    ),
+                                  ],
+                                ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: Sizes.size32),
+                  const Divider(height: 1, color: Colors.black12),
+                  const SizedBox(height: Sizes.size16),
 
                   Container(
                     width: double.infinity,
@@ -448,8 +443,8 @@ class _SearcherScreenState extends State<SearcherScreen> {
                       Sizes.size16,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      border: Border.all(color: Colors.grey.shade300),
+                      color: Colors.transparent,
+                      border: Border.all(color: Colors.black26),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -491,10 +486,12 @@ class _SearcherScreenState extends State<SearcherScreen> {
                                       setState(() => _fav.remove(key)),
                                   deleteIconColor: Colors.grey.shade600,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(
+                                      Sizes.size18,
+                                    ),
                                   ),
                                   backgroundColor: Colors.white,
-                                  side: BorderSide(color: Colors.grey.shade300),
+                                  side: BorderSide(color: Colors.black38),
                                   materialTapTargetSize:
                                       MaterialTapTargetSize.shrinkWrap,
                                 );
