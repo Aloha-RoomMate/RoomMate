@@ -33,7 +33,9 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
   bool _isLoading = false;
   String _errorMessage = '';
 
-  bool get _isNextEnabled => _addrCtrl.text.trim().isNotEmpty;
+  bool get _isNextEnabled =>
+      _addrCtrl.text.trim().isNotEmpty && _isAddressSelected;
+  bool _isAddressSelected = false;
 
   Future<http.Response?> _safeGet(
     Uri uri, {
@@ -110,7 +112,10 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
   }
 
   Future<void> _onNextTap() async {
-    if (_addresses.isNotEmpty || _isLoading || _errorMessage.isNotEmpty) return;
+    debugPrint("qjxms snffla, $_isNextEnabled");
+    if (!_isNextEnabled) {
+      return;
+    }
 
     final address = _addrCtrl.text.trim();
 
@@ -123,9 +128,7 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
           address: address,
           searchAreas: null,
         );
-      } catch (e) {
-        debugPrint("저장 실패: $e");
-      }
+      } catch (e) {}
     }
 
     if (!mounted) return;
@@ -133,6 +136,7 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => const HobbyScreen(),
         transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
         transitionsBuilder: (_, animation, __, child) =>
             FadeTransition(opacity: animation, child: child),
       ),
@@ -144,30 +148,70 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
     final lightCard = Theme.of(context).colorScheme.primary.withOpacity(0.08);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('거주지역 선택')),
+      appBar: AppBar(title: const Text('')),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(Sizes.size16),
+            padding: const EdgeInsets.only(right: 20, left: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  '현재 거주하고있는 위치를 알려주세요',
+                  '나의 위치찾기',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
-                    fontWeight: FontWeight.w600,
+                    fontSize: Sizes.size28,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                Gaps.v12,
+                const SizedBox(height: 8),
+                const Text(
+                  "현재 거주하고있는 위치를 알려주세요 !",
+                  style: TextStyle(
+                    fontSize: Sizes.size14,
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+                const SizedBox(height: Sizes.size16),
+                const Divider(height: 1, color: Colors.black12),
+                const SizedBox(height: Sizes.size16),
                 TextField(
                   controller: _addrCtrl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: '주소 입력',
-                    border: OutlineInputBorder(),
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    // 👇 ValueListenableBuilder로 글자 유무 감지
+                    suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _addrCtrl,
+                      builder: (context, value, child) {
+                        final hasText = value.text.isNotEmpty;
+                        return hasText
+                            ? IconButton(
+                                icon: const Icon(Icons.close_rounded),
+                                onPressed: () {
+                                  _addrCtrl.clear();
+                                  setState(() {
+                                    _isAddressSelected = false;
+                                  });
+                                },
+                              )
+                            : const SizedBox.shrink();
+                      },
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(Sizes.size18),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(Sizes.size18),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).primaryColor,
+                        width: Sizes.size2,
+                      ),
+                    ),
                   ),
                   onSubmitted: _searchAddress,
                 ),
+
                 Gaps.v16,
               ],
             ),
@@ -204,21 +248,42 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
         itemBuilder: (context, index) {
           final address = _addresses[index] as Map<String, dynamic>;
           return Card(
-            color: lightCard,
-            margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+            color: Colors.white,
+            elevation: 0,
+            shadowColor: Colors.white,
+            margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadiusGeometry.circular(Sizes.size18),
+              side: BorderSide(
+                color: Theme.of(context).primaryColor.withAlpha(100),
+                width: 1,
+              ),
+            ),
             child: ListTile(
               leading: CircleAvatar(
                 backgroundColor: Theme.of(context).primaryColor,
-                child: Text('${index + 1}'),
+                child: Text(
+                  '${index + 1}',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
-              title: Text(address['roadAddr'] ?? '도로명 주소 없음'),
-              subtitle: Text('[지번] ${address['jibunAddr'] ?? '지번 주소 없음'}'),
+              title: Text(
+                address['roadAddr'] ?? '도로명 주소 없음',
+                style: TextStyle(color: Colors.black),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                '[지번] ${address['jibunAddr'] ?? '지번 주소 없음'}',
+                style: TextStyle(color: Colors.black54, fontSize: Sizes.size12),
+              ),
               onTap: () {
                 final road = (address['roadAddr'] as String?) ?? '';
                 setState(() {
-                  _addrCtrl.text = road;
-                  _addresses = [];
+                  _addrCtrl.text = road; // 텍스트필드 값 반영
+                  _addresses = []; // 카드 제거
                   _searchCtrl.clear();
+                  _isAddressSelected = true; // 다음 버튼 활성화 조건 만족
                 });
               },
             ),
