@@ -245,6 +245,20 @@ class DiseaseInfo {
   }
 }
 
+class Introduction {
+  final String? introduction;
+  const Introduction({this.introduction});
+  Map<String, dynamic> toMap() => {
+    if (introduction != null) 'introduction': introduction,
+  };
+  static Introduction? fromMap(Map<String, dynamic>? m) {
+    if (m == null) return null;
+    return Introduction(
+      introduction: m['introduction'] as String?,
+    );
+  }
+}
+
 /// 이구조임당
 // users (컬렉션)
 //   └─ {uid} (문서)
