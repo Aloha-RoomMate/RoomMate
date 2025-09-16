@@ -105,10 +105,10 @@ class UserRepository {
   }
 
   /// 5) Introduction text
-  Future<void> setIntroduction(String introduction) async {
+  Future<void> setIntroduction(Introduction introduction) async {
     await _meDoc().set(
       {
-        'introduction': introduction,
+        'introduction': introduction.toMap(),
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
