@@ -6,7 +6,7 @@ import 'package:roommate/class/user_repository.dart';
 
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
-import 'package:roommate/features/category/hobby_screen.dart';
+import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 
 /// 기존 kSeoulGuDong은 제거하고, [kSeoulGu]만 사용합니다.

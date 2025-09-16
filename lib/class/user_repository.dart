@@ -64,16 +64,6 @@ class UserRepository {
     );
   }
 
-  Future<void> setUserJOb(DailyRhythm rhythm) async {
-    await _meDoc().set(
-      {
-        'dailyRhythm': rhythm.toMap(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true), // 덮지 말고 합쳐주세요.
-    );
-  }
-
   Future<void> setUserTypeData({
     required String uid,
     required String type,
@@ -115,10 +105,10 @@ class UserRepository {
   }
 
   /// 5) Introduction text
-  Future<void> setIntroduction(String introduction) async {
+  Future<void> setIntroduction(Introduction introduction) async {
     await _meDoc().set(
       {
-        'introduction': introduction,
+        'introduction': introduction.toMap(),
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),

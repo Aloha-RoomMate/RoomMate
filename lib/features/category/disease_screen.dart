@@ -1,5 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/introduction_screen.dart';
@@ -22,7 +23,6 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
   @override
   void initState() {
     super.initState();
-
     _textEditingController.addListener(() {
       setState(() {
         _diseases = _textEditingController.text;
@@ -42,46 +42,45 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
     setState(() {});
   }
 
-  Map<String, dynamic> _buildPayload() {
-    if (_isHealthy) {
-      return {
-        'isHealthy': true,
-      };
-    } else {
-      return {
-        'diseases': _diseases,
-      };
-    }
-  }
-
-  /// 저장위치가 uid 아래가 아님. 문제읻아
   void _onNextTap() async {
     if (_isHealthy || _diseases.isNotEmpty) {
       try {
         setState(() {
           _isSending = true;
         });
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance.collection('disease').add(payload);
-        print('data stored!');
+        final disease = DiseaseInfo(
+          isHealthy: _isHealthy,
+          diseases: _isHealthy ? '' : _textEditingController.text,
+        );
+
+        await UserRepository().setDisease(disease);
 
         if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('저장 성공'),
+            ),
+          );
+          setState(() {
+            _isSending = false;
+          });
+          Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => IntroductionScreen(),
             ),
           );
         }
       } catch (e) {
-        print('error occured!');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('데이터 저장 중 에러 발생'),
+          ),
+        );
       } finally {
-        if (mounted) {
-          setState(() {
-            _isSending = false;
-          });
-        }
+        setState(() {
+          _isSending = false;
+        });
       }
     }
   }
