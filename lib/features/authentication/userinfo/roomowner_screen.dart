@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
@@ -134,7 +135,7 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
     if (!mounted) return;
     Navigator.of(context).push(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const DailyRhythmScreen(),
+        pageBuilder: (_, __, ___) => const HobbyScreen(),
         transitionDuration: const Duration(milliseconds: 300),
         reverseTransitionDuration: const Duration(milliseconds: 300),
         transitionsBuilder: (_, animation, __, child) =>

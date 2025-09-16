@@ -1,13 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
-
+import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/category/widgets/hobby_widget.dart';
-import 'package:roommate/features/navigationbar/main_navigation.dart';
 
 class HobbyScreen extends StatefulWidget {
   const HobbyScreen({super.key});
@@ -117,14 +115,6 @@ class HobbyScreenState extends State<HobbyScreen> {
   bool _isNextEnable() =>
       sportsList.isNotEmpty && foodList.isNotEmpty && interestList.isNotEmpty;
 
-  Map<String, dynamic> _buildPayload() {
-    return {
-      'sportLike': sportsList.toList(),
-      'foodLike': foodList.toList(),
-      'interestLike': interestList.toList(),
-    };
-  }
-
   Future<void> _onNextTap() async {
     if (!_isNextEnable()) return;
 
@@ -143,7 +133,7 @@ class HobbyScreenState extends State<HobbyScreen> {
 
       if (!mounted) return;
       Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => MainNavigation()),
+        MaterialPageRoute(builder: (context) => DailyRhythmScreen()),
       );
     } catch (e, st) {
       print("error: $e");
