@@ -14,6 +14,7 @@ class AppUser {
   final DiseaseInfo? disease;
   final String? introduction;
   final UserType? userType;
+  final Hobby? hobby;
 
   const AppUser({
     required this.uid,
@@ -27,6 +28,7 @@ class AppUser {
     this.disease,
     this.introduction,
     this.userType,
+    this.hobby,
   });
 
   // named와 null 허용 "두 기능 모두"가 있기 때문에
@@ -56,6 +58,7 @@ class AppUser {
       coliving: coliving ?? this.coliving,
       disease: disease ?? this.disease,
       introduction: introduction ?? this.introduction,
+      hobby: hobby ?? this.hobby,
     );
   }
 
@@ -95,6 +98,9 @@ class AppUser {
       ),
       disease: DiseaseInfo.fromMap(map['disease'] as Map<String, dynamic>?),
       introduction: map['introduction'] as String?,
+      hobby: Hobby.fromMap(
+        map['hobby'] as Map<String, dynamic>?,
+      ),
     );
   }
 
@@ -255,6 +261,32 @@ class Introduction {
     if (m == null) return null;
     return Introduction(
       introduction: m['introduction'] as String?,
+    );
+  }
+}
+
+class Hobby {
+  final List foodLike;
+  final List interestLike;
+  final List sportLike;
+
+  const Hobby({
+    required this.foodLike,
+    required this.interestLike,
+    required this.sportLike,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'foodLike': foodLike,
+    'interstLike': interestLike,
+    'sportLike': sportLike,
+  };
+  static Hobby? fromMap(Map<String, dynamic>? map) {
+    if (map == null) return null; // 없으면
+    return Hobby(
+      foodLike: List<String>.from(map['foodLike'] ?? const []),
+      interestLike: List<String>.from(map['interstLike'] ?? const []),
+      sportLike: List<String>.from(map['sportLike'] ?? const []),
     );
   }
 }

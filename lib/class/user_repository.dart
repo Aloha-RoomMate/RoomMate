@@ -130,6 +130,17 @@ class UserRepository {
     );
   }
 
+  Future<void> setHobby(Hobby hobby) async {
+    await _meDoc().set(
+      {
+        'UserLike': hobby.toMap(),
+
+        'updatdAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Readers
   // ---------------------------------------------------------------------------
