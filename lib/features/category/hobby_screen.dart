@@ -1,7 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/widgets/form_button.dart';
+import 'package:roommate/features/authentication/widgets/form_button.dart';
+
 import 'package:roommate/features/category/widgets/hobby_widget.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 
@@ -13,6 +17,23 @@ class HobbyScreen extends StatefulWidget {
 }
 
 class HobbyScreenState extends State<HobbyScreen> {
+  bool _isSending = false;
+
+  List<String> foodList = <String>[];
+  List<String> sportsList = <String>[];
+  List<String> interestList = <String>[];
+  final UserRepository _userRepository = UserRepository();
+
+  late final Future<User?> _userFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _userFuture = _getUser();
+  }
+
+  Future<User?> _getUser() async => FirebaseAuth.instance.currentUser;
+
   final foodSection = HobbyWidget(
     icon: Icons.food_bank_rounded,
     title: '최애 음식',
@@ -93,31 +114,63 @@ class HobbyScreenState extends State<HobbyScreen> {
     previewCount: 10,
   );
 
-  Future<User?> _getUserName() async {
-    return FirebaseAuth.instance.currentUser;
-  }
+  bool _isNextEnable() =>
+      sportsList.isNotEmpty && foodList.isNotEmpty && interestList.isNotEmpty;
 
-  bool _isNextEnable() {
-    return true;
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'sportLike': sportsList.toList(),
+      'foodLike': foodList.toList(),
+      'interestLike': interestList.toList(),
+    };
   }
 
   Future<void> _onNextTap() async {
     if (!_isNextEnable()) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MainNavigation()),
-    );
+
+    try {
+      setState(() {
+        _isSending = true;
+      });
+
+      final hobby = Hobby(
+        foodLike: foodList.toList(),
+        interestLike: interestList.toList(),
+        sportLike: sportsList.toList(),
+      );
+
+      await _userRepository.setHobby(hobby);
+
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) => MainNavigation()),
+      );
+    } catch (e, st) {
+      print("error: $e");
+      print("stack: $st");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<User?>(
-      future: _getUserName(),
+      future: _userFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         if (!snapshot.hasData || snapshot.data == null) {
-          return const Center(child: Text("데이터가 없습니다."));
+          return const Scaffold(
+            body: Center(child: Text("데이터가 없습니다.")),
+          );
         }
         final data = snapshot.data!;
 
@@ -126,7 +179,6 @@ class HobbyScreenState extends State<HobbyScreen> {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ✅ 상단 텍스트
               Padding(
                 padding: const EdgeInsets.only(left: 20),
                 child: Column(
@@ -154,7 +206,6 @@ class HobbyScreenState extends State<HobbyScreen> {
               ),
               const Divider(height: 1, color: Colors.black12),
               const SizedBox(height: Sizes.size14),
-
               Expanded(
                 child: SingleChildScrollView(
                   child: Padding(
@@ -164,15 +215,39 @@ class HobbyScreenState extends State<HobbyScreen> {
                       children: [
                         HobbyWidgetStateful(
                           section: sportSection,
-                        ), //위에서 section 정의를 먼저 하고 사용
+                          onSelectionChanged: (selected) {
+                            setState(() {
+                              sportsList = selected;
+                            });
+                          },
+                        ),
                         HobbyWidgetStateful(
                           section: foodSection,
-                        ), // 자세한 내용은 hobby_widget.dart 를 참고할 것.
-                        HobbyWidgetStateful(section: interestSection),
+                          onSelectionChanged: (selected) {
+                            setState(() {
+                              foodList = selected;
+                            });
+                          },
+                        ),
+                        HobbyWidgetStateful(
+                          section: interestSection,
+                          onSelectionChanged: (selected) {
+                            setState(() {
+                              interestList = selected;
+                            });
+                          },
+                        ),
+
                         const SizedBox(height: Sizes.size10),
+
                         GestureDetector(
-                          onTap: _onNextTap,
-                          child: const FormButton(enabled: true, text: "다음"),
+                          onTap: _isNextEnable() && !_isSending
+                              ? _onNextTap
+                              : null,
+                          child: FormButton(
+                            disabled: !_isNextEnable() || _isSending,
+                            text: _isSending ? "" : "다음",
+                          ),
                         ),
                       ],
                     ),

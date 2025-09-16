@@ -1,7 +1,6 @@
 // lib/models/app_user.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
-import 'package:flutter/material.dart';
 
 class AppUser {
   final String uid;
@@ -11,14 +10,11 @@ class AppUser {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DailyRhythm? dailyRhythm;
-  final WorkPattern? workPattern;
-  final DiningHabit? diningHabit;
-  final SoundProfile? soundProfile;
-  final CleaningHabit? cleaningHabit;
-  final EtcLife? etcLife;
+  final Coliving? coliving;
   final DiseaseInfo? disease;
   final String? introduction;
   final UserType? userType;
+  final Hobby? hobby;
 
   const AppUser({
     required this.uid,
@@ -28,16 +24,15 @@ class AppUser {
     this.createdAt,
     this.updatedAt,
     this.dailyRhythm,
-    this.workPattern,
-    this.diningHabit,
-    this.soundProfile,
-    this.cleaningHabit,
-    this.etcLife,
+    this.coliving,
     this.disease,
     this.introduction,
     this.userType,
+    this.hobby,
   });
 
+  // named와 null 허용 "두 기능 모두"가 있기 때문에
+  // 외부에서 하나의 매개변수만 넘겨줘도 문제가 안 생김.
   AppUser copyWith({
     String? uid,
     String? email,
@@ -47,15 +42,13 @@ class AppUser {
     DateTime? updatedAt,
     String? userType,
     DailyRhythm? dailyRhythm,
-    WorkPattern? workPattern,
-    DiningHabit? diningHabit,
-    SoundProfile? soundProfile,
-    CleaningHabit? cleaningHabit,
-    EtcLife? etcLife,
+    Coliving? coliving,
     DiseaseInfo? disease,
     String? introduction,
+    Hobby? hobby,
   }) {
     return AppUser(
+      // 새로운 값이 오면 그걸로 교체, 아니면 기존의 값.
       uid: uid ?? this.uid,
       email: email ?? this.email,
       displayName: displayName ?? this.displayName,
@@ -63,20 +56,20 @@ class AppUser {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       dailyRhythm: dailyRhythm ?? this.dailyRhythm,
-      workPattern: workPattern ?? this.workPattern,
-      diningHabit: diningHabit ?? this.diningHabit,
-      soundProfile: soundProfile ?? this.soundProfile,
-      cleaningHabit: cleaningHabit ?? this.cleaningHabit,
-      etcLife: etcLife ?? this.etcLife,
+      coliving: coliving ?? this.coliving,
       disease: disease ?? this.disease,
       introduction: introduction ?? this.introduction,
+      hobby: hobby ?? this.hobby,
     );
   }
 
   factory AppUser.fromAuth(auth.User u) {
-    final dn = (u.displayName ?? '').trim();
+    // Auth 성공 시 User 객체 받음.
+    final dn = (u.displayName ?? '').trim(); // null -> ''로
+
     final name = dn.isNotEmpty ? dn : (u.email?.split('@').first ?? '룸메이트');
     return AppUser(
+      // 최초의 AppUser 객체 생성
       uid: u.uid,
       email: u.email,
       displayName: name,
@@ -85,34 +78,30 @@ class AppUser {
   }
 
   factory AppUser.fromMap(String uid, Map<String, dynamic> map) {
+    // Map from Firestore
     return AppUser(
       uid: uid,
+      // as ~? 로 지정해주는 이유: map 의 value (key:value) 가 dynamic 이므로.
       email: map['email'] as String?,
       displayName: (map['displayName'] as String? ?? '룸메이트'),
       photoURL: map['photoURL'] as String?,
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
+      createdAt: (map['createdAt'] as Timestamp?)
+          ?.toDate(), // 메소드 앞에 ? : null이면 null 반환.
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
       dailyRhythm: DailyRhythm.fromMap(
-        map['dailyRhythm'] as Map<String, dynamic>?,
+        map['dailyRhythm'] as Map<String, dynamic>?, // null safety
       ),
       userType: UserType.fromMap(
         map['userType'] as Map<String, dynamic>?,
       ),
-      workPattern: WorkPattern.fromMap(
-        map['workPattern'] as Map<String, dynamic>?,
+      coliving: Coliving.fromMap(
+        map['coliving'] as Map<String, dynamic>?,
       ),
-      diningHabit: DiningHabit.fromMap(
-        map['diningHabit'] as Map<String, dynamic>?,
-      ),
-      soundProfile: SoundProfile.fromMap(
-        map['soundProfile'] as Map<String, dynamic>?,
-      ),
-      cleaningHabit: CleaningHabit.fromMap(
-        map['cleaningHabit'] as Map<String, dynamic>?,
-      ),
-      etcLife: EtcLife.fromMap(map['etcLife'] as Map<String, dynamic>?),
       disease: DiseaseInfo.fromMap(map['disease'] as Map<String, dynamic>?),
       introduction: map['introduction'] as String?,
+      hobby: Hobby.fromMap(
+        map['hobby'] as Map<String, dynamic>?,
+      ),
     );
   }
 
@@ -127,15 +116,12 @@ class AppUser {
       'photoURL': photoURL,
       if (dailyRhythm != null) 'dailyRhythm': dailyRhythm!.toMap(),
       if (userType != null) 'userType': userType!.toMap(),
-      if (workPattern != null) 'workPattern': workPattern!.toMap(),
-      if (diningHabit != null) 'diningHabit': diningHabit!.toMap(),
-      if (soundProfile != null) 'soundProfile': soundProfile!.toMap(),
-      if (cleaningHabit != null) 'cleaningHabit': cleaningHabit!.toMap(),
-      if (etcLife != null) 'etcLife': etcLife!.toMap(),
+      if (coliving != null) 'coliving': coliving!.toMap(),
       if (disease != null) 'disease': disease!.toMap(),
       if (introduction != null) 'introduction': introduction,
     };
     if (skipNulls) map.removeWhere((_, v) => v == null);
+    // key와 관계 없이 value가 null이면 제거한다.
     return map;
   }
 }
@@ -143,58 +129,38 @@ class AppUser {
 /// 하루 리듬(온보딩) 서브모델
 class DailyRhythm {
   final List<String> workDays;
-  final List<String> alarms;
   final bool isJobLess;
 
   final int? weekAwakeMins;
-  final int? weekGoWorkMins;
-  final int? weekBackHomeMins;
   final int? weekSleepMins;
-  final int? weekendAwakeMins;
-  final int? weekendSleepMins;
 
   const DailyRhythm({
     required this.workDays,
-    required this.alarms,
+
     required this.isJobLess,
     this.weekAwakeMins,
-    this.weekGoWorkMins,
-    this.weekBackHomeMins,
+
     this.weekSleepMins,
-    this.weekendAwakeMins,
-    this.weekendSleepMins,
   });
 
   Map<String, dynamic> toMap() => {
     'workDays': workDays,
-    'alarms': alarms,
     'isJobLess': isJobLess,
     'week': {
       'awakeMins': weekAwakeMins,
-      'goWorkMins': weekGoWorkMins,
-      'backHomeMins': weekBackHomeMins,
       'sleepMins': weekSleepMins,
-    },
-    'weekend': {
-      'awakeMins': weekendAwakeMins,
-      'sleepMins': weekendSleepMins,
     },
   };
 
   static DailyRhythm? fromMap(Map<String, dynamic>? map) {
     if (map == null) return null;
     final week = (map['week'] as Map<String, dynamic>?) ?? const {};
-    final weekend = (map['weekend'] as Map<String, dynamic>?) ?? const {};
     return DailyRhythm(
+      // <String>으로 하면 dynamic인 map value들로부터 보호 가능
       workDays: List<String>.from(map['workDays'] ?? const []),
-      alarms: List<String>.from(map['alarms'] ?? const []),
       isJobLess: map['isJobLess'] == true,
       weekAwakeMins: week['awakeMins'] as int?,
-      weekGoWorkMins: week['goWorkMins'] as int?,
-      weekBackHomeMins: week['backHomeMins'] as int?,
       weekSleepMins: week['sleepMins'] as int?,
-      weekendAwakeMins: weekend['awakeMins'] as int?,
-      weekendSleepMins: weekend['sleepMins'] as int?,
     );
   }
 }
@@ -230,120 +196,41 @@ class UserType {
   };
 }
 
-class WorkPattern {
-  final List<String> lates; // 늦은 귀가 빈도
-  final List<String> drinks; // 주 음주 횟수
-  const WorkPattern({required this.lates, required this.drinks});
-  Map<String, dynamic> toMap() => {'lates': lates, 'drinks': drinks};
-  static WorkPattern? fromMap(Map<String, dynamic>? m) {
-    if (m == null) return null;
-    return WorkPattern(
-      lates: List<String>.from(m['lates'] ?? const []),
-      drinks: List<String>.from(m['drinks'] ?? const []),
-    );
-  }
-}
-
-class DiningHabit {
-  final List<String> weeklyCooking;
-  final List<String> smellSense;
-  final List<String> dishShare;
-  final List<String> delivery;
-  const DiningHabit({
-    required this.weeklyCooking,
-    required this.smellSense,
-    required this.dishShare,
-    required this.delivery,
-  });
-  Map<String, dynamic> toMap() => {
-    'weeklyCooking': weeklyCooking,
-    'smellSense': smellSense,
-    'dishShare': dishShare,
-    'delivery': delivery,
-  };
-  static DiningHabit? fromMap(Map<String, dynamic>? m) {
-    if (m == null) return null;
-    return DiningHabit(
-      weeklyCooking: List<String>.from(m['weeklyCooking'] ?? const []),
-      smellSense: List<String>.from(m['smellSense'] ?? const []),
-      dishShare: List<String>.from(m['dishShare'] ?? const []),
-      delivery: List<String>.from(m['delivery'] ?? const []),
-    );
-  }
-}
-
-class SoundProfile {
-  final List<String> sleepSound;
-  final List<String> sleepHabit;
-  final List<String> soundMode;
-  final List<String> earPhone;
-  const SoundProfile({
-    required this.sleepSound,
-    required this.sleepHabit,
-    required this.soundMode,
-    required this.earPhone,
-  });
-  Map<String, dynamic> toMap() => {
-    'sleepSound': sleepSound,
-    'sleepHabit': sleepHabit,
-    'soundMode': soundMode,
-    'earPhone': earPhone,
-  };
-  static SoundProfile? fromMap(Map<String, dynamic>? m) {
-    if (m == null) return null;
-    return SoundProfile(
-      sleepSound: List<String>.from(m['sleepSound'] ?? const []),
-      sleepHabit: List<String>.from(m['sleepHabit'] ?? const []),
-      soundMode: List<String>.from(m['soundMode'] ?? const []),
-      earPhone: List<String>.from(m['earPhone'] ?? const []),
-    );
-  }
-}
-
-class CleaningHabit {
-  final List<String> roomClean;
-  final List<String> bathroomClean;
-  final List<String> cleaningLevel;
-  const CleaningHabit({
-    required this.roomClean,
-    required this.bathroomClean,
-    required this.cleaningLevel,
-  });
-  Map<String, dynamic> toMap() => {
-    'roomClean': roomClean,
-    'bathroomClean': bathroomClean,
-    'cleaningLevel': cleaningLevel,
-  };
-  static CleaningHabit? fromMap(Map<String, dynamic>? m) {
-    if (m == null) return null;
-    return CleaningHabit(
-      roomClean: List<String>.from(m['roomClean'] ?? const []),
-      bathroomClean: List<String>.from(m['bathroomClean'] ?? const []),
-      cleaningLevel: List<String>.from(m['cleaningLevel'] ?? const []),
-    );
-  }
-}
-
-class EtcLife {
-  final List<String> smoking;
-  final List<String> insideSmoking;
+class Coliving {
+  final String coSpace;
+  final String interaction;
+  final String bathroom;
+  final bool smoking;
   final List<String> pet;
-  const EtcLife({
+  final String mbti;
+
+  const Coliving({
+    required this.coSpace,
+    required this.interaction,
+    required this.bathroom,
     required this.smoking,
-    required this.insideSmoking,
     required this.pet,
+    required this.mbti,
   });
+
   Map<String, dynamic> toMap() => {
+    'coSpace': coSpace,
+    'interaction': interaction,
+    'bathroom': bathroom,
     'smoking': smoking,
-    'insideSmoking': insideSmoking,
-    'pet': pet,
+    "pet": pet,
+    'mbti': mbti,
   };
-  static EtcLife? fromMap(Map<String, dynamic>? m) {
-    if (m == null) return null;
-    return EtcLife(
-      smoking: List<String>.from(m['smoking'] ?? const []),
-      insideSmoking: List<String>.from(m['insideSmoking'] ?? const []),
-      pet: List<String>.from(m['pet'] ?? const []),
+
+  static Coliving? fromMap(Map<String, dynamic>? map) {
+    if (map == null) return null; // 없으면
+    return Coliving(
+      coSpace: map['coSpace'],
+      interaction: map['interaction'],
+      bathroom: map['bathroom'],
+      smoking: map['smoking'],
+      pet: List<String>.from(map['pet'] ?? const []),
+      mbti: map['mbti'],
     );
   }
 }
@@ -361,6 +248,32 @@ class DiseaseInfo {
     return DiseaseInfo(
       isHealthy: m['isHealthy'] as bool?,
       diseases: m['diseases'] as String?,
+    );
+  }
+}
+
+class Hobby {
+  final List foodLike;
+  final List interestLike;
+  final List sportLike;
+
+  const Hobby({
+    required this.foodLike,
+    required this.interestLike,
+    required this.sportLike,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'foodLike': foodLike,
+    'interstLike': interestLike,
+    'sportLike': sportLike,
+  };
+  static Hobby? fromMap(Map<String, dynamic>? map) {
+    if (map == null) return null; // 없으면
+    return Hobby(
+      foodLike: List<String>.from(map['foodLike'] ?? const []),
+      interestLike: List<String>.from(map['interstLike'] ?? const []),
+      sportLike: List<String>.from(map['sportLike'] ?? const []),
     );
   }
 }

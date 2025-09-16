@@ -20,8 +20,13 @@ class HobbyWidget {
 // 실제 위젯
 class HobbyWidgetStateful extends StatefulWidget {
   final HobbyWidget section;
+  final Function(List<String>)? onSelectionChanged;
 
-  const HobbyWidgetStateful({super.key, required this.section});
+  const HobbyWidgetStateful({
+    super.key,
+    required this.section,
+    this.onSelectionChanged,
+  });
 
   @override
   State<HobbyWidgetStateful> createState() => _HobbyWidgetState();
@@ -29,6 +34,21 @@ class HobbyWidgetStateful extends StatefulWidget {
 
 class _HobbyWidgetState extends State<HobbyWidgetStateful> {
   bool _expanded = false;
+
+  // 현재 섹션에서 선택된 항목들 (중복 방지)
+  final List<String> _selectedItems = <String>[];
+
+  void _onPressed(String item) {
+    setState(() {
+      if (_selectedItems.contains(item)) {
+        _selectedItems.remove(item); // 토글 OFF
+      } else {
+        _selectedItems.add(item); // 토글 ON
+      }
+    });
+    // 부모(HobbyScreen)로 선택 결과 전달
+    widget.onSelectionChanged?.call(List<String>.from(_selectedItems));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,34 +75,50 @@ class _HobbyWidgetState extends State<HobbyWidgetStateful> {
         ),
         const SizedBox(height: 10),
 
+        // 프리뷰 아이템
         Wrap(
           spacing: 12,
           runSpacing: 8,
           children: [
             for (final item in previewItems)
-              ChipButton(text: item, isSelected: false),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque, // 🔥 투명영역 탭도 허용
+                onTap: () => _onPressed(item),
+                child: ChipButton(
+                  text: item,
+                  isSelected: _selectedItems.contains(item),
+                ),
+              ),
           ],
         ),
-        SizedBox(
-          height: Sizes.size10,
-        ),
+
+        const SizedBox(height: Sizes.size10),
+
+        // 더보기 펼쳤을 때 나머지 아이템
         if (_expanded)
           Wrap(
             spacing: 12,
             runSpacing: 8,
             children: [
               for (final item in remainingItems)
-                ChipButton(text: item, isSelected: false),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque, // 🔥 탭 판정 안정화
+                  onTap: () => _onPressed(item),
+                  child: ChipButton(
+                    text: item,
+                    isSelected: _selectedItems.contains(item),
+                  ),
+                ),
             ],
           ),
 
+        // 더보기/접기 토글
         Row(
           children: [
             const Expanded(
               child: Divider(color: Colors.black26, thickness: 1, endIndent: 8),
             ),
             TextButton.icon(
-              // _expanded에 따라 상태 달라지게 음음
               onPressed: () {
                 setState(() {
                   _expanded = !_expanded;
