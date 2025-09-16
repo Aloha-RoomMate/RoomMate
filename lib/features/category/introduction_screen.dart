@@ -1,13 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
-import 'package:roommate/features/navigationbar/screens/home_screen.dart';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -33,19 +30,13 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     });
   }
 
-  Map<String, dynamic> _buildPayload() {
-    return {
-      'introduction': _introduction,
-    };
-  }
-
   void _onNextTap() async {
     if (_introduction.length >= 50 && _introduction.length <= 300) {
       try {
         setState(() {
           _isSending = true;
         });
-        final introduction = Introduction(introduction: _introduction);
+        final introduction = Introduction(introduction: _controller.text);
 
         // 실제 데이터 넘기기
         // USRREPO 선언 바로 할 수 있음.
@@ -64,7 +55,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
 
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => HomeScreen(),
+              builder: (context) => MainNavigation(),
             ),
           );
         }
