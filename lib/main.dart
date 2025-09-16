@@ -15,7 +15,7 @@ import 'package:roommate/features/category/hobby_screen.dart';
 // (중요) $ flutter run -d RFCN100T0SX --dart-define=EMU_HOST=172.30.1.99 << 이런 형식으로 기기이름이랑, 현재 IPv4 를 적으면 연결 가능하다
 // 10.0.2.2 << 이건 안드로이드 에뮬레이터 전용이다. 이걸 먼저 탐색하기 때문에 이 IP를 모르는 공기계는 어리둥절 하게 된다. 때문에 위와같은 방법으로 강제하면 된다.
 // flutter run -d RFCN100T0SX --dart-define=EMU_HOST=172.30.1.99 우진현 집
-// flutter run -d RFCN100T0SX --dart-define=EMU_HOST=10.28.35.146 학교
+// flutter run -d RFCN100T0SX --dart-define=EMU_HOST=10.28.28.40 학교
 // flutter run -d RFCN100T0SX --dart-define=EMU_HOST=192.168.0.41 카페 만나소
 
 const _AUTH_PORT = 9099;
@@ -79,7 +79,7 @@ class RoomMate extends StatelessWidget {
           ),
         ),
       ),
-      home: HobbyScreen(
+      home: LoginScreen(
         // userType: "",
         // jobKinds: "",
       ),
