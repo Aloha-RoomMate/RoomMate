@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
+import 'package:roommate/features/navigationbar/screens/home_screen.dart';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -42,28 +45,39 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         setState(() {
           _isSending = true;
         });
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance
-            .collection('introduction')
-            .add(payload);
-        print('data stored!');
+        final introduction = Introduction(introduction: _introduction);
+
+        // 실제 데이터 넘기기
+        // USRREPO 선언 바로 할 수 있음.
+        await UserRepository().setIntroduction(introduction);
 
         if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('저장 성공'),
+            ),
+          );
+
+          setState(() {
+            _isSending = false;
+          });
+
+          Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => MainNavigation(),
+              builder: (context) => HomeScreen(),
             ),
           );
         }
       } catch (e) {
-        print('error occured!');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('데이터 저장 중 에러 발생'),
+          ),
+        );
       } finally {
         if (mounted) {
-          setState(() {
-            _isSending = false;
-          });
+          _isSending = false;
         }
       }
     }
@@ -88,10 +102,9 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
           title: Text(
             '간단한 소개글을 작성해주세요!',
             style: TextStyle(
-              fontSize: Sizes.size24,
+              fontSize: Sizes.size20,
             ),
           ),
-          centerTitle: true,
         ),
         body: Padding(
           padding: EdgeInsets.only(

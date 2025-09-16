@@ -45,25 +45,43 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
 
   void _onNextTap() async {
     if (_isHealthy || _diseases.isNotEmpty) {
-      setState(() {
-        _isSending = true;
-      });
-      final disease = DiseaseInfo(
-        isHealthy: _isHealthy,
-        diseases: _isHealthy ? '' : _textEditingController.text,
-      );
+      try {
+        setState(() {
+          _isSending = true;
+        });
+        final disease = DiseaseInfo(
+          isHealthy: _isHealthy,
+          diseases: _isHealthy ? '' : _textEditingController.text,
+        );
 
-      await UserRepository().setDisease(disease);
+        await UserRepository().setDisease(disease);
 
-      if (mounted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('저장 성공'),
+            ),
+          );
+          setState(() {
+            _isSending = false;
+          });
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => IntroductionScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('저장 성공'),
+            content: Text('데이터 저장 중 에러 발생'),
           ),
         );
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (context) => )
-        )
+      } finally {
+        setState(() {
+          _isSending = false;
+        });
       }
     }
   }
