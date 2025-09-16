@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/authentication/login/welcome_screen.dart';
 import 'package:roommate/features/authentication/widgets/auth_button.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,7 +16,7 @@ class LoginScreen extends StatelessWidget {
 
   void _onSignupTap(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const DailyRhythmScreen()),
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
     );
   }
 
