@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/introduction_screen.dart';
@@ -22,7 +24,6 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
   @override
   void initState() {
     super.initState();
-
     _textEditingController.addListener(() {
       setState(() {
         _diseases = _textEditingController.text;
@@ -42,45 +43,27 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
     setState(() {});
   }
 
-  Map<String, dynamic> _buildPayload() {
-    if (_isHealthy) {
-      return {
-        'isHealthy': true,
-      };
-    } else {
-      return {
-        'diseases': _diseases,
-      };
-    }
-  }
-
   void _onNextTap() async {
     if (_isHealthy || _diseases.isNotEmpty) {
-      try {
-        setState(() {
-          _isSending = true;
-        });
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance.collection('disease').add(payload);
-        print('data stored!');
+      setState(() {
+        _isSending = true;
+      });
+      final disease = DiseaseInfo(
+        isHealthy: _isHealthy,
+        diseases: _isHealthy ? '' : _textEditingController.text,
+      );
 
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
-            MaterialPageRoute(
-              builder: (context) => IntroductionScreen(),
-            ),
-          );
-        }
-      } catch (e) {
-        print('error occured!');
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isSending = false;
-          });
-        }
+      await UserRepository().setDisease(disease);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('저장 성공'),
+          ),
+        );
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (context) => )
+        )
       }
     }
   }
