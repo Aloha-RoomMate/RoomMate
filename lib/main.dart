@@ -16,7 +16,7 @@ const _EMU_HOST_FROM_ENV = String.fromEnvironment('EMU_HOST', defaultValue: '');
 // (중요) $ flutter run -d RFCN100T0SX --dart-define=EMU_HOST=172.30.1.99 << 이런 형식으로 기기이름이랑, 현재 IPv4 를 적으면 연결 가능하다
 // 10.0.2.2 << 이건 안드로이드 에뮬레이터 전용이다. 이걸 먼저 탐색하기 때문에 이 IP를 모르는 공기계는 어리둥절 하게 된다. 때문에 위와같은 방법으로 강제하면 된다.
 
-/// flutter run -d ce091609d143021003 --dart-define=EMU_HOST=1.231.152.67
+/// flutter run -d ce091609d143021003 --dart-define=EMU_HOST=flutter run -d ce091609d143021003 --dart-define=EMU_HOST=10.28.29.48
 Future<String> _pickEmuHost() async {
   if (_EMU_HOST_FROM_ENV.isNotEmpty) {
     return _EMU_HOST_FROM_ENV;
