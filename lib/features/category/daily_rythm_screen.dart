@@ -116,6 +116,11 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
               content: Text('저장 성공'),
             ),
           );
+
+          setState(() {
+            _isSending = false;
+          });
+
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => ColivingScreen(),

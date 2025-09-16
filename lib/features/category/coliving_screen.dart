@@ -219,6 +219,10 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
             ),
           );
 
+          setState(() {
+            _isSending = false;
+          });
+
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => DiseaseScreen(),
