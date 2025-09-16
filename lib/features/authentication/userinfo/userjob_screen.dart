@@ -5,9 +5,9 @@ import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/userinfo/roomowner_screen.dart';
 import 'package:roommate/features/authentication/userinfo/searcher_screen.dart';
+import 'package:roommate/features/authentication/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/authentication/widgets/demand_button.dart';
-import 'package:roommate/features/category/widgets/form_button.dart';
 
 class UserjobScreen extends StatefulWidget {
   const UserjobScreen({super.key});
@@ -22,6 +22,7 @@ class _UserjobScreenState extends State<UserjobScreen> {
   int? _selectedIndex;
   Key _leftKey = UniqueKey();
   Key _rightKey = UniqueKey();
+  final bool _isSending = false;
 
   late Future<User?> _userFuture; // ✅ 캐싱용 Future
 
@@ -29,7 +30,6 @@ class _UserjobScreenState extends State<UserjobScreen> {
   void initState() {
     super.initState();
     _userFuture = Future.value(FirebaseAuth.instance.currentUser);
-    // 이미 로그인된 사용자라면 한 번만 가져오면 됨
   }
 
   void _onJobTap(int index) {
@@ -67,7 +67,7 @@ class _UserjobScreenState extends State<UserjobScreen> {
   }
 
   void _onNextTap() {
-    if (!_isNextEnabled()) return;
+    if (_isSending) return;
 
     final textOptions = ['회사/학교', '재택', '프리랜서', '대학생'];
     final selectedJobsList = <String>[];
@@ -237,8 +237,20 @@ class _UserjobScreenState extends State<UserjobScreen> {
                       GestureDetector(
                         onTap: isNextEnabled ? _onNextTap : null,
                         child: FormButton(
-                          enabled: isNextEnabled,
+                          disabled: !_isNextEnabled(),
                           text: "다음",
+                          // 아래껀 category 에서 formbutton 불러왔을때
+                          // enabled: _isUser == true || _jobSelections.isNotEmpty,
+                          // widget: _isSending
+                          //     ? Center(
+                          //         child: CircularProgressIndicator(
+                          //           color: Colors.white,
+                          //         ),
+                          //       )
+                          //     : Text(
+                          //         '다음',
+                          //         textAlign: TextAlign.center,
+                          //       ),
                         ),
                       ),
                     ],
@@ -321,12 +333,4 @@ Widget _buildDescriptionCard(BuildContext context, int? index, User data) {
       ],
     ),
   );
-}
-
-// 프로젝트마다 FormButton 시그니처가 달라 충돌 방지용 헬퍼
-bool _supportsEnabledProp() {
-  // enabled/disabled 중 어떤 생성자를 쓰는지 컴파일 타임에 결정되므로
-  // 실제론 둘 중 하나만 남기면 됩니다.
-  // 팀 컨벤션에 맞춰 하나로 통일해 주세요.
-  return true;
 }

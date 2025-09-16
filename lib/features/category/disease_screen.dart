@@ -1,7 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:roommate/class/app_user.dart';
-import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/introduction_screen.dart';
@@ -19,6 +17,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
   final TextEditingController _textEditingController = TextEditingController();
   bool _isHealthy = false;
   String _diseases = "";
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -55,34 +54,35 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
     }
   }
 
-  Future<void> _onNextTap() async {
-    final ok = _isHealthy || _diseases.isNotEmpty;
-    if (!ok) return;
+  /// 저장위치가 uid 아래가 아님. 문제읻아
+  void _onNextTap() async {
+    if (_isHealthy || _diseases.isNotEmpty) {
+      try {
+        setState(() {
+          _isSending = true;
+        });
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance.collection('disease').add(payload);
+        print('data stored!');
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      final d = DiseaseInfo(
-        isHealthy: _isHealthy ? true : null,
-        diseases: _isHealthy ? null : _diseases,
-      );
-      await UserRepository().setDisease(d);
-
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const IntroductionScreen()));
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => IntroductionScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('error occured!');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSending = false;
+          });
+        }
+      }
     }
   }
 
@@ -144,7 +144,16 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
                   onTap: _onNextTap,
                   child: FormButton(
                     enabled: _isHealthy == true || _diseases.isNotEmpty,
-                    text: '다음',
+                    widget: _isSending
+                        ? Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            '다음',
+                            textAlign: TextAlign.center,
+                          ),
                   ),
                 ),
               ],

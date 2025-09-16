@@ -1,8 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/category/daily_rythm_screen.dart';
+import 'package:roommate/features/category/hobby_screen.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 
@@ -17,6 +18,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   final TextEditingController _controller = TextEditingController();
   static const _limit = 300;
   String _introduction = "";
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -35,30 +37,37 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     };
   }
 
-  Future<void> _onNextTap() async {
-    final ok = _introduction.length >= 50 && _introduction.length <= 300;
-    if (!ok) return;
+  /// 저장위치가 uid 아래가 아님 문제읻아
+  void _onNextTap() async {
+    if (_introduction.length >= 50 && _introduction.length <= 300) {
+      try {
+        setState(() {
+          _isSending = true;
+        });
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance
+            .collection('introduction')
+            .add(payload);
+        print('data stored!');
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      await UserRepository().setIntroduction(_introduction);
-
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const MainNavigation()));
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => HobbyScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('error occured!');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSending = false;
+          });
+        }
+      }
     }
   }
 
@@ -125,7 +134,16 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                     enabled:
                         _introduction.length >= 50 &&
                         _introduction.length <= 300,
-                    text: "다음",
+                    widget: _isSending
+                        ? Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            '다음',
+                            textAlign: TextAlign.center,
+                          ),
                   ),
                 ),
               ],

@@ -193,12 +193,12 @@ class _MypageScreenState extends State<MypageScreen> {
                           if (data.dailyRhythm?.isJobLess == true) ...[
                             ChipButton(
                               text:
-                                  "주말 기상시간 :${data.dailyRhythm?.weekendAwakeMins}",
+                                  "주말 기상시간 :{data.dailyRhythm?.weekendAwakeMins}",
                               isSelected: true,
                             ),
                             ChipButton(
                               text:
-                                  "주말 취침시간 : ${data.dailyRhythm?.weekendSleepMins}",
+                                  "주말 취침시간 : {data.dailyRhythm?.weekendSleepMins}",
                               isSelected: true,
                             ),
                           ],
@@ -216,12 +216,12 @@ class _MypageScreenState extends State<MypageScreen> {
                           if (data.dailyRhythm?.isJobLess == true) ...[
                             ChipButton(
                               text:
-                                  "주말 기상시간 :${data.dailyRhythm?.weekendAwakeMins}",
+                                  "주말 기상시간 :{data.dailyRhythm?.weekendAwakeMins}",
                               isSelected: true,
                             ),
                             ChipButton(
                               text:
-                                  "주말 취침시간 : ${data.dailyRhythm?.weekendSleepMins}",
+                                  "주말 취침시간 : {data.dailyRhythm?.weekendSleepMins}",
                               isSelected: true,
                             ),
                           ],

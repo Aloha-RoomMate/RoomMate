@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:roommate/class/app_user.dart';
-import 'package:roommate/class/user_repository.dart';
+import 'package:flutter/rendering.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/disease_screen.dart';
@@ -59,6 +58,7 @@ class _EtcScreenState extends State<EtcScreen> {
   final Set<String> _selectedSmoke = {};
   final Set<String> _selectedInsideSmoke = {};
   final Set<String> _selectedPet = {};
+  bool _isSending = false;
 
   void _onSmokeChipTap(String option) {
     if (_selectedSmoke.contains(option)) {
@@ -101,33 +101,32 @@ class _EtcScreenState extends State<EtcScreen> {
     };
   }
 
-  Future<void> _onNextTap() async {
-    if (!_isNextEnable()) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
+  void _onNextTap() async {
+    if (_isNextEnable()) {
+      try {
+        setState(() {
+          _isSending = true;
+        });
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance.collection('etcLife').add(payload);
+        print('data stored!');
 
-    try {
-      final etc = EtcLife(
-        smoking: _selectedSmoke.toList(),
-        insideSmoking: _selectedInsideSmoke.toList(),
-        pet: _selectedPet.toList(),
-      );
-      await UserRepository().setEtcLife(etc);
-
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const DiseaseScreen()));
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => DiseaseScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('error occured!');
+      } finally {
+        if (mounted) {
+          _isSending = false;
+        }
+      }
     }
   }
 
@@ -222,7 +221,16 @@ class _EtcScreenState extends State<EtcScreen> {
                 onTap: _onNextTap,
                 child: FormButton(
                   enabled: _isNextEnable(),
-                  text: "다음",
+                  widget: _isSending
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          '다음',
+                          textAlign: TextAlign.center,
+                        ),
                 ),
               ),
             ],

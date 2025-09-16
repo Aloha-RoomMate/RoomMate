@@ -134,7 +134,7 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
     if (!mounted) return;
     Navigator.of(context).push(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const HobbyScreen(),
+        pageBuilder: (_, __, ___) => const DailyRhythmScreen(),
         transitionDuration: const Duration(milliseconds: 300),
         reverseTransitionDuration: const Duration(milliseconds: 300),
         transitionsBuilder: (_, animation, __, child) =>

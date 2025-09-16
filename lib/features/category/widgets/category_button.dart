@@ -22,16 +22,16 @@ class CategoryButton extends StatelessWidget {
           milliseconds: 300,
         ),
         padding: EdgeInsets.symmetric(
-          vertical: Sizes.size6,
-          horizontal: Sizes.size18,
+          vertical: Sizes.size4,
+          horizontal: Sizes.size14,
         ),
         decoration: BoxDecoration(
-          border: Border.all(
-            color: isSelected ? Colors.transparent : Colors.black38,
-          ),
           color: isSelected
               ? Theme.of(context).primaryColor
               : Colors.transparent,
+          border: BoxBorder.all(
+            color: isSelected ? Colors.transparent : Colors.black38,
+          ),
           borderRadius: BorderRadius.circular(
             Sizes.size18,
           ),
@@ -39,9 +39,7 @@ class CategoryButton extends StatelessWidget {
         child: Text(
           text,
           style: TextStyle(
-            fontSize: Sizes.size12,
-            color: isSelected ? Colors.white : Colors.black87,
-            fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+            color: isSelected ? Colors.white : Colors.black,
           ),
         ),
       ),

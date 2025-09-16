@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/navigationbar/main_navigation.dart';
 import 'package:roommate/features/view/room_owner_post_view.dart';
 
 class PostContainer extends StatelessWidget {
@@ -12,7 +13,7 @@ class PostContainer extends StatelessWidget {
       context,
     ).push(
       MaterialPageRoute(
-        builder: (context) => RoomOwnerPostView(),
+        builder: (context) => MainNavigation(),
       ),
     );
   }

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/category/coliving_screen.dart';
 
 class FormButton extends StatelessWidget {
-  const FormButton({super.key, required this.enabled, required this.text});
+  const FormButton({super.key, required this.enabled, required this.widget});
 
   final bool enabled;
-  final String text;
+  final Widget widget;
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +15,7 @@ class FormButton extends StatelessWidget {
       child: AnimatedContainer(
         padding: EdgeInsets.symmetric(vertical: Sizes.size16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(Sizes.size16),
+          borderRadius: BorderRadius.circular(6),
           color: enabled
               ? Theme.of(context).primaryColor
               : Colors.grey.shade300,
@@ -27,7 +28,7 @@ class FormButton extends StatelessWidget {
             fontSize: Sizes.size20,
             fontWeight: FontWeight.w400,
           ),
-          child: Text(text, textAlign: TextAlign.center),
+          child: widget,
         ),
       ),
     );

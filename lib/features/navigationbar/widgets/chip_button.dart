@@ -19,8 +19,9 @@ class ChipButton extends StatelessWidget {
         horizontal: Sizes.size14,
       ),
       decoration: BoxDecoration(
-        border: BoxBorder.all(color: Colors.black38),
-
+        border: BoxBorder.all(
+          color: isSelected ? Colors.transparent : Colors.black38,
+        ),
         color: isSelected
             ? Theme.of(context).primaryColor
             // : Colors.grey.shade200,

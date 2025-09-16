@@ -1,11 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/etc_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
-import 'package:roommate/class/app_user.dart' as model;
 
 class RoomCleanOption {
   final String label;
@@ -13,9 +12,9 @@ class RoomCleanOption {
 }
 
 const keyRoomClean = [
-  RoomCleanOption('잘 하지 않아요'),
-  RoomCleanOption('더러워지면 해요'),
-  RoomCleanOption('주 1-2회 정리해요'),
+  RoomCleanOption('항상 제자리에 둬요'),
+  RoomCleanOption('대체로 정돈된 편이예요'),
+  RoomCleanOption('어지르는 편이예요'),
 ];
 
 class BathroomCleanOption {
@@ -24,12 +23,11 @@ class BathroomCleanOption {
 }
 
 const keyBathroomClean = [
-  BathroomCleanOption('주 1회 교대로 청소해요'),
-  BathroomCleanOption('더러워지면 청소해요'),
-  BathroomCleanOption('사용 후 그때그때 청소해요'),
+  BathroomCleanOption('둔감해요'),
+  BathroomCleanOption('보통이예요'),
+  BathroomCleanOption('예민해요'),
 ];
 
-// ⛳️ 이건 UI 라벨용 클래스 (이름 그대로 둬도 됨)
 class CleaningHabit {
   final String label;
   const CleaningHabit(this.label);
@@ -52,6 +50,7 @@ class _CleaningScreenState extends State<CleaningScreen> {
   final Set<String> _selectedRoomClean = {};
   final Set<String> _selectedBathroomCleanOption = {};
   final Set<String> _selectedCleaningHabit = {};
+  bool _isSending = false;
 
   void _onSleepSoundChipTap(String option) {
     if (_selectedRoomClean.contains(option)) {
@@ -86,37 +85,42 @@ class _CleaningScreenState extends State<CleaningScreen> {
         _selectedCleaningHabit.isNotEmpty;
   }
 
-  Future<void> _onNextTap() async {
-    if (!_isNextEnable()) return;
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'roomClean': _selectedRoomClean.toList(),
+      'bathroomClean': _selectedBathroomCleanOption.toList(),
+      'cleaningLevel': _selectedCleaningHabit.toList(),
+    };
+  }
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
+  void _onNextTap() async {
+    if (_isNextEnable()) {
+      try {
+        setState(() {
+          _isSending = true;
+        });
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance
+            .collection('cleaningHabit')
+            .add(payload);
+        print('data stored!');
 
-    try {
-      // ✅ 여기! 모델 클래스는 model.CleaningHabit 로 명시
-      final ch = model.CleaningHabit(
-        roomClean: _selectedRoomClean.toList(),
-        bathroomClean: _selectedBathroomCleanOption.toList(),
-        cleaningLevel: _selectedCleaningHabit.toList(),
-      );
-
-      /// 이 줄이 firestore 에 데이터를 put 하는 핵심
-      await UserRepository().setCleaningHabit(ch);
-
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const EtcScreen()),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('저장 실패: $e')),
-      );
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).push(
+            MaterialPageRoute(
+              builder: (context) => EtcScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        print('error occured!');
+      } finally {
+        if (mounted) {
+          _isSending = false;
+        }
+      }
     }
   }
 
@@ -126,7 +130,9 @@ class _CleaningScreenState extends State<CleaningScreen> {
       appBar: AppBar(
         title: Text(
           '청소 습관을 선택해주세요!',
-          style: TextStyle(fontSize: Sizes.size24),
+          style: TextStyle(
+            fontSize: Sizes.size24,
+          ),
         ),
         centerTitle: true,
       ),
@@ -210,7 +216,16 @@ class _CleaningScreenState extends State<CleaningScreen> {
                 onTap: _onNextTap,
                 child: FormButton(
                   enabled: _isNextEnable(),
-                  text: "다음",
+                  widget: _isSending
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          '다음',
+                          textAlign: TextAlign.center,
+                        ),
                 ),
               ),
             ],

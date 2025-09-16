@@ -7,9 +7,7 @@ import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/time_field.dart';
-import 'package:roommate/features/category/work_pattern_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:roommate/features/navigationbar/main_navigation.dart';
+import 'package:roommate/features/category/coliving_screen.dart';
 
 /// 요일
 class DayOption {
@@ -34,50 +32,28 @@ class AlarmOption {
   const AlarmOption(this.label);
 }
 
-const keyAlarms = [
-  AlarmOption('1회'),
-  AlarmOption('2회'),
-  AlarmOption('3회 이상'),
-];
-
 /// 시간 필드 식별자
 enum TimeKey {
   weekAwake,
-  weekGoWork,
-  weekComeHome,
   weekSleep,
-  weekendAwake,
-  weekendSleep,
 }
 
-class DailyRythmScreen extends StatefulWidget {
-  const DailyRythmScreen({super.key});
+class DailyRhythmScreen extends StatefulWidget {
+  const DailyRhythmScreen({super.key});
 
   @override
-  State<DailyRythmScreen> createState() => _DailyRythmScreenState();
+  State<DailyRhythmScreen> createState() => _DailyRhythmScreenState();
 }
 
-class _DailyRythmScreenState extends State<DailyRythmScreen> {
+class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
   final Set<String> _selectedDays = {}; // 월~일 , 없음
-  final Set<String> _selectedAlarms = {}; // 1회~3회 이상
+  final UserRepository _userRepository = UserRepository();
   bool get _isJobLess => _selectedDays.contains('없음');
+  bool _isSending = false;
 
   // 시간 필드
   final TextEditingController _weekAwakeCtrl = TextEditingController();
-  final TextEditingController _weekGoWorkCtrl = TextEditingController();
-  final TextEditingController _weekComeBackHomeCtrl = TextEditingController();
   final TextEditingController _weekSleepCtrl = TextEditingController();
-  final TextEditingController _weekendAwakeCtrl = TextEditingController();
-  final TextEditingController _weekendSleepCtrl = TextEditingController();
-
-  int? toMinutes(String textTime) {
-    if (textTime.isEmpty) return null;
-    final p = textTime.replaceAll(' ', '').split(':');
-    if (p.length != 2) return null;
-    final h = int.tryParse(p[0]), m = int.tryParse(p[1]);
-    if (h == null || m == null) return null;
-    return h * 60 + m;
-  }
 
   /// 선택 여부를 리스트에 담는 함수.
   void _onDayChipTap(String day) {
@@ -90,8 +66,6 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
           ..add('없음');
         for (final controller in [
           _weekAwakeCtrl,
-          _weekGoWorkCtrl,
-          _weekComeBackHomeCtrl,
           _weekSleepCtrl,
         ]) {
           controller.clear();
@@ -110,51 +84,59 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
     // 따라서 바뀐 bool 값으로 카테고리 버튼 색깔이 바뀜
   }
 
-  void _onAlarmTap(String alarm) {
-    if (_selectedAlarms.contains(alarm)) {
-      _selectedAlarms.remove(alarm);
-    } else {
-      _selectedAlarms.add(alarm);
-    }
-    setState(() {});
+  /// 시간 int로 바꿔주면 나중에 편함.
+  int? toMinutes(String textTime) {
+    if (textTime.isEmpty) return null;
+    final p = textTime.replaceAll(' ', '').split(':');
+    if (p.length != 2) return null;
+    final h = int.tryParse(p[0]), m = int.tryParse(p[1]);
+    if (h == null || m == null) return null;
+    return h * 60 + m;
   }
 
-  Future<void> _onNextTap() async {
-    if (!_isNextEnable()) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
+  void _onNextTap() async {
+    if (_isNextEnable()) {
+      try {
+        setState(() {
+          _isSending = true;
+        });
+        final rhythm = DailyRhythm(
+          workDays: _selectedDays.toList(),
+          isJobLess: _isJobLess,
+          weekAwakeMins: _isJobLess ? null : toMinutes(_weekAwakeCtrl.text),
+          weekSleepMins: _isJobLess ? null : toMinutes(_weekSleepCtrl.text),
+        );
 
-    try {
-      final rhythm = DailyRhythm(
-        workDays: _selectedDays.toList(),
-        alarms: _selectedAlarms.toList(),
-        isJobLess: _isJobLess,
-        weekAwakeMins: _isJobLess ? null : toMinutes(_weekAwakeCtrl.text),
-        weekGoWorkMins: _isJobLess ? null : toMinutes(_weekGoWorkCtrl.text),
-        weekBackHomeMins: _isJobLess
-            ? null
-            : toMinutes(_weekComeBackHomeCtrl.text),
-        weekSleepMins: _isJobLess ? null : toMinutes(_weekSleepCtrl.text),
-        weekendAwakeMins: toMinutes(_weekendAwakeCtrl.text),
-        weekendSleepMins: toMinutes(_weekendSleepCtrl.text),
-      );
+        // 실제 데이터 넘기는 부분
+        await _userRepository.setDailyRhythm(rhythm);
 
-      await UserRepository().setDailyRhythm(rhythm);
-
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const MainNavigation()));
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('저장 성공'),
+            ),
+          );
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ColivingScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('데이터 저장 중 에러 발생'),
+          ),
+        );
+        // context 쓸거면 mounted 확인
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSending = false;
+          });
+        }
+      }
     }
   }
 
@@ -178,14 +160,11 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
           onDateTimeChanged: (date) {
             final weekKeys = {
               TimeKey.weekAwake,
-              TimeKey.weekGoWork,
-              TimeKey.weekComeHome,
               TimeKey.weekSleep,
             };
             // 현재 키가 주중 키중 하나인가?
             final bool isWeekTime = weekKeys.contains(key);
             if (_isJobLess && isWeekTime) return;
-
             setState(() {
               controller.text = _formatToHM(date);
             });
@@ -199,61 +178,22 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
       controller.text.trim().isNotEmpty;
 
   bool _timesCheck() {
-    if (_isJobLess) {
-      return (_isTimeSelected(_weekendAwakeCtrl) &&
-          _isTimeSelected(_weekendSleepCtrl));
-    } else {
-      return (_isTimeSelected(_weekAwakeCtrl) &&
-          _isTimeSelected(_weekGoWorkCtrl) &&
-          _isTimeSelected(_weekComeBackHomeCtrl) &&
-          _isTimeSelected(_weekSleepCtrl) &&
-          _isTimeSelected(_weekendAwakeCtrl) &&
-          _isTimeSelected(_weekendSleepCtrl));
-    }
+    return (!_isJobLess &&
+        _isTimeSelected(_weekAwakeCtrl) &&
+        _isTimeSelected(_weekSleepCtrl));
   }
 
   bool _isNextEnable() {
     final daysCheck = _selectedDays.isNotEmpty;
-    final alarmsCheck = _selectedAlarms.isNotEmpty;
     final timesCheck = _timesCheck();
-    debugPrint(
-      'days:$daysCheck alarms:$alarmsCheck times:$timesCheck isJobLess:$_isJobLess',
-    );
-    return daysCheck && alarmsCheck && timesCheck;
-  }
 
-  Map<String, dynamic> _buildPayload() {
-    int? toMinutes(String textTime) {
-      if (textTime.isEmpty) return null;
-      final p = textTime.replaceAll(' ', '').split(':');
-      if (p.length != 2) return null;
-      final h = int.tryParse(p[0]), m = int.tryParse(p[1]);
-      if (h == null || m == null) return null;
-      return h * 60 + m;
-    }
-
-    return {
-      'days': _selectedDays.toList(), // 예: ['월','수'] 또는 ['없음']
-      'alarms': _selectedAlarms.toList(), // 예: ['2회']
-      'isJobLess': _isJobLess,
-      'weekAwakeMins': toMinutes(_weekAwakeCtrl.text),
-      'weekGoWorkMins': toMinutes(_weekGoWorkCtrl.text),
-      'weekBackHomeMins': toMinutes(_weekComeBackHomeCtrl.text),
-      'weekSleepMins': toMinutes(_weekSleepCtrl.text),
-      'weekendAwakeMins': toMinutes(_weekendAwakeCtrl.text),
-      'weekendSleepMins': toMinutes(_weekendSleepCtrl.text),
-      'updatedAt': DateTime.now().toIso8601String(),
-    };
+    return (_isJobLess) || (daysCheck && timesCheck);
   }
 
   @override
   void dispose() {
     _weekAwakeCtrl.dispose();
-    _weekGoWorkCtrl.dispose();
-    _weekComeBackHomeCtrl.dispose();
     _weekSleepCtrl.dispose();
-    _weekendAwakeCtrl.dispose();
-    _weekendSleepCtrl.dispose();
     super.dispose();
   }
 
@@ -264,12 +204,11 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(
-            '하루 리듬을 선택해주세요!',
+            '생활 리듬을 선택해주세요!',
             style: TextStyle(
-              fontSize: Sizes.size24,
+              fontSize: Sizes.size20 + Sizes.size2,
             ),
           ),
-          centerTitle: true,
         ),
         body: Padding(
           padding: EdgeInsets.only(
@@ -309,26 +248,7 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                   controller: _weekAwakeCtrl,
                   isJobLess: _isJobLess,
                 ),
-                Gaps.v12,
-                TimeField(
-                  question: "출근 시간을 알려주세요",
-                  onTimeFieldTap: () => _onTimeFieldTap(
-                    _weekGoWorkCtrl,
-                    TimeKey.weekGoWork,
-                  ),
-                  controller: _weekGoWorkCtrl,
-                  isJobLess: _isJobLess,
-                ),
-                Gaps.v12,
-                TimeField(
-                  question: "퇴근 시간을 알려주세요",
-                  onTimeFieldTap: () => _onTimeFieldTap(
-                    _weekComeBackHomeCtrl,
-                    TimeKey.weekComeHome,
-                  ),
-                  controller: _weekComeBackHomeCtrl,
-                  isJobLess: _isJobLess,
-                ),
+
                 Gaps.v12,
                 TimeField(
                   question: "출근일 취침 시간을 알려주세요",
@@ -337,53 +257,21 @@ class _DailyRythmScreenState extends State<DailyRythmScreen> {
                   controller: _weekSleepCtrl,
                   isJobLess: _isJobLess,
                 ),
-                Gaps.v12,
-                TimeField(
-                  question: "휴일 기상 시간을 알려주세요",
-                  onTimeFieldTap: () => _onTimeFieldTap(
-                    _weekendAwakeCtrl,
-                    TimeKey.weekendAwake,
-                  ),
-                  controller: _weekendAwakeCtrl,
-                  isJobLess: false,
-                ),
-                Gaps.v12,
-                TimeField(
-                  question: "휴일 취침 시간을 알려주세요",
-                  onTimeFieldTap: () => _onTimeFieldTap(
-                    _weekendSleepCtrl,
-                    TimeKey.weekendSleep,
-                  ),
-                  controller: _weekendSleepCtrl,
-                  isJobLess: false,
-                ),
-                Gaps.v12,
-                Text(
-                  '기상 전 알람 듣는 횟수를 알려주세요!',
-                  style: TextStyle(
-                    fontSize: Sizes.size16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Gaps.v6,
-                Wrap(
-                  spacing: Sizes.size8,
-                  runSpacing: Sizes.size8,
-                  children: [
-                    for (final alarms in keyAlarms)
-                      CategoryButton(
-                        text: alarms.label,
-                        myonTap: () => _onAlarmTap(alarms.label),
-                        isSelected: _selectedAlarms.contains(alarms.label),
-                      ),
-                  ],
-                ),
                 Gaps.v24,
                 GestureDetector(
                   onTap: _onNextTap,
                   child: FormButton(
                     enabled: _isNextEnable(),
-                    text: "다음",
+                    widget: _isSending
+                        ? Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            '다음',
+                            textAlign: TextAlign.center,
+                          ),
                   ),
                 ),
               ],
