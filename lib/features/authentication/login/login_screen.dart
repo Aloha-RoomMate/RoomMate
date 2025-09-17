@@ -43,7 +43,7 @@ class LoginScreen extends StatelessWidget {
 
       if (!context.mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const DailyRhythmScreen()),
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
       );
     } on FirebaseAuthException catch (e) {
       if (!context.mounted) return;
