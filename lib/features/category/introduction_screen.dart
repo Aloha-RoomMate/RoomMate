@@ -1,8 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:roommate/class/app_user.dart';
-import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
+import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 
@@ -30,45 +31,41 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     });
   }
 
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'introduction': _introduction,
+    };
+  }
+
+  /// 저장위치가 uid 아래가 아님 문제읻아
   void _onNextTap() async {
     if (_introduction.length >= 50 && _introduction.length <= 300) {
       try {
         setState(() {
           _isSending = true;
         });
-        final introduction = Introduction(introduction: _controller.text);
-
-        // 실제 데이터 넘기기
-        // USRREPO 선언 바로 할 수 있음.
-        await UserRepository().setIntroduction(introduction);
+        final payload = _buildPayload();
+        await FirebaseFirestore.instance
+            .collection('introduction')
+            .add(payload);
+        print('data stored!');
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('저장 성공'),
-            ),
-          );
-
-          setState(() {
-            _isSending = false;
-          });
-
-          Navigator.of(context).push(
+          Navigator.of(
+            context,
+          ).push(
             MaterialPageRoute(
-              builder: (context) => MainNavigation(),
+              builder: (context) => HobbyScreen(),
             ),
           );
         }
       } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('데이터 저장 중 에러 발생'),
-          ),
-        );
+        print('error occured!');
       } finally {
         if (mounted) {
-          _isSending = false;
+          setState(() {
+            _isSending = false;
+          });
         }
       }
     }
@@ -92,10 +89,12 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         appBar: AppBar(
           title: Text(
             '간단한 소개글을 작성해주세요!',
+
             style: TextStyle(
-              fontSize: Sizes.size20,
+              fontSize: Sizes.size24,
             ),
           ),
+          centerTitle: true,
         ),
         body: Padding(
           padding: EdgeInsets.only(
@@ -113,6 +112,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                 Gaps.v6,
                 Text(
                   '최소 50자 최대 300자예요!',
+
                   style: TextStyle(
                     color: Colors.grey.shade700,
                   ),

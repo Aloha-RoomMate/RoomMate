@@ -39,7 +39,7 @@ class _MainNavigationState extends State<MainNavigation> {
         index: _selectedIndex,
         children: [
           HomeScreen(),
-          ChatScreen(), //이거 오류나서 chatroom을 바로 만들지 않고 채팅 리스트를 만들어서 push 하며, chatroomId 를 넘겨줘야한다.
+          //ChatScreen(), //이거 오류나서 chatroom을 바로 만들지 않고 채팅 리스트를 만들어서 push 하며, chatroomId 를 넘겨줘야한다.
           _selectedIndex == 2 ? MapScreen() : SizedBox.shrink(),
           MypageScreen(),
         ],
