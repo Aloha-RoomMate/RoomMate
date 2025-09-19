@@ -108,7 +108,9 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
         );
 
         // 실제 데이터 넘기는 부분
-        await _userRepository.setDailyRhythm(rhythm);
+        await _userRepository.setUserPass(
+          dailyRhythm: rhythm,
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

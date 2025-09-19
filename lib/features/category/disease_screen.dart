@@ -53,7 +53,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
           diseases: _isHealthy ? '' : _textEditingController.text,
         );
 
-        await UserRepository().setDisease(disease);
+        await UserRepository().setUserPass(disease: disease);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
