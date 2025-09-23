@@ -67,25 +67,25 @@ class _AccordionWidgetState extends State<AccordionWidget>
       children: [
         GestureDetector(
           onTap: _toggleExpanded,
-          child: Column(
+          child: Row(
             children: [
-              SizedBox(
-                height: Sizes.size6,
+              AnimatedRotation(
+                turns: _isExpanded ? 0.5 : 0.0,
+                duration: const Duration(milliseconds: 150),
+                child: const Icon(Icons.expand_more_rounded),
               ),
-              Row(
-                children: [
-                  Text(
-                    _isExpanded ? 'v ${widget.title}' : '> ${widget.title}',
-                    style: const TextStyle(
-                      fontSize: Sizes.size18,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 6),
+              Text(
+                widget.title,
+                style: const TextStyle(
+                  fontSize: Sizes.size18,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
         ),
+
         const SizedBox(height: Sizes.size4),
         ClipRect(
           child: SizeTransition(

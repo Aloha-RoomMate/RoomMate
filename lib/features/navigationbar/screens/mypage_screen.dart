@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
+import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -122,6 +123,8 @@ class _MypageScreenState extends State<MypageScreen> {
         }
         final data = snapshot.data!;
         final col = data.userPass?.coliving;
+        final ut = data.userType;
+        final h = data.hobby;
 
         return Padding(
           padding: const EdgeInsets.all(Sizes.size12),
@@ -180,114 +183,147 @@ class _MypageScreenState extends State<MypageScreen> {
                       children: [
                         AccordionWidget(
                           title: " 내 생활패턴",
-                          content: Column(
-                            spacing: 6,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              for (final day
-                                  in data.userPass?.dailyRhythm?.workDays ?? [])
-                                ChipButton(text: "출근일 $day", isSelected: true),
-                              if (data.userPass?.dailyRhythm?.isJobLess ==
-                                  true) ...[
-                                ChipButton(
-                                  text:
-                                      "주말 기상시간 : ${data.userPass?.dailyRhythm?.weekAwakeMins}",
-                                  isSelected: true,
-                                ),
-                                ChipButton(
-                                  text:
-                                      "주말 취침시간 : ${data.userPass?.dailyRhythm?.weekSleepMins}",
-                                  isSelected: true,
-                                ),
-                              ],
-                            ],
+                          content: Builder(
+                            builder: (_) {
+                              final dr = data.userPass?.dailyRhythm;
+                              final workDays = dr?.workDays ?? const <String>[];
+                              final hasWorkDays = workDays.isNotEmpty;
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  LabeldRow(
+                                    label: "출근일 :",
+                                    chips: [
+                                      for (final d in workDays)
+                                        ChipButton(text: d, isSelected: true),
+                                    ],
+                                  ),
+                                  if (hasWorkDays)
+                                    LabeldRow(
+                                      label: "주말 시간",
+                                      chips: [
+                                        if (dr?.weekAwakeMins != null)
+                                          ChipButton(
+                                            text: "기상 ${dr!.weekAwakeMins}",
+                                            isSelected: true,
+                                          ),
+                                        if (dr?.weekSleepMins != null)
+                                          ChipButton(
+                                            text: "취침 ${dr!.weekSleepMins}",
+                                            isSelected: true,
+                                          ),
+                                      ],
+                                    ),
+                                  if (!hasWorkDays)
+                                    const LabeldRow(
+                                      label: "주말 시간",
+                                      chips: [],
+                                    ), // '입력 없음' 표시
+                                ],
+                              );
+                            },
                           ),
                         ),
+
                         AccordionWidget(
                           title: " 내 공동 생활 성향",
                           content: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            spacing: 6,
                             children: [
-                              ChipButton(
-                                text: "${data.userPass?.coliving?.coSpace}",
-                                isSelected: true,
+                              LabeldRow(
+                                label: "공용공간 사용 선호도 :",
+                                chips: [
+                                  if ((col?.coSpace ?? '').isNotEmpty)
+                                    ChipButton(
+                                      text: col!.coSpace,
+                                      isSelected: true,
+                                    ),
+                                ],
                               ),
-                              ChipButton(
-                                text: "${data.userPass?.coliving?.bathroom}",
-                                isSelected: true,
+                              LabeldRow(
+                                label: "화장실 청결 민감도 : ",
+                                chips: [
+                                  if ((col?.bathroom ?? '').isNotEmpty)
+                                    ChipButton(
+                                      text: col!.bathroom,
+                                      isSelected: true,
+                                    ),
+                                ],
                               ),
-                              ChipButton(
-                                text: "${data.userPass?.coliving?.mbti}",
-                                isSelected: true,
+                              LabeldRow(
+                                label: "MBTI : ",
+                                chips: [
+                                  if ((col?.mbti ?? '').isNotEmpty)
+                                    ChipButton(
+                                      text: col!.mbti,
+                                      isSelected: true,
+                                    ),
+                                ],
                               ),
-                              if ((col?.pet ?? const []).isEmpty)
-                                const ChipButton(
-                                  text: '반려동물: 없음',
-                                  isSelected: false,
-                                )
-                              else
-                                for (final p in col!.pet)
-                                  ChipButton(
-                                    text: '반려동물: $p',
-                                    isSelected: true,
-                                  ),
-                              if (col?.smoking != null)
-                                ChipButton(
-                                  text: col!.smoking ? '흡연' : '비흡연',
-                                  isSelected: true,
-                                )
-                              else
-                                const ChipButton(
-                                  text: '흡연 정보 없음',
-                                  isSelected: false,
-                                ),
+                              LabeldRow(
+                                label: "반려동물 : ",
+                                chips: (col?.pet ?? const <String>[])
+                                    .map(
+                                      (p) =>
+                                          ChipButton(text: p, isSelected: true),
+                                    )
+                                    .toList(),
+                              ),
+                              LabeldRow(
+                                label: "흡연 : ",
+                                chips: [
+                                  if (col?.smoking != null)
+                                    ChipButton(
+                                      text: col!.smoking ? '흡연' : '비흡연',
+                                      isSelected: true,
+                                    ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
                         AccordionWidget(
                           title: " 내 유저타입",
                           content: Column(
-                            spacing: 8,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (data.userType == null) ...[
-                                const ChipButton(
-                                  text: '유저타입 없음',
-                                  isSelected: false,
-                                ),
-                              ] else if (data.userType!.type ==
-                                  "roomOwner") ...[
-                                const ChipButton(
-                                  text: 'RoomOwner',
-                                  isSelected: true,
-                                ),
-                                ChipButton(
-                                  text: (data.userType?.address ?? '주소 없음')
-                                      .split('(')
-                                      .first
-                                      .trim(),
-                                  isSelected: true,
-                                ),
-                              ] else ...[
-                                const ChipButton(
-                                  text: 'Searcher',
-                                  isSelected: true,
-                                ),
-
-                                for (final area
-                                    in (data.userType!.searchAreas ??
-                                        const <String>[]))
-                                  ChipButton(text: area, isSelected: true),
-
-                                if ((data.userType!.searchAreas ??
-                                        const <String>[])
-                                    .isEmpty)
-                                  const ChipButton(
-                                    text: '선호 지역 없음',
-                                    isSelected: false,
+                              LabeldRow(
+                                label: "유저타입 :",
+                                chips: [
+                                  ChipButton(
+                                    text: (ut?.type == "roomOwner")
+                                        ? "RoomOwner"
+                                        : "Searcher",
+                                    isSelected: true,
                                   ),
-                              ],
+                                ],
+                              ),
+                              if (ut?.type == "roomOwner")
+                                LabeldRow(
+                                  label: "주소",
+                                  chips: [
+                                    ChipButton(
+                                      text: (ut?.address ?? '주소 없음')
+                                          .split('(')
+                                          .first
+                                          .trim(),
+                                      isSelected: true,
+                                    ),
+                                  ],
+                                )
+                              else
+                                LabeldRow(
+                                  label: "선호하는 지역 : ",
+                                  chips: (ut?.searchAreas ?? const <String>[])
+                                      .map(
+                                        (a) => ChipButton(
+                                          text: a,
+                                          isSelected: true,
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
                             ],
                           ),
                         ),
@@ -295,14 +331,51 @@ class _MypageScreenState extends State<MypageScreen> {
                           title: " 내 취미",
                           content: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            spacing: 6,
                             children: [
-                              for (final food in (data.hobby!.foodLike))
-                                ChipButton(text: food, isSelected: true),
-                              for (final interest in data.hobby!.interestLike)
-                                ChipButton(text: interest, isSelected: true),
-                              for (final sport in data.hobby!.sportLike)
-                                ChipButton(text: sport, isSelected: true),
+                              LabeldRow(
+                                label: "최애 음식 :",
+                                chips: (h?.foodLike ?? const <String>[])
+                                    .map(
+                                      (x) =>
+                                          ChipButton(text: x, isSelected: true),
+                                    )
+                                    .toList(),
+                              ),
+                              LabeldRow(
+                                label: "요즘 관심사 :",
+                                chips: (h?.interestLike ?? const <String>[])
+                                    .map(
+                                      (x) =>
+                                          ChipButton(text: x, isSelected: true),
+                                    )
+                                    .toList(),
+                              ),
+                              LabeldRow(
+                                label: "운동 :",
+                                chips: (h?.sportLike ?? const <String>[])
+                                    .map(
+                                      (x) =>
+                                          ChipButton(text: x, isSelected: true),
+                                    )
+                                    .toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(
+                          height: 20,
+                        ),
+                        SizedBox(
+                          height: 80,
+                          child: ListView(
+                            scrollDirection: Axis.vertical,
+                            children: <Widget>[
+                              ListTile(
+                                leading: Icon(Icons.home),
+                                title: Text("one"),
+                                trailing: Icon(Icons.navigate_next_rounded),
+                                onTap: () {},
+                              ),
                             ],
                           ),
                         ),
@@ -327,8 +400,7 @@ class _MypageScreenState extends State<MypageScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               GestureDetector(
-                                behavior:
-                                    HitTestBehavior.opaque, // 아이콘 주변도 터치되게
+                                behavior: HitTestBehavior.opaque,
                                 onTap: _onNextTap,
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
@@ -341,7 +413,7 @@ class _MypageScreenState extends State<MypageScreen> {
                               ),
                               const SizedBox(height: 12),
                               const Text(
-                                "추가적인 유저 정보를 입력해면\n 사용하실수 있습니다.",
+                                "추가적인 유저 정보를 입력하면\n 사용하실수 있습니다.",
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 18,
@@ -360,6 +432,46 @@ class _MypageScreenState extends State<MypageScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class LabeldRow extends StatelessWidget {
+  final String label;
+  final List<Widget> chips;
+  final double labelWidth;
+
+  const LabeldRow({
+    super.key,
+    required this.label,
+    required this.chips,
+    this.labelWidth = 88,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: labelWidth,
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Wrap(spacing: 6, runSpacing: 6, children: chips),
+          ),
+        ],
+      ),
     );
   }
 }
