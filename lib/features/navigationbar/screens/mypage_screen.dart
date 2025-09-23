@@ -7,11 +7,13 @@ import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
 import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
 
 class MypageScreen extends StatefulWidget {
-  const MypageScreen({super.key});
+  const MypageScreen({super.key, required this.isBlocked});
+  final bool isBlocked;
 
   @override
   State<MypageScreen> createState() => _MypageScreenState();
@@ -19,6 +21,12 @@ class MypageScreen extends StatefulWidget {
 
 class _MypageScreenState extends State<MypageScreen> {
   File? _profileImage;
+
+  void _onNextTap() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => DailyRhythmScreen()),
+    );
+  }
 
   Future<AppUser?> _getMyData() async {
     return await UserRepository().fetchMe();
@@ -85,7 +93,7 @@ class _MypageScreenState extends State<MypageScreen> {
                 child: const Text('기본 프로필로 설정'),
               ),
               const SizedBox(height: 20),
-              Divider(
+              const Divider(
                 height: 0,
                 thickness: 0,
                 color: Colors.transparent,
@@ -108,11 +116,12 @@ class _MypageScreenState extends State<MypageScreen> {
           );
         }
         if (!snapshot.hasData || snapshot.data == null) {
-          return Center(
+          return const Center(
             child: Text("데이터가 없습니다."),
           );
         }
         final data = snapshot.data!;
+        final col = data.userPass?.coliving;
 
         return Padding(
           padding: const EdgeInsets.all(Sizes.size12),
@@ -150,16 +159,7 @@ class _MypageScreenState extends State<MypageScreen> {
                       padding: const EdgeInsets.only(right: 100, left: 100),
                       child: Column(
                         children: [
-                          Text(
-                            "여기 닉네임이 들어가야함",
-                            style: TextStyle(
-                              fontSize: Sizes.size16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Divider(
-                            height: 10,
-                          ),
+                          Text(data.displayName),
                         ],
                       ),
                     ),
@@ -167,93 +167,192 @@ class _MypageScreenState extends State<MypageScreen> {
                 ),
               ),
               const SizedBox(height: 2),
-              SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(data.displayName),
-                ),
-              ),
+
               Divider(
                 height: 1,
                 color: Theme.of(context).primaryColor.withAlpha(100),
               ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+
+              SingleChildScrollView(
+                child: Stack(
                   children: [
-                    AccordionWidget(
-                      title: " 내 생활패턴",
-                      content: Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          for (final day in data.dailyRhythm?.workDays ?? [])
-                            ChipButton(text: "출근일 $day", isSelected: true),
-                          if (data.dailyRhythm?.isJobLess == true) ...[
-                            ChipButton(
-                              text:
-                                  "주말 기상시간 :{data.dailyRhythm?.weekendAwakeMins}",
-                              isSelected: true,
+                    Column(
+                      children: [
+                        AccordionWidget(
+                          title: " 내 생활패턴",
+                          content: Column(
+                            spacing: 6,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (final day
+                                  in data.userPass?.dailyRhythm?.workDays ?? [])
+                                ChipButton(text: "출근일 $day", isSelected: true),
+                              if (data.userPass?.dailyRhythm?.isJobLess ==
+                                  true) ...[
+                                ChipButton(
+                                  text:
+                                      "주말 기상시간 : ${data.userPass?.dailyRhythm?.weekAwakeMins}",
+                                  isSelected: true,
+                                ),
+                                ChipButton(
+                                  text:
+                                      "주말 취침시간 : ${data.userPass?.dailyRhythm?.weekSleepMins}",
+                                  isSelected: true,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        AccordionWidget(
+                          title: " 내 공동 생활 성향",
+                          content: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 6,
+                            children: [
+                              ChipButton(
+                                text: "${data.userPass?.coliving?.coSpace}",
+                                isSelected: true,
+                              ),
+                              ChipButton(
+                                text: "${data.userPass?.coliving?.bathroom}",
+                                isSelected: true,
+                              ),
+                              ChipButton(
+                                text: "${data.userPass?.coliving?.mbti}",
+                                isSelected: true,
+                              ),
+                              if ((col?.pet ?? const []).isEmpty)
+                                const ChipButton(
+                                  text: '반려동물: 없음',
+                                  isSelected: false,
+                                )
+                              else
+                                for (final p in col!.pet)
+                                  ChipButton(
+                                    text: '반려동물: $p',
+                                    isSelected: true,
+                                  ),
+                              if (col?.smoking != null)
+                                ChipButton(
+                                  text: col!.smoking ? '흡연' : '비흡연',
+                                  isSelected: true,
+                                )
+                              else
+                                const ChipButton(
+                                  text: '흡연 정보 없음',
+                                  isSelected: false,
+                                ),
+                            ],
+                          ),
+                        ),
+                        AccordionWidget(
+                          title: " 내 유저타입",
+                          content: Column(
+                            spacing: 8,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (data.userType == null) ...[
+                                const ChipButton(
+                                  text: '유저타입 없음',
+                                  isSelected: false,
+                                ),
+                              ] else if (data.userType!.type ==
+                                  "roomOwner") ...[
+                                const ChipButton(
+                                  text: 'RoomOwner',
+                                  isSelected: true,
+                                ),
+                                ChipButton(
+                                  text: (data.userType?.address ?? '주소 없음')
+                                      .split('(')
+                                      .first
+                                      .trim(),
+                                  isSelected: true,
+                                ),
+                              ] else ...[
+                                const ChipButton(
+                                  text: 'Searcher',
+                                  isSelected: true,
+                                ),
+
+                                for (final area
+                                    in (data.userType!.searchAreas ??
+                                        const <String>[]))
+                                  ChipButton(text: area, isSelected: true),
+
+                                if ((data.userType!.searchAreas ??
+                                        const <String>[])
+                                    .isEmpty)
+                                  const ChipButton(
+                                    text: '선호 지역 없음',
+                                    isSelected: false,
+                                  ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        AccordionWidget(
+                          title: " 내 취미",
+                          content: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 6,
+                            children: [
+                              for (final food in (data.hobby!.foodLike))
+                                ChipButton(text: food, isSelected: true),
+                              for (final interest in data.hobby!.interestLike)
+                                ChipButton(text: interest, isSelected: true),
+                              for (final sport in data.hobby!.sportLike)
+                                ChipButton(text: sport, isSelected: true),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    if (data.userPass?.pass == false) ...[
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.transparent, Colors.white],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
                             ),
-                            ChipButton(
-                              text:
-                                  "주말 취침시간 : {data.dailyRhythm?.weekendSleepMins}",
-                              isSelected: true,
-                            ),
-                          ],
-                        ],
+                          ),
+                        ),
                       ),
-                    ),
-                    AccordionWidget(
-                      title: " 내 출퇴근 패턴",
-                      content: Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          for (final day in data.dailyRhythm?.workDays ?? [])
-                            ChipButton(text: "출근일 $day", isSelected: true),
-                          if (data.dailyRhythm?.isJobLess == true) ...[
-                            ChipButton(
-                              text:
-                                  "주말 기상시간 :{data.dailyRhythm?.weekendAwakeMins}",
-                              isSelected: true,
-                            ),
-                            ChipButton(
-                              text:
-                                  "주말 취침시간 : {data.dailyRhythm?.weekendSleepMins}",
-                              isSelected: true,
-                            ),
-                          ],
-                        ],
+                      Positioned.fill(
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                behavior:
+                                    HitTestBehavior.opaque, // 아이콘 주변도 터치되게
+                                onTap: _onNextTap,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Icon(
+                                    Icons.lock,
+                                    color: Colors.black54,
+                                    size: 48,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                "추가적인 유저 정보를 입력해면\n 사용하실수 있습니다.",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                    AccordionWidget(
-                      title: " 내 식사습관",
-                      content: ChipButton(text: "asdf", isSelected: true),
-                    ),
-                    AccordionWidget(
-                      title: " 내 질병",
-                      content: Wrap(
-                        spacing: 8,
-                        children: [
-                          ChipButton(text: "asdf", isSelected: true),
-                          ChipButton(text: "text", isSelected: false),
-                        ],
-                      ),
-                    ),
-                    AccordionWidget(
-                      title: " 내 청소습관",
-                      content: ChipButton(text: "asdf", isSelected: true),
-                    ),
-                    AccordionWidget(
-                      title: " 내 잠버릇",
-                      content: ChipButton(text: "asdf", isSelected: true),
-                    ),
-                    AccordionWidget(
-                      title: " 그 이외",
-                      content: ChipButton(text: "asdf", isSelected: true),
-                    ),
+                    ],
                   ],
                 ),
               ),
