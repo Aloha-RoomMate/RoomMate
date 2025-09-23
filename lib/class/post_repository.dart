@@ -1,7 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:roommate/class/post.dart';
-import 'package:roommate/class/user_repository.dart';
 
 class PostRepository {
   final FirebaseFirestore _db; // final: init list 필요
@@ -12,13 +10,13 @@ class PostRepository {
 
   /// 게시글 올리기
   Future<void> createPost(Post post) async {
-    await _db.collection('posts').add(post.toMap());
+    await _db.collection('roomOwnerPosts').add(post.toMap());
   }
 
   /// 특정 유저 게시글 가져오기
   Future<List<Post>> fetchPostByUser(String uid) async {
     final querySnapshot = await _db
-        .collection('posts')
+        .collection('roomOwnerPosts')
         .where('authorId', isEqualTo: uid)
         .get();
 
@@ -28,7 +26,7 @@ class PostRepository {
   /// 피드용. 모든 post 가져오기.
   Future<List<Post>> fetchAllPosts() async {
     final querySnapshot = await _db
-        .collection('posts')
+        .collection('roomOwnerPosts')
         .orderBy('createdAt', descending: true)
         .limit(20) // 최신 20개만 가져오기
         .get();
