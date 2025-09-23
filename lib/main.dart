@@ -82,7 +82,7 @@ class RoomMate extends StatelessWidget {
           ),
         ),
       ),
-      home: LoginScreen(
+      home: MainNavigation(
         // userType: "",
         // jobKinds: "",
       ),
