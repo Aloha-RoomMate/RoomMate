@@ -88,25 +88,41 @@ class UserRepository {
     DiseaseInfo? disease,
     Introduction? introduction,
   }) async {
-    final isPass =
-        dailyRhythm != null &&
-        coliving != null &&
-        disease != null &&
-        introduction != null;
+    final docRef = _meDoc();
 
-    await _meDoc().set(
-      {
-        'userPass': {
-          if (dailyRhythm != null) 'dailyRhythm': dailyRhythm.toMap(),
-          if (coliving != null) 'coliving': coliving.toMap(),
-          if (disease != null) 'disease': disease.toMap(),
-          if (introduction != null) 'introduction': introduction.toMap(),
-          'pass': isPass,
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(docRef);
+      final current = (snap.data()?['userPass'] as Map<String, dynamic>?) ?? {};
+
+      // 기존 + 이번 입력 병합
+      final merged = <String, dynamic>{
+        ...current,
+        if (dailyRhythm != null) 'dailyRhythm': dailyRhythm.toMap(),
+        if (coliving != null) 'coliving': coliving.toMap(),
+        if (disease != null) 'disease': disease.toMap(),
+        if (introduction != null) 'introduction': introduction.toMap(),
+      };
+
+      // ✅ “섹션 맵 존재 여부”만으로 판정 (내부 값 null이어도 OK)
+      final hasDaily = merged['dailyRhythm'] != null;
+      final hasColiving = merged['coliving'] != null;
+      final hasDisease = merged['disease'] != null;
+      final hasIntroduction = merged['introduction'] != null;
+
+      final isPass = hasDaily && hasColiving && hasDisease && hasIntroduction;
+
+      tx.set(
+        docRef,
+        {
+          'userPass': {
+            ...merged,
+            'pass': isPass,
+          },
+          'updatedAt': FieldValue.serverTimestamp(),
         },
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+        SetOptions(merge: true),
+      );
+    });
   }
 
   Future<Map<String, dynamic>?> fetchUserPass() async {
