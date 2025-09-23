@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
+import 'package:roommate/features/category/complete_screen.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
@@ -38,36 +41,24 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   }
 
   /// 저장위치가 uid 아래가 아님 문제읻아
-  void _onNextTap() async {
-    if (_introduction.length >= 50 && _introduction.length <= 300) {
-      try {
-        setState(() {
-          _isSending = true;
-        });
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance
-            .collection('introduction')
-            .add(payload);
-        print('data stored!');
+  Future<void> _onNextTap() async {
+    if (_introduction.length < 50 || _introduction.length > 300) return;
 
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).push(
-            MaterialPageRoute(
-              builder: (context) => HobbyScreen(),
-            ),
-          );
-        }
-      } catch (e) {
-        print('error occured!');
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isSending = false;
-          });
-        }
-      }
+    try {
+      setState(() => _isSending = true);
+
+      await UserRepository().setUserPass(
+        introduction: Introduction(introduction: _introduction),
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const CompleteScreen()),
+      );
+    } catch (e) {
+      debugPrint('error: $e');
+    } finally {
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
@@ -89,7 +80,6 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         appBar: AppBar(
           title: Text(
             '간단한 소개글을 작성해주세요!',
-
             style: TextStyle(
               fontSize: Sizes.size24,
             ),
