@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/chat/chatlist_screen.dart';
 import 'package:roommate/features/chat/chat_screen.dart';
 import 'package:roommate/features/navigationbar/screens/home_screen.dart';
 import 'package:roommate/features/navigationbar/screens/map_screen.dart';
@@ -39,8 +40,8 @@ class _MainNavigationState extends State<MainNavigation> {
         index: _selectedIndex,
         children: [
           HomeScreen(),
-          ChatScreen(
-            chatRoomId: "1234",
+          ChatListScreen(
+            //chatRoomId: "1234",
           ), //이거 오류나서 chatroom을 바로 만들지 않고 채팅 리스트를 만들어서 push 하며, chatroomId 를 넘겨줘야한다.
           _selectedIndex == 2 ? MapScreen() : SizedBox.shrink(),
           _selectedIndex == 3
