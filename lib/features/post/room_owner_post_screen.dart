@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -53,7 +54,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
     _loadCurrentUser();
   }
 
-  // 사용자 정보 불러오는 함수
+  /// 사용자 정보 불러오는 함수
   Future<void> _loadCurrentUser() async {
     _currentUser = await _userRepository.fetchMe();
     if (mounted) {
@@ -61,7 +62,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
     }
   }
 
-  // 주소 검색 API를 호출하는 함수
+  /// 주소 검색 API를 호출하는 함수
   Future<void> _searchAddress(String keyword) async {
     if (keyword.isEmpty) {
       setState(() {
@@ -125,6 +126,86 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
     }
   }
 
+  /// 도로명주소 좌표로 변환하는 함수
+  Future<Map<String, double>?> _addrToCoordinate(String address) async {
+    const KEY = '859C0BAE-5962-3698-97E5-FE4089A6517A';
+
+    final url = Uri.https('api.vworld.kr', '/req/address', {
+      'service': 'address',
+      'request': 'getcoord',
+      'version': '2.0',
+      'crs': 'epsg:4326',
+      'address': address,
+      'refine': 'true',
+      'simple': 'false',
+      'format': 'json',
+      'type': 'road',
+      'key': KEY,
+    });
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final decodedData = jsonDecode(response.body);
+
+        if (decodedData['response']['status'] == 'OK') {
+          final point = decodedData['response']['result']['point'];
+          final double longitude = double.parse(point['x']); // 경도
+          final double latitude = double.parse(point['y']); // 위도
+          print('>> 변환된 경도: $longitude');
+          print('>> 변환된 위도: $latitude');
+          return {
+            'longitude': longitude,
+            'latitude': latitude,
+          };
+        } else {
+          // API 에러 반환
+          final errorMessage = decodedData['rponse']['error']['text'];
+          print('>> API Error: $errorMessage');
+          return null;
+        }
+      } else {
+        // HTTP 요청 자체가 실패
+        print('>> HTTP Error: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Geocoding error: $e');
+      return null;
+    }
+  }
+
+  /// 위 함수에서 구한 좌표를 랜덤화하는 함수
+  Map<String, double> _getRandomCoordinate(
+    Map<String, double> center,
+    radiusInMeters,
+  ) {
+    final random = Random();
+    final double centerLongitude = center['longitude'] as double; // 원 중심 경도
+    final double centerLatitude = center['latitude'] as double; // 원 중심 위도
+
+    const earthRadius = 6371000;
+
+    // 랜덤 거리와 각도 생성
+    // sqrt로 원 가장자리에 쏠림 현상 방지
+    final randomDist = sqrt(random.nextDouble()) * radiusInMeters;
+    final randomAngle = random.nextDouble() * 2 * pi;
+
+    // 경, 위도 변화량 계산
+    final longitudeOffset =
+        (randomDist * sin(randomAngle)) /
+        (earthRadius * cos(centerLatitude * pi / 180));
+    final latitudeOffset = (randomDist * cos(randomAngle)) / earthRadius;
+
+    // 새 좌표 생성
+    final double newLongitude = centerLongitude + longitudeOffset * 180 / pi;
+    final double newLatitude = centerLatitude + latitudeOffset * 180 / pi;
+
+    // 새 좌표 반환
+    return {'longitude': newLongitude, 'latitude': newLatitude};
+  }
+
   void _onScaffoldTap(BuildContext context) {
     FocusScope.of(context).unfocus();
   }
@@ -172,10 +253,21 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
           _isPosting = true;
         });
 
+        final centerCoords = await _addrToCoordinate(_addrCtrl.text);
+
+        if (centerCoords == null) {
+          throw Exception('주소를 좌표로 변환하는데 실패했습니다.');
+        }
+
+        final randomCoordinate = _getRandomCoordinate(centerCoords, 200.0);
+
         final ownerPost = RoomOwnerPost(
           authorId: _currentUser!.uid,
           title: _titleCtrl.text,
-          addr: _addrCtrl.text,
+          addr: GeoPoint(
+            randomCoordinate['latitude']!,
+            randomCoordinate['longitude']!,
+          ),
           deposit: int.tryParse(_depositCtrl.text) ?? 0,
           rent: int.tryParse(_rentCtrl.text) ?? 0,
           manageFee: int.tryParse(_manageFeeCtrl.text) ?? 0,
@@ -208,7 +300,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('게시글 저장 중 오류 발생~'),
+            content: Text('$e'),
           ),
         );
       } finally {
