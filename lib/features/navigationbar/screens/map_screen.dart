@@ -5,9 +5,11 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:proj4dart/proj4dart.dart' as proj4;
 
+// 클라우드 api
 const _NCP_KEY_ID = 'udl4f25p0c';
 const _NCP_KEY = 'dNKTbZDrKK0ksqtoUEAldGQJL86c96pFgWqrGnKG';
 
+// 행안부 api
 const _DEV_CLIENT_ID = 'GtXY6mLUVHuqtjYd9TQo';
 const _DEV_CLIENT_SECRET = 'RxLgj3LSvg';
 
