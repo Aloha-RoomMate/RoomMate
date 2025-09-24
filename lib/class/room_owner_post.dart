@@ -9,7 +9,7 @@ class RoomOwnerPost {
 
   // 글 정보
   final String? title;
-  final String? addr;
+  final GeoPoint? addr;
   final int? deposit;
   final int? rent;
   final int? manageFee;
@@ -46,7 +46,7 @@ class RoomOwnerPost {
     String? postId,
     String? authorId,
     String? title,
-    String? addr,
+    GeoPoint? addr,
     int? deposit,
     int? rent,
     int? manageFee,
@@ -106,7 +106,7 @@ class RoomOwnerPost {
       postId: postId,
       authorId: map['authorId'] as String? ?? '',
       title: map['title'] as String? ?? '제목 없음',
-      addr: map['addr'] as String? ?? '',
+      addr: map['addr'] as GeoPoint?,
       deposit: map['deposit'] as int?,
       rent: map['rent'] as int?,
       manageFee: map['manageFee'] as int?,
