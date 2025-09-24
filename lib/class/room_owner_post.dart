@@ -21,6 +21,7 @@ class RoomOwnerPost {
   final int? minContract;
   final int? maxContract;
   final String? introduction;
+  final List<String>? imageUrls;
   final DateTime? createdAt;
 
   const RoomOwnerPost({
@@ -40,6 +41,7 @@ class RoomOwnerPost {
     this.maxContract,
     this.introduction,
     this.createdAt,
+    this.imageUrls,
   });
 
   RoomOwnerPost copyWith({
@@ -58,6 +60,7 @@ class RoomOwnerPost {
     int? minContract,
     int? maxContract,
     String? introduction,
+    List<String>? imageUrls,
   }) {
     return RoomOwnerPost(
       postId: postId ?? this.postId,
@@ -75,6 +78,7 @@ class RoomOwnerPost {
       minContract: minContract ?? this.minContract,
       maxContract: maxContract ?? this.maxContract,
       introduction: introduction ?? this.introduction,
+      imageUrls: imageUrls ?? this.imageUrls,
     );
   }
 
@@ -94,6 +98,7 @@ class RoomOwnerPost {
       'minContract': minContract,
       'maxContract': maxContract,
       'introduction': introduction,
+      'imageUrls': imageUrls,
     };
 
     if (skipNulls) map.removeWhere((_, value) => value == null);
@@ -117,6 +122,7 @@ class RoomOwnerPost {
       movingDate: (map['movingDate'] as Timestamp?),
       minContract: map['minContract'] as int?,
       maxContract: map['maxContract'] as int?,
+      imageUrls: map['imageUrls'] as List<String>?,
       introduction: map['introduction'] as String?,
     );
   }
