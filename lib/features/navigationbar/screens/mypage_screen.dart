@@ -8,6 +8,7 @@ import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
 import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
@@ -22,6 +23,15 @@ class MypageScreen extends StatefulWidget {
 
 class _MypageScreenState extends State<MypageScreen> {
   File? _profileImage;
+
+  Future<void> _signOut(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    if (context.mounted) {
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => LoginScreen()));
+    }
+  }
 
   void _onNextTap() {
     Navigator.of(context).pushReplacement(
@@ -366,7 +376,7 @@ class _MypageScreenState extends State<MypageScreen> {
                           height: 20,
                         ),
                         SizedBox(
-                          height: 80,
+                          height: 160,
                           child: ListView(
                             scrollDirection: Axis.vertical,
                             children: <Widget>[
@@ -425,6 +435,10 @@ class _MypageScreenState extends State<MypageScreen> {
                         ),
                       ),
                     ],
+                    GestureDetector(
+                      onTap: () => _signOut(context),
+                      child: Text("로그아웃"),
+                    ),
                   ],
                 ),
               ),
