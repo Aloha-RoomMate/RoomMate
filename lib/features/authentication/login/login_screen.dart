@@ -57,6 +57,30 @@ class LoginScreen extends StatelessWidget {
     }
   }
 
+  // ✅ 에뮬레이터 테스트 계정 로그인
+  Future<void> _signInWithTestAccount(
+    BuildContext context,
+    String email,
+    String password,
+  ) async {
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (!context.mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('테스트 로그인 실패: ${e.code}')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -107,6 +131,35 @@ class LoginScreen extends StatelessWidget {
                   icon: FaIcon(FontAwesomeIcons.google, color: Colors.white),
                   text: '구글로 계속하기',
                 ),
+              ),
+
+              // ✅ 아주 작은 테스트 계정 로그인 버튼 두 개
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () => _signInWithTestAccount(
+                      context,
+                      "test1@test.com",
+                      "123456",
+                    ),
+                    child: const Text(
+                      "테스트1",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => _signInWithTestAccount(
+                      context,
+                      "test2@test.com",
+                      "123456",
+                    ),
+                    child: const Text(
+                      "테스트2",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
