@@ -24,19 +24,18 @@ class ChatRepository {
     final user = _auth.currentUser!;
     final msgRef = _db
         .collection("chats")
-        .doc(chatRoomId) // ✅ 변수로 전달
+        .doc(chatRoomId)
         .collection("messages")
         .doc();
 
     await msgRef.set({
-      "senderId": user.uid, // ✅ 키 통일
+      "senderId": user.uid,
       "text": text,
       "senderName": user.displayName ?? "W R U",
       "senderPhotoURL": user.photoURL,
       "createdAt": FieldValue.serverTimestamp(),
     });
 
-    // 채팅방 문서 업데이트
     await _db.collection("chats").doc(chatRoomId).set({
       "lastMessage": text,
       "updatedAt": FieldValue.serverTimestamp(),
