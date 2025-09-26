@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 class ChatRepository {
   final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
+
   Future<String> createChatRoom(String uid1, String uid2) async {
     final uids = [uid1, uid2]..sort();
     final chatRoomId = "${uids[0]}_${uids[1]}";
@@ -19,28 +20,29 @@ class ChatRepository {
     return chatRoomId;
   }
 
-  Future<void> sendMessage(String chatroomId, String text) async {
+  Future<void> sendMessage(String chatRoomId, String text) async {
     final user = _auth.currentUser!;
-    final msg = _db
-        .collection('chats')
-        .doc('chatroomId')
-        .collection('messages')
+    final msgRef = _db
+        .collection("chats")
+        .doc(chatRoomId) // ✅ 변수로 전달
+        .collection("messages")
         .doc();
 
-    await msg.set({
-      "senderID": user.uid,
+    await msgRef.set({
+      "senderId": user.uid, // ✅ 키 통일
       "text": text,
-      'sendAt': FieldValue.serverTimestamp(),
+      "senderName": user.displayName ?? "W R U",
+      "senderPhotoURL": user.photoURL,
+      "createdAt": FieldValue.serverTimestamp(),
     });
-    await _db.collection("chats").doc('chatroomId').set({
-      // 두명의 UID 를 모두 넣어야 함.
-      "partner": [user.uid],
-      'lastMessage': text,
-      'sendAt': FieldValue.serverTimestamp(),
+
+    // 채팅방 문서 업데이트
+    await _db.collection("chats").doc(chatRoomId).set({
+      "lastMessage": text,
+      "updatedAt": FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 
-  // 실시간으로 데이터를 계속 보내주는 Stream
   Stream<QuerySnapshot<Map<String, dynamic>>> watchMessages(String chatRoomId) {
     return _db
         .collection("chats")
