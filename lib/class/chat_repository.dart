@@ -4,6 +4,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 class ChatRepository {
   final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
+  Future<String> createChatRoom(String uid1, String uid2) async {
+    final uids = [uid1, uid2]..sort();
+    final chatRoomId = "${uids[0]}_${uids[1]}";
+
+    final chatRef = _db.collection("chats").doc(chatRoomId);
+
+    await chatRef.set({
+      "participants": uids,
+      "lastMessage": "",
+      "updatedAt": FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    return chatRoomId;
+  }
 
   Future<void> sendMessage(String chatroomId, String text) async {
     final user = _auth.currentUser!;
