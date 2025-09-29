@@ -159,4 +159,12 @@ class UserRepository {
       (s) => s.exists ? AppUser.fromDoc(s) : null,
     );
   }
+
+  Future<AppUser?> fetchUserById(String uid) async {
+    final doc = await _db.collection('users').doc(uid).get();
+    if (doc.exists) {
+      return AppUser.fromDoc(doc);
+    }
+    return null;
+  }
 }
