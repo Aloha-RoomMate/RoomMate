@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/post/room_owner_post.dart';

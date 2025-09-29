@@ -1,0 +1,31 @@
+[33m4064abd[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature-homepage[m[33m)[m HEAD@{0}: commit: firebase auth 연결
+[33md6463fc[m HEAD@{1}: commit: git 에서 가져옴
+[33m9b0ace8[m HEAD@{2}: commit: 재민 코드 pull
+[33mace6652[m HEAD@{3}: commit: firebase 에뮬에 실기기 붙히기
+[33m2a90953[m HEAD@{4}: commit: firebase 초기화
+[33m247e880[m HEAD@{5}: commit: firebase 연결을 위한 기본 설정
+[33m9b53eda[m HEAD@{6}: commit: 구글 서비스.json
+[33ma5a7580[m HEAD@{7}: commit: 로그인 화면 정상화
+[33m36df3b4[m HEAD@{8}: commit: google 설정 반영
+[33m6e0b461[m HEAD@{9}: commit: firebase_auth 추가
+[33m34d49bb[m HEAD@{10}: commit: 에뮬레이터 연결
+[33m97b0df3[m HEAD@{11}: commit: 코드 깔끔하게 정상화
+[33m47ba33e[m HEAD@{12}: commit: 디버깅 안되서 정상화
+[33mf7d0027[m HEAD@{13}: commit: auth 불러오기
+[33m5723128[m HEAD@{14}: merge origin/feature_category: Fast-forward
+[33md00b38b[m[33m ([m[1;31morigin/feature_navigationbar[m[33m, [m[1;31morigin/feature_homepage[m[33m, [m[1;31morigin/feature-homepage[m[33m)[m HEAD@{15}: checkout: moving from feature_category to feature-homepage
+[33m83fb759[m[33m ([m[1;32mfeature_category[m[33m)[m HEAD@{16}: reset: moving to HEAD
+[33m83fb759[m[33m ([m[1;32mfeature_category[m[33m)[m HEAD@{17}: checkout: moving from feature_post to feature_category
+[33mcc662c8[m[33m ([m[1;32mfeature_post[m[33m)[m HEAD@{18}: checkout: moving from feature_category to feature_post
+[33m83fb759[m[33m ([m[1;32mfeature_category[m[33m)[m HEAD@{19}: reset: moving to HEAD
+[33m83fb759[m[33m ([m[1;32mfeature_category[m[33m)[m HEAD@{20}: checkout: moving from feature_authentication to feature_category
+[33m480a33d[m[33m ([m[1;32mfeature_authentication[m[33m)[m HEAD@{21}: commit: 망한것들
+[33m65adcc9[m[33m ([m[1;31morigin/feature_authentication[m[33m)[m HEAD@{22}: checkout: moving from feature_category to feature_authentication
+[33m83fb759[m[33m ([m[1;32mfeature_category[m[33m)[m HEAD@{23}: commit: 충돌난것들까지
+[33mc892dec[m HEAD@{24}: commit: 지도 디테일까지
+[33md97080a[m HEAD@{25}: checkout: moving from feature_authentication to feature_category
+[33m65adcc9[m[33m ([m[1;31morigin/feature_authentication[m[33m)[m HEAD@{26}: commit: firebase 연결까지
+[33mc374deb[m HEAD@{27}: checkout: moving from feature_post to feature_authentication
+[33mcc662c8[m[33m ([m[1;32mfeature_post[m[33m)[m HEAD@{28}: commit: tst
+[33m328f22f[m[33m ([m[1;31morigin/feature_post[m[33m)[m HEAD@{29}: checkout: moving from master to feature_post
+[33me40d9d9[m[33m ([m[1;32mmaster[m[33m)[m HEAD@{30}: commit (initial): firebase 연결
