@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/chat/chatlist_screen.dart';
 import 'package:roommate/features/navigationbar/screens/home_screen.dart';
 import 'package:roommate/features/navigationbar/screens/map_screen.dart';
@@ -28,13 +30,25 @@ class _MainNavigationState extends State<MainNavigation> {
     setState(() {});
   }
 
+  Future<void> _signOut(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    if (context.mounted) {
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => LoginScreen()));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: Sizes.size40,
-        title: Text(_appBarTitles[_selectedIndex]),
-      ),
+      appBar: _selectedIndex == 3
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              toolbarHeight: Sizes.size40,
+              title: Text(_appBarTitles[_selectedIndex]),
+            ),
       body: IndexedStack(
         index: _selectedIndex,
         children: [

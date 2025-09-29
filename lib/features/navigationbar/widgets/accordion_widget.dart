@@ -75,11 +75,14 @@ class _AccordionWidgetState extends State<AccordionWidget>
                 child: const Icon(Icons.expand_more_rounded),
               ),
               const SizedBox(width: 6),
-              Text(
-                widget.title,
-                style: const TextStyle(
-                  fontSize: Sizes.size18,
-                  fontWeight: FontWeight.w500,
+              Padding(
+                padding: const EdgeInsets.all(3.0),
+                child: Text(
+                  widget.title,
+                  style: const TextStyle(
+                    fontSize: Sizes.size18,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -99,6 +102,7 @@ class _AccordionWidgetState extends State<AccordionWidget>
         ),
         Divider(
           height: 0,
+          color: Theme.of(context).primaryColor.withAlpha(100),
         ),
       ],
     );
