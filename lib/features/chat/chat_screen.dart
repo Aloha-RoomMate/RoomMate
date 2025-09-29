@@ -6,8 +6,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class ChatScreen extends StatefulWidget {
   final String chatRoomId; // 채팅방 아이디
+  final String partnerUid;
+  final String partnerName;
 
-  const ChatScreen({super.key, required this.chatRoomId});
+  const ChatScreen({
+    super.key,
+    required this.chatRoomId,
+    required this.partnerUid, // ✅ this로 받아서
+    required this.partnerName, // ✅ 필드에 저장
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -34,7 +41,16 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('')),
+      appBar: AppBar(
+        title: Text(widget.partnerName),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () {},
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
@@ -184,18 +200,21 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _msgCtrl,
-                      decoration: InputDecoration(
-                        hintText: "메시지를 입력하세요...",
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(Sizes.size18),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(Sizes.size18),
-                          borderSide: BorderSide(
-                            color: Theme.of(context).primaryColor,
-                            width: Sizes.size2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: TextField(
+                        controller: _msgCtrl,
+                        decoration: InputDecoration(
+                          hintText: "메시지를 입력하세요...",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(Sizes.size18),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(Sizes.size18),
+                            borderSide: BorderSide(
+                              color: Theme.of(context).primaryColor,
+                              width: Sizes.size2,
+                            ),
                           ),
                         ),
                       ),
