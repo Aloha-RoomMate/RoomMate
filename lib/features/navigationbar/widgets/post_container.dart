@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 import 'package:roommate/features/view/room_owner_post_view.dart';
 
 class PostContainer extends StatelessWidget {
-  const PostContainer({super.key});
+  final RoomOwnerPost post;
+  const PostContainer({super.key, required this.post});
 
   void _onContainerTap(BuildContext context) {
     Navigator.of(

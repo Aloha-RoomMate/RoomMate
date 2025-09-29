@@ -15,7 +15,7 @@ class DiseaseScreen extends StatefulWidget {
 }
 
 class _DiseaseScreenState extends State<DiseaseScreen> {
-  final TextEditingController _textEditingController = TextEditingController();
+  TextEditingController _textEditingController = TextEditingController();
   bool _isHealthy = false;
   String _diseases = "";
   bool _isSending = false;
@@ -53,7 +53,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
           diseases: _isHealthy ? '' : _textEditingController.text,
         );
 
-        await UserRepository().setUserPass(disease: disease);
+        await UserRepository().setDisease(disease);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

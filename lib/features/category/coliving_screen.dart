@@ -210,9 +210,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
 
         // 실제 데이터 넘기기
         // USRREPO 선언 바로 할 수 있음.
-        await UserRepository().setUserPass(
-          coliving: coliving,
-        );
+        await UserRepository().setColiving(coliving);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

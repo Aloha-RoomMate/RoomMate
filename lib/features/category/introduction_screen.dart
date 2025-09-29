@@ -1,12 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
-import 'package:roommate/features/category/complete_screen.dart';
-import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 
@@ -34,31 +30,47 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     });
   }
 
-  Map<String, dynamic> _buildPayload() {
-    return {
-      'introduction': _introduction,
-    };
-  }
+  void _onNextTap() async {
+    if (_introduction.length >= 50 && _introduction.length <= 300) {
+      try {
+        setState(() {
+          _isSending = true;
+        });
+        final introduction = Introduction(introduction: _controller.text);
 
-  /// 저장위치가 uid 아래가 아님 문제읻아
-  Future<void> _onNextTap() async {
-    if (_introduction.length < 50 || _introduction.length > 300) return;
+        // 실제 데이터 넘기기
+        // USRREPO 선언 바로 할 수 있음.
+        await UserRepository().setIntroduction(introduction);
 
-    try {
-      setState(() => _isSending = true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('저장 성공'),
+            ),
+          );
 
-      await UserRepository().setUserPass(
-        introduction: Introduction(introduction: _introduction),
-      );
+          setState(() {
+            _isSending = false;
+          });
 
-      if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const CompleteScreen()),
-      );
-    } catch (e) {
-      debugPrint('error: $e');
-    } finally {
-      if (mounted) setState(() => _isSending = false);
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => MainNavigation(),
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('데이터 저장 중 에러 발생'),
+          ),
+        );
+      } finally {
+        if (mounted) {
+          _isSending = false;
+        }
+      }
     }
   }
 
@@ -81,10 +93,9 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
           title: Text(
             '간단한 소개글을 작성해주세요!',
             style: TextStyle(
-              fontSize: Sizes.size24,
+              fontSize: Sizes.size20,
             ),
           ),
-          centerTitle: true,
         ),
         body: Padding(
           padding: EdgeInsets.only(
@@ -102,7 +113,6 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                 Gaps.v6,
                 Text(
                   '최소 50자 최대 300자예요!',
-
                   style: TextStyle(
                     color: Colors.grey.shade700,
                   ),
@@ -116,7 +126,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                   textInputAction: TextInputAction.newline, // 엔터 시 다음 줄
                   decoration: InputDecoration(
                     counterText:
-                        '${(_controller.text.characters.length)} / $_limit',
+                        '${(_controller.text.characters.length)} / ${_limit}',
                   ),
                 ),
                 Gaps.v20,

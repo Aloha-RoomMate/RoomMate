@@ -1,12 +1,16 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/chat/chatlist_screen.dart';
 import 'package:roommate/features/navigationbar/screens/home_screen.dart';
 import 'package:roommate/features/navigationbar/screens/map_screen.dart';
 import 'package:roommate/features/navigationbar/screens/mypage_screen.dart';
+import 'package:roommate/features/post/room_owner_post_screen.dart';
+import 'package:roommate/features/post/searcher_post_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -16,6 +20,8 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
+  AppUser? _currentUser;
+  final UserRepository _userRepository = UserRepository();
   final List<String> _appBarTitles = [
     '홈',
     '채팅',
@@ -24,6 +30,26 @@ class _MainNavigationState extends State<MainNavigation> {
   ];
 
   int _selectedIndex = 0;
+
+  void _onPostTap(AppUser? user) {
+    // 사용자가 아직 로딩 중이거나 로그아웃 상태이면 아무것도 하지 않음
+    if (user == null || user.userType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('사용자 정보를 불러오는 중입니다...')),
+      );
+      return;
+    }
+
+    if (user.userType!.type == 'roomOwner') {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) => const RoomOwnerPostScreen()),
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) => const SearcherPost()),
+      );
+    }
+  }
 
   void _onNavTab(int index) {
     _selectedIndex = index;
@@ -42,13 +68,19 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _selectedIndex == 3
-          ? null
-          : AppBar(
-              automaticallyImplyLeading: false,
-              toolbarHeight: Sizes.size40,
-              title: Text(_appBarTitles[_selectedIndex]),
-            ),
+      appBar: AppBar(
+        toolbarHeight: Sizes.size40,
+        title: Text(_appBarTitles[_selectedIndex]),
+        actionsPadding: EdgeInsets.only(
+          right: Sizes.size20,
+        ),
+        actions: [
+          GestureDetector(
+            onTap: () => _onPostTap(_currentUser),
+            child: FaIcon(FontAwesomeIcons.plus),
+          ),
+        ],
+      ),
       body: IndexedStack(
         index: _selectedIndex,
         children: [
