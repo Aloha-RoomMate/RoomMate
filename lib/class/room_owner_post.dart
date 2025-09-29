@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/cupertino.dart';
 
 class RoomOwnerPost {
   // Firestore 문서의 고유 ID
@@ -6,7 +7,7 @@ class RoomOwnerPost {
 
   // 유저 정보
   final String? authorId;
-
+  final String? postType;
   // 글 정보
   final String? title;
   final GeoPoint? addr;
@@ -27,6 +28,8 @@ class RoomOwnerPost {
   const RoomOwnerPost({
     this.postId,
     required this.authorId,
+    this.postType,
+
     this.title,
     this.addr,
     this.deposit,
@@ -48,6 +51,7 @@ class RoomOwnerPost {
     String? postId,
     String? authorId,
     String? title,
+    String? postType,
     GeoPoint? addr,
     int? deposit,
     int? rent,
@@ -65,6 +69,7 @@ class RoomOwnerPost {
     return RoomOwnerPost(
       postId: postId ?? this.postId,
       authorId: authorId ?? this.authorId,
+      postType: postType ?? this.postType,
       title: title ?? this.title,
       addr: addr ?? this.addr,
       deposit: deposit ?? this.deposit,
@@ -85,6 +90,7 @@ class RoomOwnerPost {
   Map<String, dynamic> toMap({bool skipNulls = true}) {
     final map = <String, dynamic>{
       'authorId': authorId,
+      'postType': postType,
       'title': title,
       'addr': addr,
       'deposit': deposit,
@@ -110,6 +116,7 @@ class RoomOwnerPost {
     return RoomOwnerPost(
       postId: postId,
       authorId: map['authorId'] as String? ?? '',
+      postType: map['postType'] as String?,
       title: map['title'] as String? ?? '제목 없음',
       addr: map['addr'] as GeoPoint?,
       deposit: map['deposit'] as int?,
