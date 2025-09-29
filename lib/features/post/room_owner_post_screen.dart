@@ -24,7 +24,7 @@ class RoomOwnerPostScreen extends StatefulWidget {
 
 class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
   final UserRepository _userRepository = UserRepository();
-  final OwnerPostRepository _postRepository = OwnerPostRepository();
+  final RoomOwnerPostRepository _postRepository = RoomOwnerPostRepository();
 
   TextEditingController _titleCtrl = TextEditingController();
   TextEditingController _addrCtrl = TextEditingController();
@@ -263,6 +263,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
 
         final ownerPost = RoomOwnerPost(
           authorId: _currentUser!.uid,
+          postType: _currentUser!.userType!.type,
           title: _titleCtrl.text,
           addr: GeoPoint(
             randomCoordinate['latitude']!,
