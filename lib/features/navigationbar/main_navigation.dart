@@ -37,6 +37,11 @@ class _MainNavigationState extends State<MainNavigation> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('사용자 정보를 불러오는 중입니다...')),
       );
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => LoginScreen(),
+        ),
+      );
       return;
     }
 
