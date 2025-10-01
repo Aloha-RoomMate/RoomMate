@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -22,14 +24,35 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   AppUser? _currentUser;
   final UserRepository _userRepository = UserRepository();
+
+  // 실시간 감시를 위한 구독 객체 선언
+  late final StreamSubscription<AppUser?> _userSubscription;
+
   final List<String> _appBarTitles = [
     '홈',
     '채팅',
     '지도',
     '마이페이지',
   ];
-
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _userSubscription = _userRepository.watchMe().listen((user) {
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _userSubscription.cancel();
+    super.dispose();
+  }
 
   void _onPostTap(AppUser? user) {
     // 사용자가 아직 로딩 중이거나 로그아웃 상태이면 아무것도 하지 않음
