@@ -19,10 +19,17 @@ android {
         jvmTarget = JavaVersion.VERSION_11.toString()
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // 기본 debug.keystore를 사용하도록 보장합니다.
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.roommate"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
+        minSdkVersion(23) 
         // 타입 오류 나는 경우가 있어 안전하게 toInt 사용 권장
         versionCode = flutter.versionCode.toInt()
         versionName = flutter.versionName
@@ -48,6 +55,9 @@ android {
             signingConfig = signingConfigs.getByName("debugCustom")
             isMinifyEnabled = false
             isShrinkResources = false
+        }
+        getByName("debug"){
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
