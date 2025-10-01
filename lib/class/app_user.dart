@@ -125,7 +125,6 @@ class AppUser {
       if (disease != null) 'disease': disease!.toMap(),
       if (introduction != null) 'introduction': introduction,
       if (userPass != null) 'userPass': userPass!.toMap(),
-      if (userType != null) 'userType': userType!.toMap(),
       if (hobby != null) 'hobby': hobby!.toMap(),
     };
     if (skipNulls) map.removeWhere((_, v) => v == null);
