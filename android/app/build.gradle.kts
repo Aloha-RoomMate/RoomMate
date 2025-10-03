@@ -29,7 +29,7 @@ android {
         applicationId = "com.example.roommate"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        minSdkVersion(23) 
+        minSdkVersion(24) 
         // 타입 오류 나는 경우가 있어 안전하게 toInt 사용 권장
         versionCode = flutter.versionCode.toInt()
         versionName = flutter.versionName
