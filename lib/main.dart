@@ -14,8 +14,12 @@ void main() async {
   );
 
   await FlutterNaverMap().init(
-    clientId: '7j2w1w13vo27', // API 키가 유효한지 다시 확인해주세요.
-    onAuthFailed: (e) => debugPrint('NaverMap auth fail: $e'),
+    clientId: '7j2w13vo27',
+    onAuthFailed: (ex) {
+      debugPrint(
+        '[NMAP AUTH FAIL] type=${ex.runtimeType} code=${ex.code} msg=${ex.message}',
+      );
+    },
   );
 
   runApp(const RoomMate());
