@@ -228,15 +228,15 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
               // TODO: 채팅하기 로직 구현
             },
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: Sizes.size16),
+              padding: const EdgeInsets.symmetric(vertical: Sizes.size8),
               backgroundColor: Theme.of(context).primaryColor,
               foregroundColor: Colors.white,
             ),
             child: const Text(
               '채팅으로 연락하기',
               style: TextStyle(
-                fontSize: Sizes.size18,
-                fontWeight: FontWeight.bold,
+                fontSize: Sizes.size16,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
