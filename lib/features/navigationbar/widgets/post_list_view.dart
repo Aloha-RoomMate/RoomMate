@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
@@ -32,8 +33,19 @@ class _PostListViewState extends State<PostListView> {
   @override
   void initState() {
     super.initState();
-    _initialLoadFuture = _fetchInitialPosts();
+    _initialLoadFuture = _waitAuthThenFetch();
     _scrollController.addListener(_onScroll);
+  }
+
+  Future<void> _waitAuthThenFetch() async {
+    // 인증될 때까지 대기
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      await FirebaseAuth.instance.authStateChanges().firstWhere(
+        (u) => u != null,
+      );
+    }
+    await _fetchInitialPosts();
   }
 
   Future<void> _fetchInitialPosts() async {
