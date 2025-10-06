@@ -3,6 +3,7 @@ import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/features/category/complete_screen.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 
@@ -55,7 +56,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
 
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => MainNavigation(),
+              builder: (context) => CompleteScreen(),
             ),
           );
         }
@@ -126,7 +127,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                   textInputAction: TextInputAction.newline, // 엔터 시 다음 줄
                   decoration: InputDecoration(
                     counterText:
-                        '${(_controller.text.characters.length)} / ${_limit}',
+                        '${(_controller.text.characters.length)} / $_limit',
                   ),
                 ),
                 Gaps.v20,
