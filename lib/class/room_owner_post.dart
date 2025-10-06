@@ -1,16 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 
+/// 방 주인(방 제공자) 게시글 데이터 모델
 class RoomOwnerPost {
-  // Firestore 문서의 고유 ID
+  // 문서 ID
   final String? postId;
 
-  // 유저 정보
+  // 작성자/타입
   final String? authorId;
   final String? postType;
-  // 글 정보
+
+  // 내용
   final String? title;
+
+  /// 좌표(지도/검색용)
   final GeoPoint? addr;
+
+  /// 표시용 주소 라벨(예: "강북구 송중동 부근")
+  final String? addressLabel;
+
+  // 금액/정보
   final int? deposit;
   final int? rent;
   final int? manageFee;
@@ -18,20 +27,26 @@ class RoomOwnerPost {
   final int? wholeFloor;
   final int? area;
   final int? toilet;
-  final Timestamp? movingDate;
+
+  // 날짜/기간
+  final Timestamp? movingDate; // Firestore Timestamp
   final int? minContract;
   final int? maxContract;
+
+  // 설명/이미지
   final String? introduction;
   final List<String>? imageUrls;
+
+  // 생성 시각(서버시간)
   final DateTime? createdAt;
 
   const RoomOwnerPost({
     this.postId,
     required this.authorId,
     this.postType,
-
     this.title,
     this.addr,
+    this.addressLabel,
     this.deposit,
     this.rent,
     this.manageFee,
@@ -43,16 +58,17 @@ class RoomOwnerPost {
     this.minContract,
     this.maxContract,
     this.introduction,
-    this.createdAt,
     this.imageUrls,
+    this.createdAt,
   });
 
   RoomOwnerPost copyWith({
     String? postId,
     String? authorId,
-    String? title,
     String? postType,
+    String? title,
     GeoPoint? addr,
+    String? addressLabel,
     int? deposit,
     int? rent,
     int? manageFee,
@@ -65,6 +81,7 @@ class RoomOwnerPost {
     int? maxContract,
     String? introduction,
     List<String>? imageUrls,
+    DateTime? createdAt,
   }) {
     return RoomOwnerPost(
       postId: postId ?? this.postId,
@@ -72,6 +89,7 @@ class RoomOwnerPost {
       postType: postType ?? this.postType,
       title: title ?? this.title,
       addr: addr ?? this.addr,
+      addressLabel: addressLabel ?? this.addressLabel,
       deposit: deposit ?? this.deposit,
       rent: rent ?? this.rent,
       manageFee: manageFee ?? this.manageFee,
@@ -84,15 +102,18 @@ class RoomOwnerPost {
       maxContract: maxContract ?? this.maxContract,
       introduction: introduction ?? this.introduction,
       imageUrls: imageUrls ?? this.imageUrls,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
+  /// Firestore 업로드용 맵
   Map<String, dynamic> toMap({bool skipNulls = true}) {
     final map = <String, dynamic>{
       'authorId': authorId,
       'postType': postType,
       'title': title,
-      'addr': addr,
+      'addr': addr, // GeoPoint
+      'addressLabel': addressLabel, // 사람이 읽는 주소
       'deposit': deposit,
       'rent': rent,
       'manageFee': manageFee,
@@ -100,42 +121,58 @@ class RoomOwnerPost {
       'wholeFloor': wholeFloor,
       'area': area,
       'toilet': toilet,
-      'movingDate': movingDate,
+      'movingDate': movingDate, // Timestamp
       'minContract': minContract,
       'maxContract': maxContract,
       'introduction': introduction,
       'imageUrls': imageUrls,
+      // createdAt은 레포지토리에서 serverTimestamp로 넣음
     };
 
-    if (skipNulls) map.removeWhere((_, value) => value == null);
+    if (skipNulls) {
+      map.removeWhere((_, v) => v == null);
+    }
     return map;
   }
 
-  /// return을 하는 특별한 생성자 => factory
+  /// Map → 모델
   factory RoomOwnerPost.fromMap(String postId, Map<String, dynamic> map) {
+    // imageUrls가 dynamic 리스트로 올 수 있으니 캐스팅 안전 처리
+    List<String>? toStringList(dynamic v) {
+      if (v == null) return null;
+      if (v is List) return v.map((e) => e.toString()).toList();
+      return null;
+    }
+
     return RoomOwnerPost(
       postId: postId,
       authorId: map['authorId'] as String? ?? '',
       postType: map['postType'] as String?,
       title: map['title'] as String? ?? '제목 없음',
       addr: map['addr'] as GeoPoint?,
-      deposit: map['deposit'] as int?,
-      rent: map['rent'] as int?,
-      manageFee: map['manageFee'] as int?,
-      corFloor: map['corFloor'] as int?,
-      wholeFloor: map['wholeFloor'] as int?,
-      area: map['area'] as int?,
-      toilet: map['toilet'] as int?,
-      movingDate: (map['movingDate'] as Timestamp?),
-      minContract: map['minContract'] as int?,
-      maxContract: map['maxContract'] as int?,
-      imageUrls: map['imageUrls'] as List<String>?,
+      addressLabel: map['addressLabel'] as String?, // ✅ 추가
+      deposit: (map['deposit'] as num?)?.toInt(),
+      rent: (map['rent'] as num?)?.toInt(),
+      manageFee: (map['manageFee'] as num?)?.toInt(),
+      corFloor: (map['corFloor'] as num?)?.toInt(),
+      wholeFloor: (map['wholeFloor'] as num?)?.toInt(),
+      area: (map['area'] as num?)?.toInt(),
+      toilet: (map['toilet'] as num?)?.toInt(),
+      movingDate: map['movingDate'] as Timestamp?,
+      minContract: (map['minContract'] as num?)?.toInt(),
+      maxContract: (map['maxContract'] as num?)?.toInt(),
       introduction: map['introduction'] as String?,
+      imageUrls: toStringList(map['imageUrls']),
+      createdAt: (map['createdAt'] is Timestamp)
+          ? (map['createdAt'] as Timestamp).toDate()
+          : null,
     );
   }
 
-  /// Doc에서 map
-  factory RoomOwnerPost.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  /// Doc → 모델
+  factory RoomOwnerPost.fromDoc(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     return RoomOwnerPost.fromMap(doc.id, doc.data() ?? <String, dynamic>{});
   }
 }
