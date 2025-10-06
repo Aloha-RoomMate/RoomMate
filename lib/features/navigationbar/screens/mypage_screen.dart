@@ -204,6 +204,7 @@ class _MypageScreenState extends State<MypageScreen> {
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                             ),
+                            Text(data.userType!.type),
                           ],
                         ),
                       ),
