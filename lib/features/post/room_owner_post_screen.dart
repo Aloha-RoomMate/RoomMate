@@ -26,19 +26,19 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
   final UserRepository _userRepository = UserRepository();
   final RoomOwnerPostRepository _postRepository = RoomOwnerPostRepository();
 
-  TextEditingController _titleCtrl = TextEditingController();
-  TextEditingController _addrCtrl = TextEditingController();
-  TextEditingController _depositCtrl = TextEditingController();
-  TextEditingController _rentCtrl = TextEditingController();
-  TextEditingController _manageFeeCtrl = TextEditingController();
-  TextEditingController _corFloorCtrl = TextEditingController();
-  TextEditingController _wholeFloorCtrl = TextEditingController();
-  TextEditingController _areaCtrl = TextEditingController();
-  TextEditingController _toiletCtrl = TextEditingController();
-  TextEditingController _movingDateCtrl = TextEditingController();
-  TextEditingController _minContractCtrl = TextEditingController();
-  TextEditingController _maxContractCtrl = TextEditingController();
-  TextEditingController _introductionCtrl = TextEditingController();
+  final TextEditingController _titleCtrl = TextEditingController();
+  final TextEditingController _addrCtrl = TextEditingController();
+  final TextEditingController _depositCtrl = TextEditingController();
+  final TextEditingController _rentCtrl = TextEditingController();
+  final TextEditingController _manageFeeCtrl = TextEditingController();
+  final TextEditingController _corFloorCtrl = TextEditingController();
+  final TextEditingController _wholeFloorCtrl = TextEditingController();
+  final TextEditingController _areaCtrl = TextEditingController();
+  final TextEditingController _toiletCtrl = TextEditingController();
+  final TextEditingController _movingDateCtrl = TextEditingController();
+  final TextEditingController _minContractCtrl = TextEditingController();
+  final TextEditingController _maxContractCtrl = TextEditingController();
+  final TextEditingController _introductionCtrl = TextEditingController();
 
   final String _apiKey = "devU01TX0FVVEgyMDI1MDkxMTE3MzcyNzExNjE3NjI=";
   List<dynamic> _addresses = [];
@@ -56,15 +56,17 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
 
   /// 사용자 정보 불러오는 함수
   Future<void> _loadCurrentUser() async {
-    _currentUser = await _userRepository.fetchMe();
-    if (mounted) {
-      setState(() {});
-    }
+    final me = await _userRepository.fetchMe();
+    if (!mounted) return;
+    setState(() {
+      _currentUser = me;
+    });
   }
 
   /// 주소 검색 API를 호출하는 함수
   Future<void> _searchAddress(String keyword) async {
     if (keyword.isEmpty) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = '검색어를 입력해주세요.';
         _addresses = [];
@@ -72,10 +74,12 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    }
 
     final url = Uri.https('www.juso.go.kr', '/addrlink/addrLinkApi.do', {
       'confmKey': _apiKey,
@@ -88,25 +92,23 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
     try {
       final response = await http.get(url);
 
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
-        // jsonDecode: json -> Map
         final decodedData = jsonDecode(response.body);
 
-        // API 결과 구조 확인 후 'juso' 리스트 추출
         if (decodedData['results'] != null &&
             decodedData['results']['juso'] != null) {
           setState(() {
             _addresses = decodedData['results']['juso'];
-
             if (_addresses.isEmpty) {
               _errorMessage = '검색 결과가 없습니다.';
             }
           });
         } else {
-          // 'common' 객체에서 에러 메시지 확인
-          final commonData = decodedData['results']['common'];
+          final commonData = decodedData['results']?['common'];
           setState(() {
-            _errorMessage = commonData['errorMessage'] ?? '알 수 없는 오류가 발생했습니다.';
+            _errorMessage = commonData?['errorMessage'] ?? '알 수 없는 오류가 발생했습니다.';
             _addresses = [];
           });
         }
@@ -116,10 +118,12 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = '데이터 요청 중 오류가 발생했습니다: $e';
       });
     } finally {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -145,29 +149,28 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
 
     try {
       final response = await http.get(url);
-
       if (response.statusCode == 200) {
         final decodedData = jsonDecode(response.body);
 
-        if (decodedData['response']['status'] == 'OK') {
+        if (decodedData['response']?['status'] == 'OK') {
           final point = decodedData['response']['result']['point'];
           final double longitude = double.parse(point['x']); // 경도
           final double latitude = double.parse(point['y']); // 위도
-          print('>> 변환된 경도: $longitude');
-          print('>> 변환된 위도: $latitude');
+          debugPrint('>> 변환된 경도: $longitude');
+          debugPrint('>> 변환된 위도: $latitude');
           return {
             'longitude': longitude,
             'latitude': latitude,
           };
         } else {
-          // API 에러 반환
-          final errorMessage = decodedData['rponse']['error']['text'];
-          print('>> API Error: $errorMessage');
+          // ❗ 오타 수정: 'rponse' → 'response'
+          final errorMessage =
+              decodedData['response']?['error']?['text'] ?? '좌표 변환 실패';
+          debugPrint('>> API Error: $errorMessage');
           return null;
         }
       } else {
-        // HTTP 요청 자체가 실패
-        print('>> HTTP Error: ${response.statusCode}');
+        debugPrint('>> HTTP Error: ${response.statusCode}');
         return null;
       }
     } catch (e) {
@@ -179,30 +182,26 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
   /// 위 함수에서 구한 좌표를 랜덤화하는 함수
   Map<String, double> _getRandomCoordinate(
     Map<String, double> center,
-    radiusInMeters,
+    double radiusInMeters,
   ) {
     final random = Random();
-    final double centerLongitude = center['longitude'] as double; // 원 중심 경도
-    final double centerLatitude = center['latitude'] as double; // 원 중심 위도
+    final double centerLongitude = center['longitude'] as double; // 경도
+    final double centerLatitude = center['latitude'] as double; // 위도
 
-    const earthRadius = 6371000;
+    const earthRadius = 6371000.0; // meters
 
-    // 랜덤 거리와 각도 생성
-    // sqrt로 원 가장자리에 쏠림 현상 방지
+    // sqrt로 원 가장자리에 쏠림 방지
     final randomDist = sqrt(random.nextDouble()) * radiusInMeters;
     final randomAngle = random.nextDouble() * 2 * pi;
 
-    // 경, 위도 변화량 계산
     final longitudeOffset =
         (randomDist * sin(randomAngle)) /
         (earthRadius * cos(centerLatitude * pi / 180));
     final latitudeOffset = (randomDist * cos(randomAngle)) / earthRadius;
 
-    // 새 좌표 생성
     final double newLongitude = centerLongitude + longitudeOffset * 180 / pi;
     final double newLatitude = centerLatitude + latitudeOffset * 180 / pi;
 
-    // 새 좌표 반환
     return {'longitude': newLongitude, 'latitude': newLatitude};
   }
 
@@ -213,10 +212,10 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
   void _onTimePickerChanged(DateTime date) {
     _selectedMovingDate = date;
     _movingDateCtrl.text =
-        "${date.year.toString()}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
   }
 
-  void _onTimeFieldTap() async {
+  Future<void> _onTimeFieldTap() async {
     await showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -231,7 +230,8 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
   }
 
   bool _isNextAvailable() {
-    return _titleCtrl.text.isNotEmpty &&
+    return _currentUser != null &&
+        _titleCtrl.text.isNotEmpty &&
         _addrCtrl.text.isNotEmpty &&
         _depositCtrl.text.isNotEmpty &&
         _rentCtrl.text.isNotEmpty &&
@@ -246,69 +246,62 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
         _introductionCtrl.text.isNotEmpty;
   }
 
-  void _onNextTap() async {
-    if (_isNextAvailable()) {
-      try {
-        setState(() {
-          _isPosting = true;
-        });
+  Future<void> _onNextTap() async {
+    // 중복 탭/유효성 가드
+    if (_isPosting || !_isNextAvailable()) return;
 
-        final centerCoords = await _addrToCoordinate(_addrCtrl.text);
+    setState(() => _isPosting = true);
 
-        if (centerCoords == null) {
-          throw Exception('주소를 좌표로 변환하는데 실패했습니다.');
-        }
-
-        final randomCoordinate = _getRandomCoordinate(centerCoords, 200.0);
-
-        final ownerPost = RoomOwnerPost(
-          authorId: _currentUser!.uid,
-          postType: _currentUser!.userType!.type,
-          title: _titleCtrl.text,
-          addr: GeoPoint(
-            randomCoordinate['latitude']!,
-            randomCoordinate['longitude']!,
-          ),
-          deposit: int.tryParse(_depositCtrl.text) ?? 0,
-          rent: int.tryParse(_rentCtrl.text) ?? 0,
-          manageFee: int.tryParse(_manageFeeCtrl.text) ?? 0,
-          corFloor: int.tryParse(_corFloorCtrl.text) ?? 0,
-          wholeFloor: int.tryParse(_wholeFloorCtrl.text) ?? 0,
-          area: int.tryParse(_areaCtrl.text) ?? 0,
-          toilet: int.tryParse(_toiletCtrl.text) ?? 0,
-          movingDate: _selectedMovingDate != null
-              ? Timestamp.fromDate(_selectedMovingDate!)
-              : Timestamp.now(), // 선택된 날짜를 Timestamp로 변환
-          minContract: int.tryParse(_minContractCtrl.text) ?? 0,
-          maxContract: int.tryParse(_maxContractCtrl.text) ?? 0,
-          introduction: _introductionCtrl.text,
-        );
-
-        await _postRepository.createPost(ownerPost);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('게시글 저장 완료~'),
-            ),
-          );
-        }
-        setState(() {
-          _isPosting = false;
-        });
-        Navigator.of(context).pop();
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$e'),
-          ),
-        );
-      } finally {
-        setState(() {
-          _isPosting = false;
-        });
+    try {
+      // 1) 주소 → 좌표
+      final centerCoords = await _addrToCoordinate(_addrCtrl.text);
+      if (centerCoords == null) {
+        throw Exception('주소를 좌표로 변환하는데 실패했습니다.');
       }
+
+      // 2) 좌표 랜덤화(200m 반경)
+      final randomCoordinate = _getRandomCoordinate(centerCoords, 200.0);
+
+      // 3) Firestore에 보낼 모델 구성  ✅ addressLabel 추가!
+      final post = RoomOwnerPost(
+        authorId: _currentUser!.uid,
+        postType: _currentUser!.userType!.type, // 'roomOwner' 또는 'Searcher'
+        title: _titleCtrl.text,
+        addr: GeoPoint(
+          randomCoordinate['latitude']!,
+          randomCoordinate['longitude']!,
+        ),
+        addressLabel: _addrCtrl.text, // ← 목록에 표시할 문자열 주소
+        deposit: int.tryParse(_depositCtrl.text) ?? 0,
+        rent: int.tryParse(_rentCtrl.text) ?? 0,
+        manageFee: int.tryParse(_manageFeeCtrl.text) ?? 0,
+        corFloor: int.tryParse(_corFloorCtrl.text) ?? 0,
+        wholeFloor: int.tryParse(_wholeFloorCtrl.text) ?? 0,
+        area: int.tryParse(_areaCtrl.text) ?? 0,
+        toilet: int.tryParse(_toiletCtrl.text) ?? 0,
+        movingDate: _selectedMovingDate != null
+            ? Timestamp.fromDate(_selectedMovingDate!)
+            : null,
+        minContract: int.tryParse(_minContractCtrl.text) ?? 0,
+        maxContract: int.tryParse(_maxContractCtrl.text) ?? 0,
+        introduction: _introductionCtrl.text,
+        // imageUrls: [...], // 이미지가 있으면 여기에
+      );
+
+      // 4) 저장 (레포가 createdAt = serverTimestamp 넣도록 되어 있음)
+      await RoomOwnerPostRepository().createPost(post);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('게시글 저장 완료~')),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('오류: $e')),
+      );
+      setState(() => _isPosting = false);
     }
   }
 
@@ -337,15 +330,15 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
       child: Scaffold(
         appBar: AppBar(
           elevation: 10,
-          title: Text('게시글 작성', style: TextStyle(fontSize: Sizes.size24)),
+          title: const Text('게시글 작성', style: TextStyle(fontSize: Sizes.size24)),
         ),
         body: Padding(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   '제목을 입력해주세요!',
                   style: TextStyle(
                     fontSize: Sizes.size16,
@@ -355,20 +348,20 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                 Gaps.v6,
                 TextField(
                   controller: _titleCtrl,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText: '제목 입력',
                     border: OutlineInputBorder(),
                   ),
                 ),
                 Gaps.v24,
-                Text(
+                const Text(
                   '주소를 입력해주세요!',
                   style: TextStyle(
                     fontSize: Sizes.size16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Text(
+                const Text(
                   '다른 유저에게는 XX동 \'부근\'으로 보여져요. \n지도에는 실제 주소 반경 200m 내의 랜덤한 위치로 나타나요',
                   style: TextStyle(fontSize: Sizes.size14, color: Colors.grey),
                 ),
@@ -379,7 +372,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                       flex: 1,
                       child: TextField(
                         controller: _addrCtrl,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '주소 입력.',
                           border: OutlineInputBorder(),
                         ),
@@ -401,7 +394,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _depositCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: "보증금(만 원)",
                           hintStyle: TextStyle(fontSize: Sizes.size12),
                           border: OutlineInputBorder(),
@@ -425,7 +418,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _manageFeeCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: "관리비(만 원)",
                           hintStyle: TextStyle(fontSize: Sizes.size12),
                           border: OutlineInputBorder(),
@@ -442,7 +435,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _corFloorCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '해당층',
                           border: OutlineInputBorder(),
                         ),
@@ -453,7 +446,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _wholeFloorCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '건물층',
                           border: OutlineInputBorder(),
                         ),
@@ -462,7 +455,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   ],
                 ),
                 Gaps.v24,
-                Text(
+                const Text(
                   '전용 면적 / 화장실 개수',
                   style: TextStyle(
                     fontSize: Sizes.size16,
@@ -476,7 +469,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _areaCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '(평)',
                           border: OutlineInputBorder(),
                         ),
@@ -487,7 +480,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _toiletCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '화장실 개수',
                           border: OutlineInputBorder(),
                         ),
@@ -496,7 +489,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   ],
                 ),
                 Gaps.v24,
-                Text(
+                const Text(
                   '입주가능일',
                   style: TextStyle(
                     fontSize: Sizes.size16,
@@ -508,7 +501,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   onTap: _onTimeFieldTap,
                   controller: _movingDateCtrl,
                   readOnly: true,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     suffixIcon: Padding(
                       padding: EdgeInsets.all(10),
                       child: FaIcon(FontAwesomeIcons.calendar),
@@ -525,7 +518,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _minContractCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '최소 거주 기간(개월)',
                           hintStyle: TextStyle(fontSize: Sizes.size14),
                           border: OutlineInputBorder(),
@@ -537,7 +530,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _maxContractCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '최대 거주 기간(개월)',
                           hintStyle: TextStyle(fontSize: Sizes.size14),
                           border: OutlineInputBorder(),
@@ -552,7 +545,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   minLines: 3,
                   maxLines: null,
                   keyboardType: TextInputType.multiline,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText:
                         '자유롭게 글을 작성해주세요!\n취미, 희망 진로, 동거 규칙에 대해 작성해주시면 좋아요!',
                     hintStyle: TextStyle(fontSize: Sizes.size14),
@@ -560,20 +553,21 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   ),
                 ),
                 Gaps.v24,
+                // 중복 탭 방지: enabled=false일 때 onTap 내부에서도 early-return
                 GestureDetector(
-                  onTap: _onNextTap,
+                  onTap: () async {
+                    if (!_isNextAvailable() || _isPosting) return;
+                    await _onNextTap();
+                  },
                   child: FormButton(
-                    enabled: _isNextAvailable(),
+                    enabled: _isNextAvailable() && !_isPosting,
                     widget: _isPosting
-                        ? Center(
+                        ? const Center(
                             child: CircularProgressIndicator(
                               color: Colors.white,
                             ),
                           )
-                        : Text(
-                            '다음',
-                            textAlign: TextAlign.center,
-                          ),
+                        : const Text('다음', textAlign: TextAlign.center),
                   ),
                 ),
               ],
@@ -596,6 +590,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
           final address = _addresses[index];
           return GestureDetector(
             onTap: () {
+              if (!mounted) return;
               setState(() {
                 _addrCtrl.text = address['roadAddr'] ?? '';
                 _addresses = [];
@@ -605,10 +600,8 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
               margin: const EdgeInsets.symmetric(vertical: 6),
               child: ListTile(
                 leading: CircleAvatar(child: Text('${index + 1}')),
-                title: Text(address['roadAddr'] ?? '도로명 주소 없음'), // 도로명 주소
-                subtitle: Text(
-                  '[지번] ${address['jibunAddr'] ?? '지번 주소 없음'}',
-                ), // 지번 주소
+                title: Text(address['roadAddr'] ?? '도로명 주소 없음'),
+                subtitle: Text('[지번] ${address['jibunAddr'] ?? '지번 주소 없음'}'),
               ),
             ),
           );
