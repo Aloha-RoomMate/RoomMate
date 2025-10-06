@@ -11,7 +11,9 @@ import 'package:roommate/features/chat/chatlist_screen.dart';
 import 'package:roommate/features/navigationbar/screens/home_screen.dart';
 import 'package:roommate/features/navigationbar/screens/map_screen.dart';
 import 'package:roommate/features/navigationbar/screens/mypage_screen.dart';
-import 'package:roommate/features/post/room_owner_post_screen.dart';
+import 'package:roommate/features/post/room_owner_post.dart';
+import 'package:roommate/features/post/room_owner_post_screen.dart'
+    hide RoomOwnerPost;
 import 'package:roommate/features/post/searcher_post_screen.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -70,7 +72,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
     if (user.userType!.type == 'roomOwner') {
       Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => const RoomOwnerPostScreen()),
+        MaterialPageRoute(builder: (context) => const RoomOwnerPost()),
       );
     } else {
       Navigator.of(context).push(

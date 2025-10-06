@@ -1,3 +1,4 @@
+// features/view/room_owner_post_view.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:roommate/class/app_user.dart';
@@ -5,6 +6,12 @@ import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:roommate/class/chat_repository.dart';
+import 'package:roommate/features/chat/chat_screen.dart';
+import 'package:roommate/features/post/room_owner_post_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RoomOwnerPostView extends StatefulWidget {
   final RoomOwnerPost post;
@@ -20,21 +27,48 @@ class RoomOwnerPostView extends StatefulWidget {
 
 class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
   final UserRepository _userRepository = UserRepository();
+  final ChatRepository _chatRepo = ChatRepository();
   late Future<AppUser?> _authorFuture;
+  bool _startingChat = false;
+
+  // Supabase (Private 버킷 → 서명 URL 필요) ✅ 버킷명 일치
+  static const String _bucket = 'RoomMate-image';
+  static const int _urlTtl = 3600; // 1시간
+  final _supabase = Supabase.instance.client;
+
+  // 이미지 슬라이더
+  final PageController _pageCtrl = PageController(viewportFraction: 1.0);
+  int _currentPage = 0;
+
+  bool get _isOwner {
+    final me = FirebaseAuth.instance.currentUser;
+    return me != null && widget.post.authorId == me.uid;
+  }
 
   @override
   void initState() {
     super.initState();
-    // authorId가 null이 아닐 때만 사용자 정보를 가져오도록 안전장치 추가
     if (widget.post.authorId != null && widget.post.authorId!.isNotEmpty) {
       _authorFuture = _userRepository.fetchUserById(widget.post.authorId!);
     } else {
-      // authorId가 없는 예외적인 경우를 위해 완료된 Future를 할당
       _authorFuture = Future.value(null);
     }
   }
 
-  // 정보 항목을 보여주는 재사용 가능한 헬퍼 위젯
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<List<String>> _signedUrls(List<String> paths) async {
+    if (paths.isEmpty) return [];
+    final res = await _supabase.storage
+        .from(_bucket)
+        .createSignedUrls(paths, _urlTtl);
+    return res.map((e) => e.signedUrl).toList();
+  }
+
   Widget _buildInfoRow(IconData icon, String title, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Sizes.size8),
@@ -56,41 +90,184 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
     );
   }
 
+  Future<void> _startChat() async {
+    if (_startingChat) return;
+    final me = FirebaseAuth.instance.currentUser;
+    final partnerUid = widget.post.authorId ?? '';
+
+    if (me == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다.')),
+      );
+      return;
+    }
+    if (partnerUid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('작성자 정보를 확인할 수 없어요.')),
+      );
+      return;
+    }
+    if (partnerUid == me.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('내가 올린 글입니다.')),
+      );
+      return;
+    }
+
+    setState(() => _startingChat = true);
+    try {
+      final partner = await _userRepository.fetchUserById(partnerUid);
+      final partnerName = partner?.displayName ?? '상대방';
+      final chatRoomId = await _chatRepo.createChatRoom(me.uid, partnerUid);
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            chatRoomId: chatRoomId,
+            partnerUid: partnerUid,
+            partnerName: partnerName,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('채팅 시작에 실패했어요: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _startingChat = false);
+    }
+  }
+
+  void _goEdit() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RoomOwnerPostScreen(
+          postToEdit: widget.post,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final numberFormat = NumberFormat.decimalPattern();
 
+    final hasAddr = widget.post.addr != null;
+    final double? lat = widget.post.addr?.latitude;
+    final double? lng = widget.post.addr?.longitude;
+
+    // Firestore의 imageUrls(= Storage 경로 배열)
+    final List<String> imagePaths = (widget.post.imageUrls ?? [])
+        .where((e) => e.trim().isNotEmpty)
+        .map((e) => e.toString())
+        .toList();
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
+          // 상단 이미지 슬라이더
           SliverAppBar(
-            expandedHeight: 250.0,
+            expandedHeight: 280.0,
             pinned: true,
             backgroundColor: Theme.of(context).primaryColor,
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
-                widget.post.title ?? '제목 없음', // ✅ Null safety
+                widget.post.title ?? '제목 없음',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              // ✅ 이미지 캐러셀을 정적 이미지로 교체
-              background: Image.asset(
-                'assets/house.jpg', // TODO: 기본 이미지 경로 확인 및 설정
-                fit: BoxFit.cover,
-                color: Colors.black.withOpacity(0.3),
-                colorBlendMode: BlendMode.darken,
-              ),
+              background: imagePaths.isEmpty
+                  ? Image.asset(
+                      'assets/house.jpg',
+                      fit: BoxFit.cover,
+                      color: Colors.black.withOpacity(0.3),
+                      colorBlendMode: BlendMode.darken,
+                    )
+                  : FutureBuilder<List<String>>(
+                      future: _signedUrls(imagePaths),
+                      builder: (context, snap) {
+                        if (!snap.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        final urls = snap.data!;
+                        if (urls.isEmpty) {
+                          return Image.asset(
+                            'assets/house.jpg',
+                            fit: BoxFit.cover,
+                            color: Colors.black.withOpacity(0.3),
+                            colorBlendMode: BlendMode.darken,
+                          );
+                        }
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            PageView.builder(
+                              controller: _pageCtrl,
+                              onPageChanged: (i) =>
+                                  setState(() => _currentPage = i),
+                              itemCount: urls.length,
+                              itemBuilder: (_, i) => Image.network(
+                                urls[i],
+                                fit: BoxFit.cover,
+                                loadingBuilder: (c, w, p) => p == null
+                                    ? w
+                                    : const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                errorBuilder: (_, __, ___) => Image.asset(
+                                  'assets/house.jpg',
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            // 하단 도트 인디케이터
+                            Positioned(
+                              bottom: 12,
+                              left: 0,
+                              right: 0,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List.generate(
+                                  urls.length,
+                                  (i) => AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 3,
+                                    ),
+                                    width: _currentPage == i ? 22 : 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(
+                                        _currentPage == i ? 0.95 : 0.6,
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
             ),
           ),
+
+          // 본문
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(Sizes.size20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- 작성자 정보 ---
                   FutureBuilder<AppUser?>(
                     future: _authorFuture,
                     builder: (context, snapshot) {
@@ -121,14 +298,13 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                         subtitle: const Text('프로필 보기'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // TODO: 작성자 프로필 화면으로 이동하는 로직
+                          // TODO: 작성자 프로필
                         },
                       );
                     },
                   ),
                   const Divider(height: Sizes.size40),
 
-                  // --- 게시글 상세 정보 (Null 안전 처리) ---
                   const Text(
                     "방 정보",
                     style: TextStyle(
@@ -140,8 +316,8 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                   _buildInfoRow(
                     Icons.location_on_outlined,
                     "위치",
-                    "위치 정보 부근",
-                  ), // TODO: GeoPoint -> 주소 변환
+                    widget.post.addressLabel ?? "위치 정보 부근",
+                  ),
                   _buildInfoRow(
                     Icons.attach_money_outlined,
                     "보증금",
@@ -185,7 +361,6 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                   _buildInfoRow(
                     Icons.event_available_outlined,
                     "입주 가능일",
-                    // ✅ movingDate가 null일 경우를 대비하여 기본값 제공
                     widget.post.movingDate != null
                         ? DateFormat(
                             'yyyy년 MM월 dd일',
@@ -211,32 +386,92 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                     widget.post.introduction ?? '작성된 소개글이 없습니다.',
                     style: const TextStyle(fontSize: Sizes.size16, height: 1.5),
                   ),
+                  Gaps.v20,
                 ],
               ),
             ),
           ),
+
+          // 네이버 지도
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                Sizes.size20,
+                0,
+                Sizes.size20,
+                Sizes.size20,
+              ),
+              child: (hasAddr && lat != null && lng != null)
+                  ? SizedBox(
+                      height: 240,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(Sizes.size10),
+                        child: NaverMap(
+                          options: NaverMapViewOptions(
+                            initialCameraPosition: NCameraPosition(
+                              target: NLatLng(lat, lng),
+                              zoom: 15,
+                            ),
+                            locationButtonEnable: false,
+                            consumeSymbolTapEvents: false,
+                            scrollGesturesEnable: true,
+                            zoomGesturesEnable: true,
+                            tiltGesturesEnable: false,
+                            rotationGesturesEnable: false,
+                            indoorEnable: false,
+                          ),
+                          onMapReady: (controller) async {
+                            final marker = NMarker(
+                              id: 'post_${widget.post.postId ?? 'unknown'}',
+                              position: NLatLng(lat, lng),
+                            );
+                            controller.addOverlay(marker);
+                            await controller.updateCamera(
+                              NCameraUpdate.scrollAndZoomTo(
+                                target: NLatLng(lat, lng),
+                                zoom: 15,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    )
+                  : Container(
+                      height: 120,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: const Text(
+                        '지도에 표시할 위치 정보가 없습니다.',
+                        style: TextStyle(color: Colors.black54),
+                      ),
+                    ),
+            ),
+          ),
         ],
       ),
+
       bottomNavigationBar: BottomAppBar(
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            vertical: Sizes.size8,
+            vertical: Sizes.size6,
             horizontal: Sizes.size20,
           ),
           child: ElevatedButton(
-            onPressed: () {
-              // TODO: 채팅하기 로직 구현
-            },
+            onPressed: _isOwner ? _goEdit : (_startingChat ? null : _startChat),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: Sizes.size8),
               backgroundColor: Theme.of(context).primaryColor,
               foregroundColor: Colors.white,
             ),
-            child: const Text(
-              '채팅으로 연락하기',
-              style: TextStyle(
-                fontSize: Sizes.size16,
-                fontWeight: FontWeight.w600,
+            child: Text(
+              _isOwner ? '수정하기' : (_startingChat ? '연결 중...' : '채팅으로 연락하기'),
+              style: const TextStyle(
+                fontSize: Sizes.size18,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),

@@ -1,12 +1,18 @@
+// features/post/room_owner_post.dart
 import 'dart:convert';
+import 'dart:io';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/post/widgets/form_button.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class RoomOwnerPost extends StatefulWidget {
   const RoomOwnerPost({super.key});
@@ -16,6 +22,7 @@ class RoomOwnerPost extends StatefulWidget {
 }
 
 class _RoomOwnerPostState extends State<RoomOwnerPost> {
+  // ───────────────── controllers ─────────────────
   final TextEditingController _titleCtrl = TextEditingController();
   final TextEditingController _addrCtrl = TextEditingController();
   final TextEditingController _depositCtrl = TextEditingController();
@@ -30,13 +37,136 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
   final TextEditingController _maxContractCtrl = TextEditingController();
   final TextEditingController _introductionCtrl = TextEditingController();
 
+  // ───────────────── external services ─────────────────
+  final supabase = Supabase.instance.client;
+  final ImagePicker _picker = ImagePicker();
   final String _apiKey = "devU01TX0FVVEgyMDI1MDkxMTE3MzcyNzExNjE3NjI=";
+
+  // Supabase Storage (✅ 버킷명 일원화)
+  static const String _bucket = 'RoomMate-image';
+  final List<XFile> _pickedImages = [];
+  bool _uploadingImages = false;
+
+  // UI state
   List<dynamic> _addresses = [];
   bool _isLoading = false;
   bool _isPosting = false;
   String _errorMessage = '';
 
-  // 주소 검색 API를 호출하는 함수
+  // ───────────────── lifecycle ─────────────────
+  @override
+  void initState() {
+    super.initState();
+    for (final c in [
+      _titleCtrl,
+      _addrCtrl,
+      _depositCtrl,
+      _rentCtrl,
+      _manageFeeCtrl,
+      _corFloorCtrl,
+      _wholeFloorCtrl,
+      _areaCtrl,
+      _toiletCtrl,
+      _movingDateCtrl,
+      _minContractCtrl,
+      _maxContractCtrl,
+      _introductionCtrl,
+    ]) {
+      c.addListener(() {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _addrCtrl.dispose();
+    _depositCtrl.dispose();
+    _rentCtrl.dispose();
+    _manageFeeCtrl.dispose();
+    _corFloorCtrl.dispose();
+    _wholeFloorCtrl.dispose();
+    _areaCtrl.dispose();
+    _toiletCtrl.dispose();
+    _movingDateCtrl.dispose();
+    _minContractCtrl.dispose();
+    _maxContractCtrl.dispose();
+    _introductionCtrl.dispose();
+    super.dispose();
+  }
+
+  // ───────────────── image pick / upload ─────────────────
+  Future<void> _pickImages() async {
+    final files = await _picker.pickMultiImage(imageQuality: 85);
+    if (files.isNotEmpty) {
+      setState(() => _pickedImages.addAll(files));
+    }
+  }
+
+  void _removeImageAt(int index) {
+    setState(() => _pickedImages.removeAt(index));
+  }
+
+  void _log(Object o) => debugPrint('[RoomOwnerPosts] $o');
+
+  /// Supabase(Private 버킷)에 업로드 후, Storage 경로 리스트 반환
+  Future<List<String>> _uploadAllImagesToSupabase({
+    required String uid,
+    required String postId,
+  }) async {
+    setState(() => _uploadingImages = true);
+    final paths = <String>[];
+    try {
+      for (int i = 0; i < _pickedImages.length; i++) {
+        final xf = _pickedImages[i];
+        _log('upload start: ${xf.path}');
+        final ext = xf.path.split('.').last.toLowerCase();
+        final filename = '${DateTime.now().millisecondsSinceEpoch}-$i.$ext';
+        final storagePath = 'roomOwnerPosts/$uid/$postId/$filename';
+
+        // bytes 업로드 (경로/권한 이슈 최소화)
+        final bytes = await xf.readAsBytes();
+        await supabase.storage
+            .from(_bucket)
+            .uploadBinary(
+              storagePath,
+              bytes,
+              fileOptions: FileOptions(
+                cacheControl: '3600',
+                upsert: false,
+                contentType: _guessMimeType(ext),
+              ),
+            );
+
+        _log('upload done: $storagePath');
+        paths.add(storagePath);
+      }
+      return paths;
+    } catch (e, st) {
+      _log('upload error: $e\n$st');
+      rethrow;
+    } finally {
+      if (mounted) setState(() => _uploadingImages = false);
+    }
+  }
+
+  String _guessMimeType(String ext) {
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+        return 'image/heic';
+      case 'jpg':
+      case 'jpeg':
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  // ───────────────── address search ─────────────────
   Future<void> _searchAddress(String keyword) async {
     if (keyword.isEmpty) {
       setState(() {
@@ -60,24 +190,16 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
     });
 
     try {
-      final response = await http.get(url);
-
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
-        // jsonDecode: json -> Map
         final decodedData = jsonDecode(response.body);
-
-        // API 결과 구조 확인 후 'juso' 리스트 추출
         if (decodedData['results'] != null &&
             decodedData['results']['juso'] != null) {
           setState(() {
             _addresses = decodedData['results']['juso'];
-
-            if (_addresses.isEmpty) {
-              _errorMessage = '검색 결과가 없습니다.';
-            }
+            if (_addresses.isEmpty) _errorMessage = '검색 결과가 없습니다.';
           });
         } else {
-          // 'common' 객체에서 에러 메시지 확인
           final commonData = decodedData['results']['common'];
           setState(() {
             _errorMessage = commonData['errorMessage'] ?? '알 수 없는 오류가 발생했습니다.';
@@ -94,15 +216,12 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
         _errorMessage = '데이터 요청 중 오류가 발생했습니다: $e';
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
-  void _onScaffoldTap(BuildContext context) {
-    FocusScope.of(context).unfocus();
-  }
+  // ───────────────── small utils ─────────────────
+  void _onScaffoldTap(BuildContext context) => FocusScope.of(context).unfocus();
 
   void _onTimePickerChanged(DateTime date) {
     _movingDateCtrl.text =
@@ -112,14 +231,12 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
   void _onTimeFieldTap() async {
     await showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return CupertinoDatePicker(
-          mode: CupertinoDatePickerMode.date,
-          onDateTimeChanged: (date) => _onTimePickerChanged(date),
-          minimumDate: DateTime.now(),
-          initialDateTime: DateTime.now(),
-        );
-      },
+      builder: (context) => CupertinoDatePicker(
+        mode: CupertinoDatePickerMode.date,
+        onDateTimeChanged: _onTimePickerChanged,
+        minimumDate: DateTime.now(),
+        initialDateTime: DateTime.now(),
+      ),
     );
   }
 
@@ -141,72 +258,140 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
 
   Map<String, dynamic> _buildPayload() {
     return {
+      'postType': 'roomOwner', // ✅ 리스트 필터와 맞추기
       'title': _titleCtrl.text,
-      'address': _addrCtrl.text,
-      'deposit': _depositCtrl.text,
-      'rent': _rentCtrl.text,
-      'manageFee': _manageFeeCtrl.text,
-      'corFloor': _corFloorCtrl.text,
-      'wholeFloor': _wholeFloorCtrl.text,
-      'minContract': _minContractCtrl.text,
-      'maxContract': _maxContractCtrl.text,
+      'addressLabel': _addrCtrl.text, // ✅ 카드에서 쓰는 키
+      'address': _addrCtrl.text, // (선택) 기존 키 유지해도 무방
+      'deposit': int.tryParse(_depositCtrl.text) ?? 0,
+      'rent': int.tryParse(_rentCtrl.text) ?? 0,
+      'manageFee': int.tryParse(_manageFeeCtrl.text) ?? 0,
+      'corFloor': int.tryParse(_corFloorCtrl.text) ?? 0,
+      'wholeFloor': int.tryParse(_wholeFloorCtrl.text) ?? 0,
+      'area': int.tryParse(_areaCtrl.text) ?? 0,
+      'toilet': int.tryParse(_toiletCtrl.text) ?? 0,
+      'minContract': int.tryParse(_minContractCtrl.text) ?? 0,
+      'maxContract': int.tryParse(_maxContractCtrl.text) ?? 0,
       'introduction': _introductionCtrl.text,
+      'movingDate': _movingDateCtrl.text.isEmpty
+          ? null
+          : Timestamp.fromDate(DateTime.parse(_movingDateCtrl.text)),
       'updatedAt': DateTime.now().toIso8601String(),
     };
   }
 
-  void _onNextTap() async {
-    if (_isNextAvailable()) {
-      try {
-        setState(() {
-          _isPosting = true;
-        });
-        final payload = _buildPayload();
-        await FirebaseFirestore.instance
-            .collection('roomOwnerPost')
-            .add(payload);
+  // ───────────────── submit ─────────────────
+  Future<void> _onNextTap() async {
+    if (!_isNextAvailable() || _isPosting) return;
 
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('글 포스팅 성공~')));
-          Navigator.of(context).pop();
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('오류 발생~')));
-          Navigator.of(context).pop();
-        }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isPosting = false;
+    try {
+      setState(() => _isPosting = true);
+
+      // 0) 앱/프로젝트 정보
+      _log('Firebase projectId=${Firebase.app().options.projectId}');
+
+      // 1) 로그인 상태
+      final auth = FirebaseAuth.instance;
+      final user = auth.currentUser ?? (await auth.signInAnonymously()).user!;
+      final uid = user.uid;
+      _log('auth uid=$uid isAnon=${user.isAnonymous}');
+
+      // 2) payload 구성
+      final built = _buildPayload();
+      final basePayload = {
+        ...built,
+        'authorId': uid,
+        'imageUrls': <String>[],
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      // 2-1) 핵심 필드 타입/값 로그
+      _log('payload keys=${basePayload.keys.toList()}');
+      _log('authorId=${basePayload['authorId']}');
+      _log('createdAtType=${basePayload['createdAt']?.runtimeType}');
+      _log(
+        'movingDate=${basePayload['movingDate']} (type=${basePayload['movingDate']?.runtimeType})',
+      );
+      _log('addr(field in payload?)=${basePayload.containsKey('addr')}');
+      _log('address(string)=${basePayload['address']}');
+      _log(
+        'updatedAt=${basePayload['updatedAt']} (type=${basePayload['updatedAt']?.runtimeType})',
+      );
+
+      // 3) 쓰기
+      final col = FirebaseFirestore.instance.collection('roomOwnerPosts');
+      _log('WRITE TO: ${col.path}');
+      DocumentReference docRef;
+      try {
+        docRef = await col.add(basePayload);
+        _log('create ok: docId=${docRef.id}');
+      } on FirebaseException catch (e) {
+        _log('CREATE FAIL code=${e.code} message=${e.message}');
+        rethrow;
+      }
+
+      final postId = docRef.id;
+
+      // 4) 이미지 업로드
+      List<String> imagePaths = [];
+      if (_pickedImages.isNotEmpty) {
+        imagePaths = await _withTimeoutRetry<List<String>>(
+          () => _uploadAllImagesToSupabase(uid: uid, postId: postId),
+          timeoutSec: 25,
+          retries: 2,
+        );
+        _log('uploaded ${imagePaths.length} images');
+      }
+
+      // 5) Firestore 업데이트(이미지 경로)
+      if (imagePaths.isNotEmpty) {
+        try {
+          await docRef.update({
+            'imageUrls': imagePaths,
+            // 규칙상 필수는 아니지만, 관례상 updatedAt도 서버시간으로
+            'updatedAt': FieldValue.serverTimestamp(),
           });
+          _log('update ok (imageUrls)');
+        } on FirebaseException catch (e) {
+          _log('UPDATE FAIL code=${e.code} message=${e.message}');
+          rethrow;
         }
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('글 포스팅 성공~')),
+      );
+      Navigator.of(context).pop();
+    } catch (e, st) {
+      _log('onNextTap error: $e\n$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('오류 발생~ $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isPosting = false);
+    }
+  }
+
+  // 간단 타임아웃 + 재시도
+  Future<T> _withTimeoutRetry<T>(
+    Future<T> Function() job, {
+    int timeoutSec = 15,
+    int retries = 1,
+  }) async {
+    int attempt = 0;
+    while (true) {
+      attempt++;
+      try {
+        return await job().timeout(Duration(seconds: timeoutSec));
+      } catch (e) {
+        if (attempt > retries) rethrow;
+        await Future.delayed(const Duration(seconds: 1));
       }
     }
   }
 
-  @override
-  void dispose() {
-    _titleCtrl.dispose();
-    _addrCtrl.dispose();
-    _depositCtrl.dispose();
-    _rentCtrl.dispose();
-    _manageFeeCtrl.dispose();
-    _corFloorCtrl.dispose();
-    _wholeFloorCtrl.dispose();
-    _areaCtrl.dispose();
-    _toiletCtrl.dispose();
-    _movingDateCtrl.dispose();
-    _minContractCtrl.dispose();
-    _maxContractCtrl.dispose();
-    _introductionCtrl.dispose();
-    super.dispose();
-  }
-
+  // ───────────────── UI ─────────────────
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -217,11 +402,12 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
           title: Text('게시글 작성', style: TextStyle(fontSize: Sizes.size24)),
         ),
         body: Padding(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 제목
                 Text(
                   '제목을 입력해주세요!',
                   style: TextStyle(
@@ -232,12 +418,14 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                 Gaps.v6,
                 TextField(
                   controller: _titleCtrl,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText: '제목 입력',
                     border: OutlineInputBorder(),
                   ),
                 ),
                 Gaps.v24,
+
+                // 주소 안내
                 Text(
                   '주소를 입력해주세요!',
                   style: TextStyle(
@@ -250,13 +438,83 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   style: TextStyle(fontSize: Sizes.size14, color: Colors.grey),
                 ),
                 Gaps.v6,
+
+                // 사진 업로드 섹션
+                Text(
+                  '사진 업로드',
+                  style: TextStyle(
+                    fontSize: Sizes.size16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Gaps.v6,
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _uploadingImages ? null : _pickImages,
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: const Text('사진 선택'),
+                    ),
+                    Gaps.h12,
+                    if (_uploadingImages)
+                      const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    if (!_uploadingImages) Text('${_pickedImages.length}장 선택됨'),
+                  ],
+                ),
+                Gaps.v12,
+                if (_pickedImages.isNotEmpty)
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                        ),
+                    itemCount: _pickedImages.length,
+                    itemBuilder: (_, i) => Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            File(_pickedImages[i].path),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: InkWell(
+                            onTap: () => _removeImageAt(i),
+                            child: const CircleAvatar(
+                              radius: 12,
+                              backgroundColor: Colors.black54,
+                              child: Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Gaps.v12,
+
+                // 주소 입력/검색
                 Row(
                   children: [
                     Expanded(
-                      flex: 1,
                       child: TextField(
                         controller: _addrCtrl,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '주소 입력.',
                           border: OutlineInputBorder(),
                         ),
@@ -272,13 +530,15 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   child: _buildResults(),
                 ),
                 Gaps.v12,
+
+                // 금액/정보
                 Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: _depositCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: "보증금(만 원)",
                           hintStyle: TextStyle(fontSize: Sizes.size12),
                           border: OutlineInputBorder(),
@@ -302,7 +562,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                       child: TextField(
                         controller: _manageFeeCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: "관리비(만 원)",
                           hintStyle: TextStyle(fontSize: Sizes.size12),
                           border: OutlineInputBorder(),
@@ -312,14 +572,15 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   ],
                 ),
                 Gaps.v24,
+
+                // 층수
                 Row(
                   children: [
                     Expanded(
-                      flex: 1,
                       child: TextField(
                         controller: _corFloorCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '해당층',
                           border: OutlineInputBorder(),
                         ),
@@ -330,7 +591,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                       child: TextField(
                         controller: _wholeFloorCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '건물층',
                           border: OutlineInputBorder(),
                         ),
@@ -339,6 +600,8 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   ],
                 ),
                 Gaps.v24,
+
+                // 전용면적/화장실
                 Text(
                   '전용 면적 / 화장실 개수',
                   style: TextStyle(
@@ -353,7 +616,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                       child: TextField(
                         controller: _areaCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '(평)',
                           border: OutlineInputBorder(),
                         ),
@@ -364,7 +627,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                       child: TextField(
                         controller: _toiletCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '화장실 개수',
                           border: OutlineInputBorder(),
                         ),
@@ -373,6 +636,8 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   ],
                 ),
                 Gaps.v24,
+
+                // 입주일
                 Text(
                   '입주가능일',
                   style: TextStyle(
@@ -385,7 +650,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   onTap: _onTimeFieldTap,
                   controller: _movingDateCtrl,
                   readOnly: true,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     suffixIcon: Padding(
                       padding: EdgeInsets.all(10),
                       child: FaIcon(FontAwesomeIcons.calendar),
@@ -395,14 +660,15 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   ),
                 ),
                 Gaps.v24,
+
+                // 계약기간
                 Row(
                   children: [
                     Expanded(
-                      flex: 1,
                       child: TextField(
                         controller: _minContractCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '최소 거주 기간(개월)',
                           hintStyle: TextStyle(fontSize: Sizes.size14),
                           border: OutlineInputBorder(),
@@ -414,7 +680,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                       child: TextField(
                         controller: _maxContractCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: '최대 거주 기간(개월)',
                           hintStyle: TextStyle(fontSize: Sizes.size14),
                           border: OutlineInputBorder(),
@@ -424,12 +690,14 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   ],
                 ),
                 Gaps.v24,
+
+                // 소개
                 TextField(
                   controller: _introductionCtrl,
                   minLines: 3,
                   maxLines: null,
                   keyboardType: TextInputType.multiline,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText:
                         '자유롭게 글을 작성해주세요!\n취미, 희망 진로, 동거 규칙에 대해 작성해주시면 좋아요!',
                     hintStyle: TextStyle(fontSize: Sizes.size14),
@@ -437,16 +705,15 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                   ),
                 ),
                 Gaps.v24,
+
+                // 제출
                 GestureDetector(
                   onTap: _onNextTap,
                   child: FormButton(
                     enabled: _isNextAvailable(),
                     widget: _isPosting
-                        ? CircularProgressIndicator()
-                        : Text(
-                            '다음',
-                            textAlign: TextAlign.center,
-                          ),
+                        ? const CircularProgressIndicator()
+                        : const Text('다음', textAlign: TextAlign.center),
                   ),
                 ),
               ],
@@ -478,10 +745,8 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
               margin: const EdgeInsets.symmetric(vertical: 6),
               child: ListTile(
                 leading: CircleAvatar(child: Text('${index + 1}')),
-                title: Text(address['roadAddr'] ?? '도로명 주소 없음'), // 도로명 주소
-                subtitle: Text(
-                  '[지번] ${address['jibunAddr'] ?? '지번 주소 없음'}',
-                ), // 지번 주소
+                title: Text(address['roadAddr'] ?? '도로명 주소 없음'),
+                subtitle: Text('[지번] ${address['jibunAddr'] ?? '지번 주소 없음'}'),
               ),
             ),
           );

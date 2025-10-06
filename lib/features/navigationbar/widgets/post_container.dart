@@ -1,18 +1,25 @@
+// features/list/post_container.dart
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/view/room_owner_post_view.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PostContainer extends StatelessWidget {
   final RoomOwnerPost post;
   const PostContainer({super.key, required this.post});
 
+  // ✅ 버킷명 일치!
+  static const String _bucket = 'RoomMate-image';
+  static const int _urlTtl = 1800; // 30분
+  static final _supabase = Supabase.instance.client;
+
   void _onContainerTap(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => RoomOwnerPostView(post: post), // 상세 화면으로 이동(필요 시 수정)
+        builder: (_) => RoomOwnerPostView(post: post),
       ),
     );
   }
@@ -25,22 +32,25 @@ class PostContainer extends StatelessWidget {
     return '$y-$m-$d';
   }
 
+  Future<String?> _firstSignedUrl() async {
+    final paths = post.imageUrls ?? [];
+    if (paths.isEmpty) return null;
+    final path = paths.first;
+    // supabase_flutter 2.x: createSignedUrl → String 반환
+    return await _supabase.storage.from(_bucket).createSignedUrl(path, _urlTtl);
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = (post.title ?? '').isEmpty ? '제목 없음' : post.title!;
-    final addressLabel = (post.addressLabel ?? '위치 비공개'); // ↓ 2번에서 추가하는 필드
+    final addressLabel = (post.addressLabel ?? '위치 비공개');
     final moveIn = _formatDate(post.movingDate?.toDate());
     final deposit = post.deposit ?? 0;
     final rent = post.rent ?? 0;
     final manage = post.manageFee ?? 0;
 
     final priceLine =
-        '보증금 $deposit만 / 월세 $rent만'
-        '${manage > 0 ? ' (+관리비 $manage만)' : ''}';
-
-    final imageUrl = (post.imageUrls != null && post.imageUrls!.isNotEmpty)
-        ? post.imageUrls!.first
-        : null;
+        '보증금 $deposit만 / 월세 $rent만${manage > 0 ? ' (+관리비 $manage만)' : ''}';
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -68,23 +78,36 @@ class PostContainer extends StatelessWidget {
                 child: SizedBox(
                   width: 84,
                   height: 84,
-                  child: imageUrl == null
-                      ? Image.asset('assets/house.jpg', fit: BoxFit.cover)
-                      : Image.network(
-                          imageUrl,
+                  child: FutureBuilder<String?>(
+                    future: _firstSignedUrl(),
+                    builder: (context, snap) {
+                      if (snap.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        );
+                      }
+                      final url = snap.data;
+                      if (url == null || url.isEmpty) {
+                        return Image.asset(
+                          'assets/house.jpg',
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Image.asset(
-                            'assets/house.jpg',
-                            fit: BoxFit.cover,
-                          ),
-                          loadingBuilder: (c, w, progress) => progress == null
-                              ? w
-                              : const Center(
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
+                        );
+                      }
+                      return Image.network(
+                        url,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            Image.asset('assets/house.jpg', fit: BoxFit.cover),
+                        loadingBuilder: (c, w, p) => p == null
+                            ? w
+                            : const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
                                 ),
-                        ),
+                              ),
+                      );
+                    },
+                  ),
                 ),
               ),
               Gaps.h16,
