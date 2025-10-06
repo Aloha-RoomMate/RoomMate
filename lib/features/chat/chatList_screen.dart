@@ -10,19 +10,99 @@ class ChatListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser!;
+    final user = FirebaseAuth.instance.currentUser;
+
+    // 로그인 가드
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text('로그인 후 이용해주세요.')),
+      );
+    }
+
+    final uid = user.uid;
+
+    final chatStream = FirebaseFirestore.instance
+        .collection("chats")
+        .where("participants", arrayContains: uid)
+        .orderBy("updatedAt", descending: true)
+        .snapshots();
 
     return Scaffold(
+      appBar: AppBar(title: const Text('채팅')),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection("chats")
-            .where("participants", arrayContains: user.uid)
-            .orderBy("updatedAt", descending: true)
-            .snapshots(),
+        stream: chatStream,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting ||
-              !snapshot.hasData) {
+          // 1) 에러 먼저 처리 (무한로딩 방지)
+          if (snapshot.hasError) {
+            final err = snapshot.error.toString();
+
+            // 인덱스 필요한 경우 안내
+            final isIndexError =
+                err.contains('FAILED_PRECONDITION') ||
+                err.contains('requires an index');
+
+            // 권한 거부 안내
+            final isPermError =
+                err.contains('PERMISSION_DENIED') ||
+                err.contains('permission-denied');
+
+            // 에러 메시지 안의 콘솔 링크 뽑기(있을 때)
+            String? consoleUrl;
+            final match = RegExp(
+              r'(https://console\.firebase\.google\.com[^\s]+)',
+            ).firstMatch(err);
+            if (match != null) consoleUrl = match.group(1);
+
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 40),
+                  const SizedBox(height: 12),
+                  Text(
+                    '채팅 목록을 불러오는 중 오류가 발생했어요.',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  SelectableText(err, style: const TextStyle(fontSize: 12)),
+                  const SizedBox(height: 16),
+                  if (isIndexError) ...[
+                    const Text(
+                      '해결 방법: Firestore 복합 인덱스를 생성하세요.\n'
+                      'Collection = chats, Fields = participants (array-contains), updatedAt (desc)',
+                      textAlign: TextAlign.center,
+                    ),
+                    if (consoleUrl != null) ...[
+                      const SizedBox(height: 8),
+                      SelectableText(
+                        consoleUrl,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ],
+                  if (isPermError) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      '해결 방법: Firestore 규칙에서 chats 읽기를 참여자로 제한하세요.\n'
+                      '예) allow read: if request.auth != null && '
+                      'request.auth.uid in resource.data.participants;',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }
+
+          // 2) 로딩
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+
+          // 3) 데이터 없음
+          if (!snapshot.hasData) {
+            return const Center(child: Text('데이터가 없습니다.'));
           }
 
           final docs = snapshot.data!.docs;
@@ -30,6 +110,7 @@ class ChatListScreen extends StatelessWidget {
             return const Center(child: Text("채팅방이 없습니다."));
           }
 
+          // 4) 정상 렌더링
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: docs.length,
@@ -45,14 +126,12 @@ class ChatListScreen extends StatelessWidget {
               final participants = List<String>.from(
                 data["participants"] ?? [],
               );
-              final myUid = user.uid;
               final partnerUid = participants.firstWhere(
-                (id) => id != myUid,
+                (id) => id != uid,
                 orElse: () => "",
               );
 
               if (partnerUid.isEmpty) {
-                // 비정상 데이터 보호
                 return const ListTile(
                   title: Text("잘못된 채팅 데이터"),
                   subtitle: Text("참여자 정보를 확인할 수 없습니다."),
@@ -65,6 +144,9 @@ class ChatListScreen extends StatelessWidget {
                     .doc(partnerUid)
                     .get(),
                 builder: (context, userSnap) {
+                  if (userSnap.hasError) {
+                    return const ListTile(title: Text("상대 정보 로딩 실패"));
+                  }
                   if (userSnap.connectionState == ConnectionState.waiting ||
                       !userSnap.hasData) {
                     return const ListTile(title: Text("로딩중..."));
@@ -141,7 +223,6 @@ class ChatListScreen extends StatelessWidget {
       final m = dt.minute.toString().padLeft(2, '0');
       return "$h:$m";
     } else {
-      // 다른 날이면 MM/dd 표기로
       final mm = dt.month.toString().padLeft(2, '0');
       final dd = dt.day.toString().padLeft(2, '0');
       return "$mm/$dd";
@@ -178,12 +259,10 @@ class _RoundedSquareAvatar extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.cover,
-          // 로딩 표시
           loadingBuilder: (ctx, w, progress) {
             if (progress == null) return w;
             return _loading(bg);
           },
-          // 실패 시 대체
           errorBuilder: (_, __, ___) => _fallback(bg, fg),
         ),
       );
