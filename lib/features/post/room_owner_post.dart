@@ -97,6 +97,85 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
   }
 
   // ───────────────── image pick / upload ─────────────────
+  Future<void> _showPickSourceSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.of(ctx).pop();
+                    await _getCameraImage();
+                  },
+                  icon: const Icon(Icons.photo_camera_outlined),
+                  label: const Text('사진 찍기'),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.of(ctx).pop();
+                    await _getPhotoLibraryImages();
+                  },
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('라이브러리에서 불러오기'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('취소'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// 카메라로 1장 촬영 → 목록에 추가
+  Future<void> _getCameraImage() async {
+    try {
+      final x = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85, // 용량 절감
+        preferredCameraDevice: CameraDevice.rear,
+      );
+      if (x != null) {
+        setState(() => _pickedImages.add(x));
+      }
+    } catch (e) {
+      debugPrint('[camera] $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('카메라에서 이미지를 가져오지 못했어요.')),
+      );
+    }
+  }
+
+  /// 앨범에서 여러 장 선택 → 목록에 추가
+  Future<void> _getPhotoLibraryImages() async {
+    try {
+      final files = await _picker.pickMultiImage(imageQuality: 85);
+      if (files.isNotEmpty) {
+        setState(() => _pickedImages.addAll(files));
+      }
+    } catch (e) {
+      debugPrint('[gallery] $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('앨범에서 이미지를 가져오지 못했어요.')),
+      );
+    }
+  }
+
   Future<void> _pickImages() async {
     final files = await _picker.pickMultiImage(imageQuality: 85);
     if (files.isNotEmpty) {
@@ -451,9 +530,9 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                 Row(
                   children: [
                     ElevatedButton.icon(
-                      onPressed: _uploadingImages ? null : _pickImages,
-                      icon: const Icon(Icons.photo_library_outlined),
-                      label: const Text('사진 선택'),
+                      onPressed: _uploadingImages ? null : _showPickSourceSheet,
+                      icon: const Icon(Icons.add_a_photo_outlined),
+                      label: const Text('사진 추가'),
                     ),
                     Gaps.h12,
                     if (_uploadingImages)
