@@ -219,3 +219,18 @@ Compatibility scoreUsers(AppUser me, AppUser other) {
   if (text >= 0.5) reasons.add("자기소개 톤 유사");
   return Compatibility(struct, hobby, text, score, reasons.take(3).toList());
 }
+
+String explainCompatibility(Compatibility c) {
+  // 가중치와 부분 점수를 보기 좋게 표시
+  final s = (c.structSim * 100).toStringAsFixed(1);
+  final h = (c.hobbySim * 100).toStringAsFixed(1);
+  final t = (c.textSim * 100).toStringAsFixed(1);
+  final total = (c.score * 100).toStringAsFixed(0);
+
+  return [
+    '총점: $total%',
+    '· 생활 패턴(70%): $s%',
+    '· 취미 겹침(25%): $h%',
+    '· 소개글 톤(5%): $t%',
+  ].join('\n');
+}
