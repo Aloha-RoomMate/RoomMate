@@ -92,10 +92,7 @@ class _UserjobScreenState extends State<UserjobScreen> {
     } else {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => SearcherScreen(
-            userType: 'searcher',
-            jobKinds: selectedJobs,
-          ),
+          builder: (_) => SearcherScreen(),
         ),
       );
     }
