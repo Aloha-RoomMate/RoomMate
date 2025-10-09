@@ -25,7 +25,6 @@ class _MainNavigationState extends State<MainNavigation> {
   AppUser? _currentUser;
   final UserRepository _userRepository = UserRepository();
 
-  // 실시간 감시를 위한 구독 객체 선언
   late final StreamSubscription<AppUser?> _userSubscription;
 
   final List<String> _appBarTitles = [
@@ -54,42 +53,99 @@ class _MainNavigationState extends State<MainNavigation> {
     super.dispose();
   }
 
-  void _onPostTap(AppUser? user) {
-    // 사용자가 아직 로딩 중이거나 로그아웃 상태이면 아무것도 하지 않음
-    if (user == null || user.userType == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('사용자 정보를 불러오는 중입니다...')),
-      );
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => LoginScreen(),
-        ),
-      );
-      return;
-    }
-
-    if (user.userType!.type == 'roomOwner') {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => const RoomOwnerPostScreen()),
-      );
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => const SearcherPost()),
-      );
-    }
-  }
-
   void _onNavTab(int index) {
-    _selectedIndex = index;
-    setState(() {});
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (context.mounted) {
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => LoginScreen()));
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
+  }
+
+  // ---------- helpers ----------
+  void _goMyPage() {
+    setState(() {
+      _selectedIndex = 3; // 마이페이지 탭
+    });
+  }
+
+  Future<void> _showNeedInfoDialog({
+    required String title,
+    required String message,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('닫기'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _goMyPage();
+            },
+            child: const Text('마이페이지로 이동'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _toast(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  // ---------- main action ----------
+  void _onPostTap(AppUser? user) {
+    // 1) 로그인/로딩 체크
+    if (user == null) {
+      _toast('사용자 정보를 불러오는 중입니다...');
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+      return;
+    }
+
+    // 2) userType 미설정 → 안내
+    if (user.userType == null || user.userType?.type == null) {
+      _showNeedInfoDialog(
+        title: '먼저 사용자 유형을 설정해주세요',
+        message: '게시글을 등록하려면 마이페이지에서 사용자 유형을 선택해야 합니다.',
+      );
+      return;
+    }
+
+    // 3) userPass 미통과 → 안내
+    final bool isPassed = user.userPass?.pass == true;
+    if (!isPassed) {
+      _showNeedInfoDialog(
+        title: '프로필 정보가 부족합니다',
+        message:
+            '마이페이지에서 추가로 정보를 입력하세요.\n'
+            '생활패턴/공동생활/건강정보/자기소개가 충분해야 게시글 작성이 가능합니다.',
+      );
+      return;
+    }
+
+    // 4) 통과 → 유형별 화면 이동
+    if (user.userType!.type == 'roomOwner') {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const RoomOwnerPostScreen()),
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const SearcherPost()),
+      );
     }
   }
 
@@ -99,27 +155,23 @@ class _MainNavigationState extends State<MainNavigation> {
       appBar: AppBar(
         toolbarHeight: Sizes.size40,
         title: Text(_appBarTitles[_selectedIndex]),
-        actionsPadding: EdgeInsets.only(
-          right: Sizes.size20,
-        ),
+        actionsPadding: const EdgeInsets.only(right: Sizes.size20),
         actions: [
-          GestureDetector(
-            onTap: () => _onPostTap(_currentUser),
-            child: FaIcon(FontAwesomeIcons.plus),
+          IconButton(
+            onPressed: () => _onPostTap(_currentUser),
+            icon: const FaIcon(FontAwesomeIcons.plus),
+            tooltip: '게시글 작성',
           ),
         ],
       ),
       body: IndexedStack(
         index: _selectedIndex,
-        children: [
+        children: const [
           HomeScreen(),
-          ChatListScreen(), //이거 오류나서 chatroom을 바로 만들지 않고 채팅 리스트를 만들어서 push 하며, chatroomId 를 넘겨줘야한다.
-          _selectedIndex == 2 ? MapScreen() : SizedBox.shrink(),
-          _selectedIndex == 3
-              ? MypageScreen(
-                  isBlocked: true,
-                )
-              : SizedBox.shrink(),
+          ChatListScreen(),
+          // 지도가 무거우면 선택 시에만 랜더링
+          MapScreen(),
+          MypageScreen(isBlocked: true),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -127,7 +179,7 @@ class _MainNavigationState extends State<MainNavigation> {
         currentIndex: _selectedIndex,
         unselectedItemColor: Colors.grey,
         selectedItemColor: Theme.of(context).primaryColor,
-        items: <BottomNavigationBarItem>[
+        items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: FaIcon(FontAwesomeIcons.house),
             label: '홈',
