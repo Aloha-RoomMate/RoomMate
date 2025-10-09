@@ -1,209 +1,198 @@
+// features/post/room_owner_post_screen.dart
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:intl/intl.dart'; // ✅ 추가
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
-import 'package:roommate/class/room_owner_post_repository.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/post/widgets/form_button.dart';
-import 'package:http/http.dart' as http;
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RoomOwnerPostScreen extends StatefulWidget {
   const RoomOwnerPostScreen({super.key, this.postToEdit});
   final RoomOwnerPost? postToEdit;
 
   @override
-  State<RoomOwnerPostScreen> createState() => _RoomOwnerPostState();
+  State<RoomOwnerPostScreen> createState() => _RoomOwnerPostScreenState();
 }
 
-class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
+class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
+  // ── controllers ────────────────────────────────────────────────────────────
+  final _titleCtrl = TextEditingController();
+  final _addrCtrl = TextEditingController();
+  final _depositCtrl = TextEditingController();
+  final _rentCtrl = TextEditingController();
+  final _manageFeeCtrl = TextEditingController();
+  final _corFloorCtrl = TextEditingController();
+  final _wholeFloorCtrl = TextEditingController();
+  final _areaCtrl = TextEditingController();
+  final _toiletCtrl = TextEditingController();
+  final _movingDateCtrl = TextEditingController();
+  final _minContractCtrl = TextEditingController();
+  final _maxContractCtrl = TextEditingController();
+  final _introductionCtrl = TextEditingController();
+
+  bool get _isEdit => widget.postToEdit != null;
+
+  // 현재 사용자
   final UserRepository _userRepository = UserRepository();
-  final RoomOwnerPostRepository _postRepository = RoomOwnerPostRepository();
+  AppUser? _me;
 
-  final TextEditingController _titleCtrl = TextEditingController();
-  final TextEditingController _addrCtrl = TextEditingController();
-  final TextEditingController _depositCtrl = TextEditingController();
-  final TextEditingController _rentCtrl = TextEditingController();
-  final TextEditingController _manageFeeCtrl = TextEditingController();
-  final TextEditingController _corFloorCtrl = TextEditingController();
-  final TextEditingController _wholeFloorCtrl = TextEditingController();
-  final TextEditingController _areaCtrl = TextEditingController();
-  final TextEditingController _toiletCtrl = TextEditingController();
-  final TextEditingController _movingDateCtrl = TextEditingController();
-  final TextEditingController _minContractCtrl = TextEditingController();
-  final TextEditingController _maxContractCtrl = TextEditingController();
-  final TextEditingController _introductionCtrl = TextEditingController();
-
-  final String _apiKey = "devU01TX0FVVEgyMDI1MDkxMTE3MzcyNzExNjE3NjI=";
+  // ── Juso 검색 ───────────────────────────────────────────────────────────────
+  static const String _jusoKey = "devU01TX0FVVEgyMDI1MDkxMTE3MzcyNzExNjE3NjI=";
   List<dynamic> _addresses = [];
   bool _isLoading = false;
-  bool _isPosting = false;
   String _errorMessage = '';
-  AppUser? _currentUser;
-  DateTime? _selectedMovingDate;
 
-  bool get _isEdit => widget.postToEdit != null; // ✅ 수정 모드 판별
+  // ── image pick & upload (Supabase) ─────────────────────────────────────────
+  final _picker = ImagePicker();
+  final List<XFile> _pickedImages = [];
+  bool _uploadingImages = false;
 
-  @override
-  void initState() {
-    super.initState();
+  static const String _bucket = 'RoomMate-image';
+  final _supabase = Supabase.instance.client;
 
-    // 현재 사용자 로드 (작성 모드 유효성 체크에 필요)
-    _loadCurrentUser();
-
-    // ✅ 수정 모드면 초기값 주입
-    final RoomOwnerPost? editingPost = widget.postToEdit;
-    if (editingPost != null) {
-      _titleCtrl.text = editingPost.title ?? '';
-      _addrCtrl.text = editingPost.addressLabel ?? '';
-      _depositCtrl.text = (editingPost.deposit ?? 0).toString();
-      _rentCtrl.text = (editingPost.rent ?? 0).toString();
-      _manageFeeCtrl.text = (editingPost.manageFee ?? 0).toString();
-      _corFloorCtrl.text = (editingPost.corFloor ?? 0).toString();
-      _wholeFloorCtrl.text = (editingPost.wholeFloor ?? 0).toString();
-      _areaCtrl.text = (editingPost.area ?? 0).toString();
-      _toiletCtrl.text = (editingPost.toilet ?? 0).toString();
-      _movingDateCtrl.text = editingPost.movingDate != null
-          ? DateFormat('yyyy-MM-dd').format(editingPost.movingDate!.toDate())
-          : '';
-      _minContractCtrl.text = (editingPost.minContract ?? 0).toString();
-      _maxContractCtrl.text = (editingPost.maxContract ?? 0).toString();
-      _introductionCtrl.text = editingPost.introduction ?? '';
-      _selectedMovingDate = editingPost.movingDate?.toDate();
-      // 좌표(GeoPoint)는 주소 문자열만 바꿀 때는 보통 유지합니다.
+  String _guessMimeType(String ext) {
+    switch (ext.toLowerCase()) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+        return 'image/heic';
+      case 'jpg':
+      case 'jpeg':
+      default:
+        return 'image/jpeg';
     }
   }
 
-  /// 사용자 정보 불러오기
-  Future<void> _loadCurrentUser() async {
-    final me = await _userRepository.fetchMe();
-    if (!mounted) return;
-    setState(() => _currentUser = me);
-  }
+  Future<List<String>> _uploadAllImagesToSupabase({
+    required String uid,
+    required String postId,
+  }) async {
+    if (_pickedImages.isEmpty) return <String>[];
+    setState(() => _uploadingImages = true);
 
-  /// 저장(작성/수정 공용 엔트리)
-  Future<void> _onSave() async {
-    if (!_isNextAvailable()) return;
-
-    setState(() => _isPosting = true);
+    final uploadedPaths = <String>[];
     try {
-      if (_isEdit) {
-        // ✅ 수정 모드: 변경 필드만 업데이트
-        final payload = <String, dynamic>{
-          'title': _titleCtrl.text,
-          'addressLabel': _addrCtrl.text,
-          'deposit': int.tryParse(_depositCtrl.text) ?? 0,
-          'rent': int.tryParse(_rentCtrl.text) ?? 0,
-          'manageFee': int.tryParse(_manageFeeCtrl.text) ?? 0,
-          'corFloor': int.tryParse(_corFloorCtrl.text) ?? 0,
-          'wholeFloor': int.tryParse(_wholeFloorCtrl.text) ?? 0,
-          'area': int.tryParse(_areaCtrl.text) ?? 0,
-          'toilet': int.tryParse(_toiletCtrl.text) ?? 0,
-          'movingDate': _selectedMovingDate != null
-              ? Timestamp.fromDate(_selectedMovingDate!)
-              : null,
-          'minContract': int.tryParse(_minContractCtrl.text) ?? 0,
-          'maxContract': int.tryParse(_maxContractCtrl.text) ?? 0,
-          'introduction': _introductionCtrl.text,
-          // 주소가 크게 바뀐 경우 좌표도 갱신하고 싶으면 아래 주석 로직을 추가하세요.
-          // 'addr': GeoPoint(newLat, newLng),
-        }..removeWhere((_, v) => v == null);
+      for (int i = 0; i < _pickedImages.length; i++) {
+        final xf = _pickedImages[i];
+        final ext = xf.path.split('.').last;
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}-$i.$ext';
+        final storagePath = 'roomOwnerPosts/$uid/$postId/$fileName';
 
-        await _postRepository.updatePost(widget.postToEdit!.postId!, payload);
-      } else {
-        // ✅ 작성 모드: 기존 신규 작성 로직 실행
-        await _onNextTap();
-        return; // _onNextTap 내에서 pop 처리했다면 여기서 종료
+        final bytes = await xf.readAsBytes();
+        await _supabase.storage
+            .from(_bucket)
+            .uploadBinary(
+              storagePath,
+              bytes,
+              fileOptions: FileOptions(
+                contentType: _guessMimeType(ext),
+                upsert: false,
+                cacheControl: '3600',
+              ),
+            );
+
+        // Firestore엔 "경로"를 저장(서명 URL 아님)
+        uploadedPaths.add(storagePath);
       }
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('저장되었습니다.')));
-      Navigator.pop(context);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
     } finally {
-      if (mounted) setState(() => _isPosting = false);
+      if (mounted) setState(() => _uploadingImages = false);
     }
+    return uploadedPaths;
   }
 
-  /// 주소 검색
-  Future<void> _searchAddress(String keyword) async {
-    if (keyword.isEmpty) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = '검색어를 입력해주세요.';
-        _addresses = [];
-      });
-      return;
-    }
+  Future<void> _showPickSourceSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.of(ctx).pop();
+                    await _getCameraImage();
+                  },
+                  icon: const Icon(Icons.photo_camera_outlined),
+                  label: const Text('사진 찍기'),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.of(ctx).pop();
+                    await _getPhotoLibraryImages();
+                  },
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('라이브러리에서 불러오기'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('취소'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
-    if (mounted) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = '';
-      });
-    }
-
-    final url = Uri.https('www.juso.go.kr', '/addrlink/addrLinkApi.do', {
-      'confmKey': _apiKey,
-      'currentPage': '1',
-      'countPerPage': '20',
-      'keyword': keyword,
-      'resultType': 'json',
-    });
-
+  Future<void> _getCameraImage() async {
     try {
-      final response = await http.get(url);
+      final x = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+        preferredCameraDevice: CameraDevice.rear,
+      );
+      if (x != null) setState(() => _pickedImages.add(x));
+    } catch (_) {
       if (!mounted) return;
-
-      if (response.statusCode == 200) {
-        final decodedData = jsonDecode(response.body);
-        if (decodedData['results'] != null &&
-            decodedData['results']['juso'] != null) {
-          setState(() {
-            _addresses = decodedData['results']['juso'];
-            if (_addresses.isEmpty) _errorMessage = '검색 결과가 없습니다.';
-          });
-        } else {
-          final commonData = decodedData['results']?['common'];
-          setState(() {
-            _errorMessage = commonData?['errorMessage'] ?? '알 수 없는 오류가 발생했습니다.';
-            _addresses = [];
-          });
-        }
-      } else {
-        setState(() {
-          _errorMessage = 'API 서버 오류: ${response.statusCode}';
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = '데이터 요청 중 오류가 발생했습니다: $e';
-      });
-    } finally {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('카메라에서 이미지를 가져오지 못했어요.')),
+      );
     }
   }
 
-  /// 도로명주소 → 좌표
+  Future<void> _getPhotoLibraryImages() async {
+    try {
+      final files = await _picker.pickMultiImage(imageQuality: 85);
+      if (files.isNotEmpty) setState(() => _pickedImages.addAll(files));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('앨범에서 이미지를 가져오지 못했어요.')),
+      );
+    }
+  }
+
+  void _removeImageAt(int index) =>
+      setState(() => _pickedImages.removeAt(index));
+
+  // ── VWorld 지오코딩 + 200m 랜덤 ────────────────────────────────────────────
   Future<Map<String, double>?> _addrToCoordinate(String address) async {
     const KEY = '859C0BAE-5962-3698-97E5-FE4089A6517A';
-
     final url = Uri.https('api.vworld.kr', '/req/address', {
       'service': 'address',
       'request': 'getcoord',
@@ -218,153 +207,99 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
     });
 
     try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final decodedData = jsonDecode(response.body);
-
-        if (decodedData['response']?['status'] == 'OK') {
-          final point = decodedData['response']['result']['point'];
-          final double longitude = double.parse(point['x']); // 경도
-          final double latitude = double.parse(point['y']); // 위도
-          debugPrint('>> 변환된 경도: $longitude');
-          debugPrint('>> 변환된 위도: $latitude');
-          return {'longitude': longitude, 'latitude': latitude};
-        } else {
-          final errorMessage =
-              decodedData['response']?['error']?['text'] ?? '좌표 변환 실패';
-          debugPrint('>> API Error: $errorMessage');
-          return null;
-        }
-      } else {
-        debugPrint('>> HTTP Error: ${response.statusCode}');
-        return null;
+      final res = await http.get(url);
+      if (res.statusCode != 200) return null;
+      final decoded = jsonDecode(res.body);
+      if (decoded['response']?['status'] == 'OK') {
+        final p = decoded['response']['result']['point'];
+        final lon = double.tryParse('${p['x']}');
+        final lat = double.tryParse('${p['y']}');
+        if (lat == null || lon == null) return null;
+        return {'latitude': lat, 'longitude': lon};
       }
-    } catch (e) {
-      debugPrint('Geocoding error: $e');
+      return null;
+    } catch (_) {
       return null;
     }
   }
 
-  /// 좌표 랜덤화(반경)
-  Map<String, double> _getRandomCoordinate(
+  Map<String, double> _randomizeCoord(
     Map<String, double> center,
-    double radiusInMeters,
+    double meter,
   ) {
-    final random = Random();
-    final double centerLng = center['longitude'] as double;
-    final double centerLat = center['latitude'] as double;
+    final r = Random();
+    const R = 6371000.0; // m
+    final lat = center['latitude']!;
+    final lon = center['longitude']!;
 
-    const earthRadius = 6371000.0; // meters
-    final randomDist = sqrt(random.nextDouble()) * radiusInMeters;
-    final randomAngle = random.nextDouble() * 2 * pi;
+    final dist = sqrt(r.nextDouble()) * meter;
+    final ang = r.nextDouble() * 2 * pi;
 
-    final lngOffset =
-        (randomDist * sin(randomAngle)) /
-        (earthRadius * cos(centerLat * pi / 180));
-    final latOffset = (randomDist * cos(randomAngle)) / earthRadius;
+    final dLat = (dist * cos(ang)) / R;
+    final dLon = (dist * sin(ang)) / (R * cos(lat * pi / 180));
 
-    final double newLng = centerLng + lngOffset * 180 / pi;
-    final double newLat = centerLat + latOffset * 180 / pi;
-
-    return {'longitude': newLng, 'latitude': newLat};
+    return {
+      'latitude': lat + dLat * 180 / pi,
+      'longitude': lon + dLon * 180 / pi,
+    };
   }
 
-  void _onScaffoldTap(BuildContext context) {
-    FocusScope.of(context).unfocus();
-  }
+  // ── lifecycle ──────────────────────────────────────────────────────────────
+  DateTime? _selectedMovingDate;
+  bool _isPosting = false;
 
-  void _onTimePickerChanged(DateTime date) {
-    _selectedMovingDate = date;
-    _movingDateCtrl.text =
-        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-  }
+  @override
+  void initState() {
+    super.initState();
+    _loadMe();
 
-  Future<void> _onTimeFieldTap() async {
-    await showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return CupertinoDatePicker(
-          mode: CupertinoDatePickerMode.date,
-          onDateTimeChanged: (date) => _onTimePickerChanged(date),
-          minimumDate: DateTime.now(),
-          initialDateTime: DateTime.now(),
-        );
-      },
-    );
-  }
-
-  /// 작성 모드 유효성 (수정 모드에선 _currentUser 없어도 통과)
-  bool _isNextAvailable() {
-    final baseReady =
-        _titleCtrl.text.isNotEmpty &&
-        _addrCtrl.text.isNotEmpty &&
-        _depositCtrl.text.isNotEmpty &&
-        _rentCtrl.text.isNotEmpty &&
-        _manageFeeCtrl.text.isNotEmpty &&
-        _corFloorCtrl.text.isNotEmpty &&
-        _wholeFloorCtrl.text.isNotEmpty &&
-        _areaCtrl.text.isNotEmpty &&
-        _toiletCtrl.text.isNotEmpty &&
-        _movingDateCtrl.text.isNotEmpty &&
-        _minContractCtrl.text.isNotEmpty &&
-        _maxContractCtrl.text.isNotEmpty &&
-        _introductionCtrl.text.isNotEmpty;
-
-    if (_isEdit) return baseReady;
-    // 작성 모드일 때만 사용자 정보 필요
-    return _currentUser != null && baseReady;
-  }
-
-  /// 신규 작성
-  Future<void> _onNextTap() async {
-    if (_isPosting || !_isNextAvailable()) return;
-    setState(() => _isPosting = true);
-
-    try {
-      final centerCoords = await _addrToCoordinate(_addrCtrl.text);
-      if (centerCoords == null) {
-        throw Exception('주소를 좌표로 변환하는데 실패했습니다.');
-      }
-      final randomCoordinate = _getRandomCoordinate(centerCoords, 200.0);
-
-      final post = RoomOwnerPost(
-        authorId: _currentUser!.uid,
-        postType: _currentUser!.userType!.type,
-        title: _titleCtrl.text,
-        addr: GeoPoint(
-          randomCoordinate['latitude']!,
-          randomCoordinate['longitude']!,
-        ),
-        addressLabel: _addrCtrl.text,
-        deposit: int.tryParse(_depositCtrl.text) ?? 0,
-        rent: int.tryParse(_rentCtrl.text) ?? 0,
-        manageFee: int.tryParse(_manageFeeCtrl.text) ?? 0,
-        corFloor: int.tryParse(_corFloorCtrl.text) ?? 0,
-        wholeFloor: int.tryParse(_wholeFloorCtrl.text) ?? 0,
-        area: int.tryParse(_areaCtrl.text) ?? 0,
-        toilet: int.tryParse(_toiletCtrl.text) ?? 0,
-        movingDate: _selectedMovingDate != null
-            ? Timestamp.fromDate(_selectedMovingDate!)
-            : null,
-        minContract: int.tryParse(_minContractCtrl.text) ?? 0,
-        maxContract: int.tryParse(_maxContractCtrl.text) ?? 0,
-        introduction: _introductionCtrl.text,
-      );
-
-      await _postRepository.createPost(post);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('게시글 저장 완료~')));
-      Navigator.of(context).pop();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('오류: $e')));
-      setState(() => _isPosting = false);
+    // ✅ 입력값 변경 시 버튼 상태/색 갱신
+    for (final c in [
+      _titleCtrl,
+      _addrCtrl,
+      _depositCtrl,
+      _rentCtrl,
+      _manageFeeCtrl,
+      _corFloorCtrl,
+      _wholeFloorCtrl,
+      _areaCtrl,
+      _toiletCtrl,
+      _movingDateCtrl,
+      _minContractCtrl,
+      _maxContractCtrl,
+      _introductionCtrl,
+    ]) {
+      c.addListener(() {
+        if (mounted) setState(() {});
+      });
     }
+
+    // 수정 모드라면 초기값 세팅
+    final p = widget.postToEdit;
+    if (p != null) {
+      _titleCtrl.text = p.title ?? '';
+      _addrCtrl.text = p.addressLabel ?? '';
+      _depositCtrl.text = (p.deposit ?? 0).toString();
+      _rentCtrl.text = (p.rent ?? 0).toString();
+      _manageFeeCtrl.text = (p.manageFee ?? 0).toString();
+      _corFloorCtrl.text = (p.corFloor ?? 0).toString();
+      _wholeFloorCtrl.text = (p.wholeFloor ?? 0).toString();
+      _areaCtrl.text = (p.area ?? 0).toString();
+      _toiletCtrl.text = (p.toilet ?? 0).toString();
+      _movingDateCtrl.text = p.movingDate != null
+          ? DateFormat('yyyy-MM-dd').format(p.movingDate!.toDate())
+          : '';
+      _minContractCtrl.text = (p.minContract ?? 0).toString();
+      _maxContractCtrl.text = (p.maxContract ?? 0).toString();
+      _introductionCtrl.text = p.introduction ?? '';
+      _selectedMovingDate = p.movingDate?.toDate();
+    }
+  }
+
+  Future<void> _loadMe() async {
+    final me = await _userRepository.fetchMe();
+    if (!mounted) return;
+    setState(() => _me = me);
   }
 
   @override
@@ -385,12 +320,250 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
     super.dispose();
   }
 
+  // ── time picker ────────────────────────────────────────────────────────────
+  void _onTimePickerChanged(DateTime date) {
+    _selectedMovingDate = date;
+    _movingDateCtrl.text =
+        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    if (mounted) setState(() {}); // 버튼 색 갱신
+  }
+
+  Future<void> _onTimeFieldTap() async {
+    await showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return CupertinoDatePicker(
+          mode: CupertinoDatePickerMode.date,
+          onDateTimeChanged: _onTimePickerChanged,
+          minimumDate: DateTime.now(),
+          initialDateTime: DateTime.now(),
+        );
+      },
+    );
+  }
+
+  // ── validators ─────────────────────────────────────────────────────────────
+  bool _isNextAvailable() {
+    final base =
+        _titleCtrl.text.isNotEmpty &&
+        _addrCtrl.text.isNotEmpty &&
+        _depositCtrl.text.isNotEmpty &&
+        _rentCtrl.text.isNotEmpty &&
+        _manageFeeCtrl.text.isNotEmpty &&
+        _corFloorCtrl.text.isNotEmpty &&
+        _wholeFloorCtrl.text.isNotEmpty &&
+        _areaCtrl.text.isNotEmpty &&
+        _toiletCtrl.text.isNotEmpty &&
+        _movingDateCtrl.text.isNotEmpty &&
+        _minContractCtrl.text.isNotEmpty &&
+        _maxContractCtrl.text.isNotEmpty &&
+        _introductionCtrl.text.isNotEmpty;
+
+    // 작성 모드에서는 사용자 정보 필요
+    if (_isEdit) return base;
+    return base && _me != null;
+  }
+
+  // ── juso search ────────────────────────────────────────────────────────────
+  Future<void> _searchAddress(String keyword) async {
+    if (keyword.isEmpty) {
+      setState(() {
+        _errorMessage = '검색어를 입력해주세요.';
+        _addresses = [];
+      });
+      return;
+    }
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    final url = Uri.https('www.juso.go.kr', '/addrlink/addrLinkApi.do', {
+      'confmKey': _jusoKey,
+      'currentPage': '1',
+      'countPerPage': '20',
+      'keyword': keyword,
+      'resultType': 'json',
+    });
+
+    try {
+      final res = await http.get(url);
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body);
+        final juso = decoded['results']?['juso'] as List?;
+        setState(() {
+          _addresses = juso ?? [];
+          if (_addresses.isEmpty) _errorMessage = '검색 결과가 없습니다.';
+        });
+      } else {
+        setState(() => _errorMessage = 'API 서버 오류: ${res.statusCode}');
+      }
+    } catch (e) {
+      setState(() => _errorMessage = '데이터 요청 중 오류: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // ── save (작성 & 수정) ─────────────────────────────────────────────────────
+  Future<void> _onSave() async {
+    if (!_isNextAvailable() || _isPosting) return;
+    setState(() => _isPosting = true);
+
+    try {
+      // uid 확보(미로그인 대비)
+      final auth = FirebaseAuth.instance;
+      final user = auth.currentUser ?? (await auth.signInAnonymously()).user!;
+      final uid = user.uid;
+
+      // 공통 필드
+      final common = <String, dynamic>{
+        'title': _titleCtrl.text,
+        'addressLabel': _addrCtrl.text,
+        'deposit': int.tryParse(_depositCtrl.text) ?? 0,
+        'rent': int.tryParse(_rentCtrl.text) ?? 0,
+        'manageFee': int.tryParse(_manageFeeCtrl.text) ?? 0,
+        'corFloor': int.tryParse(_corFloorCtrl.text) ?? 0,
+        'wholeFloor': int.tryParse(_wholeFloorCtrl.text) ?? 0,
+        'area': int.tryParse(_areaCtrl.text) ?? 0,
+        'toilet': int.tryParse(_toiletCtrl.text) ?? 0,
+        'minContract': int.tryParse(_minContractCtrl.text) ?? 0,
+        'maxContract': int.tryParse(_maxContractCtrl.text) ?? 0,
+        'introduction': _introductionCtrl.text,
+        'movingDate': _selectedMovingDate == null
+            ? null
+            : Timestamp.fromDate(_selectedMovingDate!),
+      };
+
+      final col = FirebaseFirestore.instance.collection('roomOwnerPosts');
+
+      if (_isEdit) {
+        // ── 수정 모드 ────────────────────────────────────────────────────────
+        final docId = widget.postToEdit!.postId!;
+        final docRef = col.doc(docId);
+
+        // 주소가 바뀐 경우: 지오코딩 → 200m 랜덤 → addr 갱신
+        final oldLabel = widget.postToEdit!.addressLabel ?? '';
+        final newLabel = _addrCtrl.text.trim();
+        if (newLabel.isNotEmpty && newLabel != oldLabel) {
+          final center = await _addrToCoordinate(newLabel);
+          if (center != null) {
+            final jitter = _randomizeCoord(center, 200.0);
+            common['addr'] = GeoPoint(
+              jitter['latitude']!,
+              jitter['longitude']!,
+            );
+          }
+        }
+
+        // 텍스트/숫자 등 기본 필드 업데이트
+        await docRef.update({
+          ...common,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // 새로 선택한 이미지가 있다면 업로드 후 imageUrls append
+        if (_pickedImages.isNotEmpty) {
+          final newPaths = await _uploadAllImagesToSupabase(
+            uid: uid,
+            postId: docId,
+          );
+
+          if (newPaths.isNotEmpty) {
+            final snap = await docRef.get();
+            final exist =
+                (snap.data()?['imageUrls'] as List?)
+                    ?.map((e) => e.toString())
+                    .toList() ??
+                <String>[];
+            final merged = [...exist, ...newPaths];
+            await docRef.update({
+              'imageUrls': merged,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('수정되었습니다.')),
+        );
+        Navigator.pop(context);
+        return;
+      }
+
+      // ── 작성 모드 ──────────────────────────────────────────────────────────
+      // 주소 → 좌표
+      final center = await _addrToCoordinate(_addrCtrl.text);
+      if (center == null) {
+        throw Exception('주소를 좌표로 변환하지 못했습니다.');
+      }
+      final jitter = _randomizeCoord(center, 200.0);
+
+      // 문서 선 생성 (imageUrls 비움)
+      final docRef = await col.add({
+        'authorId': _me?.uid ?? uid,
+        'postType': _me?.userType?.type ?? 'roomOwner',
+        'title': _titleCtrl.text,
+        'address': _addrCtrl.text,
+        'addressLabel': _addrCtrl.text,
+        'addr': GeoPoint(jitter['latitude']!, jitter['longitude']!),
+        'deposit': int.tryParse(_depositCtrl.text) ?? 0,
+        'rent': int.tryParse(_rentCtrl.text) ?? 0,
+        'manageFee': int.tryParse(_manageFeeCtrl.text) ?? 0,
+        'corFloor': int.tryParse(_corFloorCtrl.text) ?? 0,
+        'wholeFloor': int.tryParse(_wholeFloorCtrl.text) ?? 0,
+        'area': int.tryParse(_areaCtrl.text) ?? 0,
+        'toilet': int.tryParse(_toiletCtrl.text) ?? 0,
+        'minContract': int.tryParse(_minContractCtrl.text) ?? 0,
+        'maxContract': int.tryParse(_maxContractCtrl.text) ?? 0,
+        'introduction': _introductionCtrl.text,
+        'movingDate': _selectedMovingDate == null
+            ? null
+            : Timestamp.fromDate(_selectedMovingDate!),
+        'imageUrls': <String>[],
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+
+      final postId = docRef.id;
+
+      // 이미지 업로드 → imageUrls 업데이트
+      final uploadedPaths = await _uploadAllImagesToSupabase(
+        uid: uid,
+        postId: postId,
+      );
+
+      if (uploadedPaths.isNotEmpty) {
+        await docRef.update({
+          'imageUrls': uploadedPaths,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('게시글 저장 완료~')),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('오류: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isPosting = false);
+    }
+  }
+
+  // ── UI ─────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final buttonText = _isEdit ? '수정 완료' : '다음'; // ✅ 라벨 분기
+    final buttonText = _isEdit ? '수정 완료' : '다음';
+    final canSubmit = _isNextAvailable() && !_isPosting;
 
     return GestureDetector(
-      onTap: () => _onScaffoldTap(context),
+      onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
           elevation: 10,
@@ -405,6 +578,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 제목
                 const Text(
                   '제목을 입력해주세요!',
                   style: TextStyle(
@@ -421,6 +595,8 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   ),
                 ),
                 Gaps.v24,
+
+                // 주소 안내
                 const Text(
                   '주소를 입력해주세요!',
                   style: TextStyle(
@@ -429,10 +605,81 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   ),
                 ),
                 const Text(
-                  '다른 유저에게는 XX동 \'부근\'으로 보여져요.\n지도에는 실제 주소 반경 200m 내의 랜덤한 위치로 나타나요',
+                  '다른 유저에게는 XX동 \'부근\'으로 보여져요.\n지도에는 실제 주소 반경 200m 내의 랜덤한 위치로 표시돼요.',
                   style: TextStyle(fontSize: Sizes.size14, color: Colors.grey),
                 ),
                 Gaps.v6,
+
+                // 사진 업로드
+                const Text(
+                  '사진 업로드',
+                  style: TextStyle(
+                    fontSize: Sizes.size16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Gaps.v6,
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _uploadingImages ? null : _showPickSourceSheet,
+                      icon: const Icon(Icons.add_a_photo_outlined),
+                      label: const Text('사진 추가'),
+                    ),
+                    Gaps.h12,
+                    if (_uploadingImages)
+                      const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    if (!_uploadingImages) Text('${_pickedImages.length}장 선택됨'),
+                  ],
+                ),
+                Gaps.v12,
+                if (_pickedImages.isNotEmpty)
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                        ),
+                    itemCount: _pickedImages.length,
+                    itemBuilder: (_, i) => Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            File(_pickedImages[i].path),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: InkWell(
+                            onTap: () => _removeImageAt(i),
+                            child: const CircleAvatar(
+                              radius: 12,
+                              backgroundColor: Colors.black54,
+                              child: Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Gaps.v12,
+
+                // 주소 입력/검색
                 Row(
                   children: [
                     Expanded(
@@ -453,6 +700,8 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   child: _buildResults(),
                 ),
                 Gaps.v12,
+
+                // 금액/정보
                 Row(
                   children: [
                     Expanded(
@@ -493,6 +742,8 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   ],
                 ),
                 Gaps.v24,
+
+                // 층수
                 Row(
                   children: [
                     Expanded(
@@ -519,6 +770,8 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   ],
                 ),
                 Gaps.v24,
+
+                // 전용 면적 / 화장실 개수
                 const Text(
                   '전용 면적 / 화장실 개수',
                   style: TextStyle(
@@ -553,6 +806,8 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   ],
                 ),
                 Gaps.v24,
+
+                // 입주일
                 const Text(
                   '입주가능일',
                   style: TextStyle(
@@ -575,6 +830,8 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   ),
                 ),
                 Gaps.v24,
+
+                // 계약기간
                 Row(
                   children: [
                     Expanded(
@@ -603,6 +860,8 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                   ],
                 ),
                 Gaps.v24,
+
+                // 소개
                 TextField(
                   controller: _introductionCtrl,
                   minLines: 3,
@@ -617,17 +876,18 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
                 ),
                 Gaps.v24,
 
-                // ✅ 버튼: 모드별로 _onSave가 알아서 분기 처리
+                // 저장 버튼 (FormButton 유지)
                 GestureDetector(
-                  onTap: () async {
-                    if (!_isNextAvailable() || _isPosting) return;
-                    await _onSave();
-                  },
+                  behavior: HitTestBehavior.opaque,
+                  onTap: canSubmit ? _onSave : null, // ✅ 비활성 시 터치 불가
                   child: FormButton(
-                    enabled: _isNextAvailable() && !_isPosting,
+                    enabled: canSubmit,
                     widget: _isPosting
-                        ? const Center(
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
                             child: CircularProgressIndicator(
+                              strokeWidth: 2,
                               color: Colors.white,
                             ),
                           )
@@ -642,6 +902,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
     );
   }
 
+  // ── 검색 결과 리스트 ───────────────────────────────────────────────────────
   Widget _buildResults() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -654,7 +915,6 @@ class _RoomOwnerPostState extends State<RoomOwnerPostScreen> {
           final address = _addresses[index];
           return GestureDetector(
             onTap: () {
-              if (!mounted) return;
               setState(() {
                 _addrCtrl.text = address['roadAddr'] ?? '';
                 _addresses = [];
