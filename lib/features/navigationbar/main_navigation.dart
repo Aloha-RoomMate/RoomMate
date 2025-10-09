@@ -178,7 +178,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    // body: 인덱스별로 화면 배치
+    // body: 인덱스별로 화면 배치, 앱바 컨트롤
     final body = IndexedStack(
       index: _selectedIndex,
       children: const [
