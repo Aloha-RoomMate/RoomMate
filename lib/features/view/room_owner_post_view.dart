@@ -11,6 +11,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:roommate/class/chat_repository.dart';
 import 'package:roommate/features/chat/chat_screen.dart';
 import 'package:roommate/features/post/room_owner_post_screen.dart';
+import 'package:roommate/features/view/user_profile_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RoomOwnerPostView extends StatefulWidget {
@@ -298,7 +299,20 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                         subtitle: const Text('프로필 보기'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // TODO: 작성자 프로필
+                          final uid = widget.post.authorId;
+                          if (uid == null || uid.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('작성자 UID를 찾을 수 없어요.'),
+                              ),
+                            );
+                            return;
+                          }
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => UserProfileView(targetUid: uid),
+                            ),
+                          );
                         },
                       );
                     },
