@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:roommate/features/chat/chat_screen.dart';
-import 'package:roommate/features/chat/userlist_screen.dart';
+import 'package:roommate/features/recommend/userlist_screen.dart';
 
 class ChatListScreen extends StatelessWidget {
   const ChatListScreen({super.key});
