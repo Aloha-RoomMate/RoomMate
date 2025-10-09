@@ -82,16 +82,14 @@ class AppUser {
   }
 
   factory AppUser.fromMap(String uid, Map<String, dynamic> map) {
-    // Map from Firestore
     return AppUser(
       uid: uid,
-      // as ~? 로 지정해주는 이유: map 의 value (key:value) 가 dynamic 이므로.
       email: map['email'] as String?,
       displayName: (map['displayName'] as String? ?? '룸메이트'),
       photoURL: map['photoURL'] as String?,
-      createdAt: (map['createdAt'] as Timestamp?)
-          ?.toDate(), // 메소드 앞에 ? : null이면 null 반환.
+      createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
+
       dailyRhythm: DailyRhythm.fromMap(
         map['dailyRhythm'] as Map<String, dynamic>?, // null safety
       ),
@@ -102,7 +100,12 @@ class AppUser {
         map['coliving'] as Map<String, dynamic>?,
       ),
       disease: DiseaseInfo.fromMap(map['disease'] as Map<String, dynamic>?),
-      introduction: map['introduction'] as String?,
+      introduction: (map['introduction'] is String)
+          ? map['introduction'] as String
+          : ((map['introduction'] is Map<String, dynamic>)
+                ? (map['introduction'] as Map<String, dynamic>)['introduction']
+                      as String?
+                : null),
       hobby: Hobby.fromMap(
         map['hobby'] as Map<String, dynamic>?,
       ),
@@ -125,7 +128,6 @@ class AppUser {
       if (disease != null) 'disease': disease!.toMap(),
       if (introduction != null) 'introduction': introduction,
       if (userPass != null) 'userPass': userPass!.toMap(),
-      if (userType != null) 'userType': userType!.toMap(),
       if (hobby != null) 'hobby': hobby!.toMap(),
     };
     if (skipNulls) map.removeWhere((_, v) => v == null);

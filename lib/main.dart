@@ -1,58 +1,31 @@
+import 'package:roommate/firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:roommate/features/authentication/login/login_screen.dart';
-import 'package:roommate/features/authentication/login/welcome_screen.dart';
-import 'package:roommate/features/authentication/userinfo/roomowner_screen.dart';
-import 'package:roommate/features/authentication/userinfo/searcher_screen.dart';
-import 'package:roommate/features/authentication/userinfo/userjob_screen.dart';
-import 'package:roommate/features/navigationbar/main_navigation.dart';
-
-// (중요) $ flutter run -d RFCN100T0SX --dart-define=EMU_HOST=172.30.1.99 << 이런 형식으로 기기이름이랑, 현재 IPv4 를 적으면 연결 가능하다
-// 10.0.2.2 << 이건 안드로이드 에뮬레이터 전용이다. 이걸 먼저 탐색하기 때문에 이 IP를 모르는 공기계는 어리둥절 하게 된다. 때문에 위와같은 방법으로 강제하면 된다.
-// flutter run -d RFCN100T0SX --dart-define=EMU_HOST=172.30.1.99 우진현 집
-// flutter run -d RFCN100T0SX --dart-define=EMU_HOST=10.28.31.26 학교
-// flutter run -d RFCN100T0SX --dart-define=EMU_HOST=192.168.0.41 카페 만나소
-
-const _AUTH_PORT = 9099;
-const _FS_PORT = 8080;
-
-const _EMU_HOST_FROM_ENV = String.fromEnvironment('EMU_HOST', defaultValue: '');
-
-Future<String> _pickEmuHost() async {
-  if (_EMU_HOST_FROM_ENV.isNotEmpty) {
-    return _EMU_HOST_FROM_ENV;
-  }
-  if (Platform.isAndroid) return '10.0.2.2';
-  if (Platform.isIOS) return 'localhost';
-  return '127.0.0.1';
-}
+import 'package:roommate/features/authentication/widgets/auth_gate.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
-  await Firebase.initializeApp();
-
-  if (kDebugMode) {
-    final host = await _pickEmuHost();
-    await FirebaseAuth.instance.useAuthEmulator(host, 9099);
-    FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
-
-    FirebaseFirestore.instance.settings = const Settings(
-      sslEnabled: false,
-      persistenceEnabled: false,
-    );
-
-    debugPrint('🔌 Emulators -> $host:9099 / $host:8080');
-  }
   await FlutterNaverMap().init(
     clientId: '7j2w13vo27',
-    onAuthFailed: (e) => debugPrint('NaverMap auth fail: $e'),
+    onAuthFailed: (ex) {
+      debugPrint(
+        '[NMAP AUTH FAIL] type=${ex.runtimeType} code=${ex.code} msg=${ex.message}',
+      );
+    },
+  );
+
+  await Supabase.initialize(
+    url: 'https://ilukkxdegjhncnvduphh.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsdWtreGRlZ2pobmNudmR1cGhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3Mjg1MDEsImV4cCI6MjA3NTMwNDUwMX0.6I7eiO-o3LBvQa9DxJYp1ONpqqfnuqUxMZad_IFmHug',
   );
 
   runApp(const RoomMate());
@@ -61,7 +34,6 @@ void main() async {
 class RoomMate extends StatelessWidget {
   const RoomMate({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -69,23 +41,18 @@ class RoomMate extends StatelessWidget {
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
         primaryColor: Colors.green.shade600,
-        appBarTheme: AppBarTheme(
+        appBarTheme: const AppBarTheme(
           foregroundColor: Colors.black,
           backgroundColor: Colors.white,
           elevation: 0,
           titleTextStyle: TextStyle(
             fontWeight: FontWeight.w800,
-
-            fontSize: Sizes.size18, // size16 + size2
-
+            fontSize: Sizes.size18,
             color: Colors.black,
           ),
         ),
       ),
-      home: LoginScreen(
-        // userType: "",
-        // jobKinds: "",
-      ),
+      home: const AuthGate(),
     );
   }
 }

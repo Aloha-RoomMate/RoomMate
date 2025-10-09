@@ -12,7 +12,6 @@ class UserRepository {
   }) : _db = db ?? FirebaseFirestore.instance,
        _auth = authInstance ?? auth.FirebaseAuth.instance;
 
-  /// 로그인 한 유저의 firestore 경로 : _meDoc()
   DocumentReference<Map<String, dynamic>> _meDoc() {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
@@ -20,6 +19,10 @@ class UserRepository {
     }
     return _db.collection('users').doc(uid);
   }
+
+  // ---------------------------------------------------------------------------
+  // 기본 upsert
+  // ---------------------------------------------------------------------------
 
   Future<void> upsertFromAuth() async {
     final u = _auth.currentUser;
@@ -29,18 +32,16 @@ class UserRepository {
     final ref = _db.collection('users').doc(appUser.uid);
 
     await _db.runTransaction((tx) async {
-      final snap = await tx.get(ref); // 문서를 트랜잭션 단위로 읽어서 저장
+      final snap = await tx.get(ref);
 
       final base = <String, dynamic>{
-        ...appUser.toMap(), // 기존 appUser Map을 그대로 펼침 -> 알맹이만 꺼냄.
-        'updatedAt': FieldValue.serverTimestamp(), // 이 줄 추가해서 새로 저장.
+        ...appUser.toMap(),
+        'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      // 기존 회원이면
       if (snap.exists) {
         tx.set(ref, base, SetOptions(merge: true));
       } else {
-        // 신규 회원이면
         tx.set(
           ref,
           {
@@ -53,28 +54,92 @@ class UserRepository {
     });
   }
 
-  /// 2) Daily rhythm (nested object)
-  Future<void> setDailyRhythm(DailyRhythm rhythm) async {
-    await _meDoc().set(
+  // ---------------------------------------------------------------------------
+  // userPass 집계/판정 로직
+  // ---------------------------------------------------------------------------
+
+  /// 현재 문서를 읽어 userPass.pass 조건을 계산한다.
+  bool _calcPass(Map<String, dynamic> data) {
+    final up =
+        (data['userPass'] as Map<String, dynamic>?) ??
+        const <String, dynamic>{};
+
+    final hasDR =
+        up['dailyRhythm'] is Map && (up['dailyRhythm'] as Map).isNotEmpty;
+    final hasCL = up['coliving'] is Map && (up['coliving'] as Map).isNotEmpty;
+    final hasDS = up['disease'] is Map && (up['disease'] as Map).isNotEmpty;
+
+    // introduction은 현재 { introduction: String } 형태로 저장되는 경우 지원
+    final introAny = up['introduction'];
+    final introText = (introAny is Map)
+        ? (introAny['introduction']?.toString() ?? '')
+        : (introAny is String ? introAny : '');
+    final hasIntro = introText.length >= 50;
+
+    return hasDR && hasCL && hasDS && hasIntro;
+  }
+
+  /// userPass.pass를 재계산해서 저장 (userPass 부분이 변경될 때마다 호출)
+  Future<void> _recomputeAndSetPass() async {
+    final ref = _meDoc();
+    final snap = await ref.get();
+    final data = snap.data() ?? const <String, dynamic>{};
+    final pass = _calcPass(data);
+
+    await ref.set(
       {
-        'dailyRhythm': rhythm.toMap(),
+        'userPass': {'pass': pass},
         'updatedAt': FieldValue.serverTimestamp(),
       },
-      SetOptions(merge: true), // 덮지 말고 합쳐주세요.
+      SetOptions(merge: true),
     );
+  }
+
+  /// 런타임 계산 버전(저장 안 해도 바로 락 상태 확인 가능)
+  Future<bool> getUserPassStatus() async {
+    final s = await _meDoc().get();
+    final data = s.data() ?? const <String, dynamic>{};
+    return _calcPass(data);
+  }
+
+  /// 실시간 계산(마이페이지에서 오버레이 락에 쓰면 즉시 반영)
+  Stream<bool> watchUserPassStatus() {
+    return _meDoc().snapshots().map((s) {
+      final data = s.data() ?? const <String, dynamic>{};
+      return _calcPass(data);
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Writers (상위 필드 + userPass.* 함께 세팅)
+  // ---------------------------------------------------------------------------
+
+  Future<void> setDailyRhythm(DailyRhythm rhythm) async {
+    final ref = _meDoc();
+    await ref.set(
+      {
+        'dailyRhythm': rhythm.toMap(),
+        'userPass': {
+          'dailyRhythm': rhythm.toMap(),
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+    await _recomputeAndSetPass();
   }
 
   Future<void> setUserTypeData({
     required String uid,
     required String type,
-    required String jobKinds, // ✅ String으로 수정
+    required String jobKinds, // 문자열 유지
     required String address,
     List<String>? searchAreas,
   }) async {
-    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+    await _db.collection('users').doc(uid).set({
       'userType': {
         'type': type,
-        'jobKinds': jobKinds, // ✅ 문자열로 저장
+        'jobKinds': jobKinds,
         'address': address,
         'searchAreas': searchAreas,
       },
@@ -82,40 +147,54 @@ class UserRepository {
     }, SetOptions(merge: true));
   }
 
-  /// 3) Coliving
   Future<void> setColiving(Coliving cl) async {
-    await _meDoc().set(
+    final ref = _meDoc();
+    final map = cl.toMap();
+    await ref.set(
       {
-        'coliving': cl.toMap(),
+        'coliving': map,
+        'userPass': {
+          'coliving': map,
+        },
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
+    await _recomputeAndSetPass();
   }
 
-  /// 4) Disease info
   Future<void> setDisease(DiseaseInfo d) async {
-    await _meDoc().set(
+    final ref = _meDoc();
+    final map = d.toMap();
+    await ref.set(
       {
-        'disease': d.toMap(),
+        'disease': map,
+        'userPass': {
+          'disease': map,
+        },
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
+    await _recomputeAndSetPass();
   }
 
-  /// 5) Introduction text
   Future<void> setIntroduction(Introduction introduction) async {
-    await _meDoc().set(
+    final ref = _meDoc();
+    final map = introduction.toMap(); // { introduction: ... }
+    await ref.set(
       {
-        'introduction': introduction.toMap(),
+        'introduction': map, // 상위 필드에도 동일 포맷
+        'userPass': {
+          'introduction': map,
+        },
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
+    await _recomputeAndSetPass();
   }
 
-  /// Optional: profile basics update (displayName/photoURL)
   Future<void> updateProfile({
     String? displayName,
     String? photoURL,
@@ -133,9 +212,10 @@ class UserRepository {
   Future<void> setHobby(Hobby hobby) async {
     await _meDoc().set(
       {
+        // 과거 'UserLike' 키도 유지한다면 아래 라인 그대로,
+        // 새로 'hobby'로만 쓰려면 'hobby': hobby.toMap() 로 변경.
         'UserLike': hobby.toMap(),
-
-        'updatdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
@@ -145,14 +225,12 @@ class UserRepository {
   // Readers
   // ---------------------------------------------------------------------------
 
-  /// One-shot read of users/{uid}
   Future<AppUser?> fetchMe() async {
     final ref = _meDoc();
     final s = await ref.get();
     return s.exists ? AppUser.fromDoc(s) : null;
   }
 
-  /// Realtime stream of users/{uid}
   Stream<AppUser?> watchMe() {
     final ref = _meDoc();
     return ref.snapshots().map(

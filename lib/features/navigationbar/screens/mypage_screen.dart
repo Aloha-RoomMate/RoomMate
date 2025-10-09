@@ -1,7 +1,6 @@
 // 샤라웃 투 https://github.com/youngsoonoh/youtube_profile/tree/example1 오용순
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart'; // 사용 중이면 유지, 아니면 제거 가능
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -25,22 +24,21 @@ class MypageScreen extends StatefulWidget {
 
 class _MypageScreenState extends State<MypageScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _repo = UserRepository();
 
   File? _profileImage;
 
-  /// 다음(추가 정보 입력) 화면으로
   void _onNextTap() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const DailyRhythmScreen()),
     );
   }
 
-  /// 내 프로필 데이터 가져오기
   Future<AppUser?> _getMyData() async {
-    return await UserRepository().fetchMe();
+    return await _repo.fetchMe();
   }
 
-  /// 갤러리에서 이미지 선택
+  // -------------------- 이미지 처리 --------------------
   Future<void> _getPhotoLibraryImage() async {
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
@@ -51,7 +49,6 @@ class _MypageScreenState extends State<MypageScreen> {
     setState(() => _profileImage = File(picked.path));
   }
 
-  /// 카메라로 촬영
   Future<void> _getCameraImage() async {
     final picked = await ImagePicker().pickImage(
       source: ImageSource.camera,
@@ -62,13 +59,11 @@ class _MypageScreenState extends State<MypageScreen> {
     setState(() => _profileImage = File(picked.path));
   }
 
-  /// 기본 프로필로
   Future<void> _getBasicProfile() async {
     if (!mounted) return;
     setState(() => _profileImage = null);
   }
 
-  /// 하단 시트(프로필 변경)
   Future<void> _showBottomSheet() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -118,7 +113,7 @@ class _MypageScreenState extends State<MypageScreen> {
     );
   }
 
-  /// 로그아웃
+  // -------------------- 계정 --------------------
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
@@ -127,6 +122,7 @@ class _MypageScreenState extends State<MypageScreen> {
     );
   }
 
+  // -------------------- UI --------------------
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<AppUser?>(
@@ -143,7 +139,10 @@ class _MypageScreenState extends State<MypageScreen> {
           );
         }
         final data = snapshot.data!;
-        final col = data.userPass?.coliving;
+
+        // userPass 하위 데이터가 없을 수도 있으므로 상위 필드로 폴백
+        final dr = data.userPass?.dailyRhythm ?? data.dailyRhythm;
+        final col = data.userPass?.coliving ?? data.coliving;
         final ut = data.userType;
         final h = data.hobby;
 
@@ -160,7 +159,6 @@ class _MypageScreenState extends State<MypageScreen> {
             ],
           ),
 
-          /// ✅ 마이페이지 전용 Drawer
           endDrawer: _MyPageEndDrawer(
             displayName: data.displayName,
             email: data.email ?? '',
@@ -170,76 +168,83 @@ class _MypageScreenState extends State<MypageScreen> {
 
           body: Padding(
             padding: const EdgeInsets.all(Sizes.size12),
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                const SizedBox(height: 12),
-                Center(
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundColor: Colors.grey.shade200,
-                        backgroundImage: _profileImage != null
-                            ? FileImage(_profileImage!)
-                            : null,
-                        child: _profileImage == null
-                            ? Icon(
-                                Icons.person,
-                                size: 48,
-                                color: Colors.grey.shade600,
-                              )
-                            : null,
-                      ),
-                      const SizedBox(height: 2),
+            child: StreamBuilder<bool>(
+              // 🔥 락 상태는 실시간 계산 스트림으로 판단 (userPass.pass 저장 여부와 무관)
+              stream: _repo.watchUserPassStatus(),
+              builder: (context, lockSnap) {
+                final locked = !(lockSnap.data ?? false);
 
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 100),
-                        child: Column(
-                          children: [
-                            Text(
-                              data.displayName,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.titleMedium,
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Divider(
-                  height: 1,
-                  color: Theme.of(context).primaryColor.withAlpha(100),
-                ),
-
-                /// 본문 컨텐츠
-                Stack(
+                return Stack(
                   children: [
-                    Column(
+                    ListView(
+                      padding: EdgeInsets.zero,
                       children: [
-                        AccordionWidget(
-                          title: " 내 생활패턴",
-                          content: Builder(
-                            builder: (_) {
-                              final dr = data.userPass?.dailyRhythm;
-                              final workDays = dr?.workDays ?? const <String>[];
-                              final hasWorkDays = workDays.isNotEmpty;
+                        const SizedBox(height: 12),
+                        Center(
+                          child: Column(
+                            children: [
+                              CircleAvatar(
+                                radius: 60,
+                                backgroundColor: Colors.grey.shade200,
+                                backgroundImage: _profileImage != null
+                                    ? FileImage(_profileImage!)
+                                    : null,
+                                child: _profileImage == null
+                                    ? Icon(
+                                        Icons.person,
+                                        size: 48,
+                                        color: Colors.grey.shade600,
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(height: 2),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 100,
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      data.displayName,
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleMedium,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                    Text(ut?.type ?? '-'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Divider(
+                          height: 1,
+                          color: Theme.of(context).primaryColor.withAlpha(100),
+                        ),
 
-                              return Column(
+                        // 본문
+                        Column(
+                          children: [
+                            // 생활 패턴
+                            AccordionWidget(
+                              title: " 내 생활패턴",
+                              content: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   LabeldRow(
                                     label: "출근일 :",
                                     chips: [
-                                      for (final d in workDays)
+                                      for (final d
+                                          in (dr?.workDays ?? const <String>[]))
                                         ChipButton(text: d, isSelected: true),
                                     ],
                                   ),
-                                  if (hasWorkDays)
+                                  if ((dr?.workDays ?? const <String>[])
+                                      .isNotEmpty)
                                     LabeldRow(
                                       label: "주말 시간",
                                       chips: [
@@ -256,170 +261,185 @@ class _MypageScreenState extends State<MypageScreen> {
                                       ],
                                     )
                                   else
-                                    const LabeldRow(
-                                      label: "주말 시간",
-                                      chips: [],
-                                    ),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                        AccordionWidget(
-                          title: " 내 공동 생활 성향",
-                          content: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              LabeldRow(
-                                label: "공용공간 사용 선호도 :",
-                                chips: [
-                                  if ((col?.coSpace ?? '').isNotEmpty)
-                                    ChipButton(
-                                      text: col!.coSpace,
-                                      isSelected: true,
-                                    ),
+                                    const LabeldRow(label: "주말 시간", chips: []),
                                 ],
                               ),
-                              LabeldRow(
-                                label: "화장실 청결 민감도 : ",
-                                chips: [
-                                  if ((col?.bathroom ?? '').isNotEmpty)
-                                    ChipButton(
-                                      text: col!.bathroom,
-                                      isSelected: true,
-                                    ),
-                                ],
-                              ),
-                              LabeldRow(
-                                label: "MBTI : ",
-                                chips: [
-                                  if ((col?.mbti ?? '').isNotEmpty)
-                                    ChipButton(
-                                      text: col!.mbti,
-                                      isSelected: true,
-                                    ),
-                                ],
-                              ),
-                              LabeldRow(
-                                label: "반려동물 : ",
-                                chips: (col?.pet ?? const <String>[])
-                                    .map(
-                                      (p) =>
-                                          ChipButton(text: p, isSelected: true),
-                                    )
-                                    .toList(),
-                              ),
-                              LabeldRow(
-                                label: "흡연 : ",
-                                chips: [
-                                  if (col?.smoking != null)
-                                    ChipButton(
-                                      text: col!.smoking ? '흡연' : '비흡연',
-                                      isSelected: true,
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        AccordionWidget(
-                          title: " 내 유저타입",
-                          content: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              LabeldRow(
-                                label: "유저타입 :",
-                                chips: [
-                                  ChipButton(
-                                    text: (ut?.type == "roomOwner")
-                                        ? "RoomOwner"
-                                        : "Searcher",
-                                    isSelected: true,
+                            ),
+
+                            // 공동 생활 성향
+                            AccordionWidget(
+                              title: " 내 공동 생활 성향",
+                              content: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  LabeldRow(
+                                    label: "공용공간 사용 선호도 :",
+                                    chips: [
+                                      if ((col?.coSpace ?? '').isNotEmpty)
+                                        ChipButton(
+                                          text: col!.coSpace,
+                                          isSelected: true,
+                                        ),
+                                    ],
+                                  ),
+                                  LabeldRow(
+                                    label: "화장실 청결 민감도 : ",
+                                    chips: [
+                                      if ((col?.bathroom ?? '').isNotEmpty)
+                                        ChipButton(
+                                          text: col!.bathroom,
+                                          isSelected: true,
+                                        ),
+                                    ],
+                                  ),
+                                  LabeldRow(
+                                    label: "MBTI : ",
+                                    chips: [
+                                      if ((col?.mbti ?? '').isNotEmpty)
+                                        ChipButton(
+                                          text: col!.mbti,
+                                          isSelected: true,
+                                        ),
+                                    ],
+                                  ),
+                                  LabeldRow(
+                                    label: "반려동물 : ",
+                                    chips: (col?.pet ?? const <String>[])
+                                        .map(
+                                          (p) => ChipButton(
+                                            text: p,
+                                            isSelected: true,
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                  LabeldRow(
+                                    label: "흡연 : ",
+                                    chips: [
+                                      if (col?.smoking != null)
+                                        ChipButton(
+                                          text: col!.smoking ? '흡연' : '비흡연',
+                                          isSelected: true,
+                                        ),
+                                    ],
                                   ),
                                 ],
                               ),
-                              if (ut?.type == "roomOwner")
-                                LabeldRow(
-                                  label: "주소",
-                                  chips: [
-                                    ChipButton(
-                                      text: (ut?.address ?? '주소 없음')
-                                          .split('(')
-                                          .first
-                                          .trim(),
-                                      isSelected: true,
-                                    ),
-                                  ],
-                                )
-                              else
-                                LabeldRow(
-                                  label: "선호 지역 : ",
-                                  chips: (ut?.searchAreas ?? const <String>[])
-                                      .map(
-                                        (a) => ChipButton(
-                                          text: a,
+                            ),
+
+                            // 유저 타입
+                            AccordionWidget(
+                              title: " 내 유저타입",
+                              content: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  LabeldRow(
+                                    label: "유저타입 :",
+                                    chips: [
+                                      ChipButton(
+                                        text: (ut?.type == "roomOwner")
+                                            ? "RoomOwner"
+                                            : "Searcher",
+                                        isSelected: true,
+                                      ),
+                                    ],
+                                  ),
+                                  if (ut?.type == "roomOwner")
+                                    LabeldRow(
+                                      label: "주소",
+                                      chips: [
+                                        ChipButton(
+                                          text: (ut?.address ?? '주소 없음')
+                                              .split('(')
+                                              .first
+                                              .trim(),
                                           isSelected: true,
                                         ),
-                                      )
-                                      .toList(),
-                                ),
-                            ],
-                          ),
-                        ),
-                        AccordionWidget(
-                          title: " 내 취미",
-                          content: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              LabeldRow(
-                                label: "최애 음식 :",
-                                chips: (h?.foodLike ?? const <String>[])
-                                    .map(
-                                      (x) =>
-                                          ChipButton(text: x, isSelected: true),
+                                      ],
                                     )
-                                    .toList(),
+                                  else
+                                    LabeldRow(
+                                      label: "선호 지역 : ",
+                                      chips:
+                                          (ut?.searchAreas ?? const <String>[])
+                                              .map(
+                                                (a) => ChipButton(
+                                                  text: a,
+                                                  isSelected: true,
+                                                ),
+                                              )
+                                              .toList(),
+                                    ),
+                                ],
                               ),
-                              LabeldRow(
-                                label: "요즘 관심사 :",
-                                chips: (h?.interestLike ?? const <String>[])
-                                    .map(
-                                      (x) =>
-                                          ChipButton(text: x, isSelected: true),
-                                    )
-                                    .toList(),
+                            ),
+
+                            // 취미
+                            AccordionWidget(
+                              title: " 내 취미",
+                              content: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  LabeldRow(
+                                    label: "최애 음식 :",
+                                    chips: (h?.foodLike ?? const <String>[])
+                                        .map(
+                                          (x) => ChipButton(
+                                            text: x,
+                                            isSelected: true,
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                  LabeldRow(
+                                    label: "요즘 관심사 :",
+                                    chips: (h?.interestLike ?? const <String>[])
+                                        .map(
+                                          (x) => ChipButton(
+                                            text: x,
+                                            isSelected: true,
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                  LabeldRow(
+                                    label: "운동 :",
+                                    chips: (h?.sportLike ?? const <String>[])
+                                        .map(
+                                          (x) => ChipButton(
+                                            text: x,
+                                            isSelected: true,
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                ],
                               ),
-                              LabeldRow(
-                                label: "운동 :",
-                                chips: (h?.sportLike ?? const <String>[])
-                                    .map(
-                                      (x) =>
-                                          ChipButton(text: x, isSelected: true),
-                                    )
-                                    .toList(),
+                            ),
+
+                            const SizedBox(height: 20),
+                            SizedBox(
+                              height: 160,
+                              child: ListView(
+                                scrollDirection: Axis.vertical,
+                                children: const <Widget>[
+                                  ListTile(
+                                    leading: Icon(Icons.home),
+                                    title: Text("내가 만든 쿠키~"),
+                                    trailing: Icon(Icons.navigate_next_rounded),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          height: 160,
-                          child: ListView(
-                            scrollDirection: Axis.vertical,
-                            children: const <Widget>[
-                              ListTile(
-                                leading: Icon(Icons.home),
-                                title: Text("내가 만든 쿠키~"),
-                                trailing: Icon(Icons.navigate_next_rounded),
-                              ),
-                            ],
-                          ),
-                        ),
+
+                        Gaps.v24,
                       ],
                     ),
 
-                    /// 통과 전 오버레이(잠금)
-                    if (data.userPass?.pass == false) ...[
+                    // 🔒 락 오버레이 - 스트림 결과로 즉시 해제
+                    if (locked) ...[
                       Positioned.fill(
                         child: Container(
                           decoration: const BoxDecoration(
@@ -463,8 +483,8 @@ class _MypageScreenState extends State<MypageScreen> {
                       ),
                     ],
                   ],
-                ),
-              ],
+                );
+              },
             ),
           ),
         );
@@ -473,7 +493,8 @@ class _MypageScreenState extends State<MypageScreen> {
   }
 }
 
-/// 마이페이지 전용 Drawer 위젯
+// -------------------- Drawer --------------------
+
 class _MyPageEndDrawer extends StatelessWidget {
   final String displayName;
   final String email;
@@ -543,7 +564,8 @@ class _MyPageEndDrawer extends StatelessWidget {
   }
 }
 
-/// 라벨 + 칩 나열
+// -------------------- 라벨 + 칩 나열 --------------------
+
 class LabeldRow extends StatelessWidget {
   final String label;
   final List<Widget> chips;
