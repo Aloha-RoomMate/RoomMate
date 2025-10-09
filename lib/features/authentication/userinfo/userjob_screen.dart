@@ -1,6 +1,7 @@
 // 화면 깜빡임을 줄이기 위해 빌드를 너무 자주하게 하면 안된다.
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/userinfo/roomowner_screen.dart';
 import 'package:roommate/features/authentication/userinfo/searcher_screen.dart';
@@ -91,10 +92,7 @@ class _UserjobScreenState extends State<UserjobScreen> {
     } else {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => SearcherScreen(
-            userType: 'searcher',
-            jobKinds: selectedJobs,
-          ),
+          builder: (_) => SearcherScreen(),
         ),
       );
     }

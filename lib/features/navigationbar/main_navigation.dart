@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/class/app_user.dart';
-import 'package:roommate/class/searcher_post.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';

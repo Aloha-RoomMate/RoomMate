@@ -7,9 +7,9 @@ import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/view/room_owner_post_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class PostContainer extends StatelessWidget {
+class RoomOwnerPostContainer extends StatelessWidget {
   final RoomOwnerPost post;
-  const PostContainer({super.key, required this.post});
+  const RoomOwnerPostContainer({super.key, required this.post});
 
   // ✅ 버킷명 일치!
   static const String _bucket = 'RoomMate-image';

@@ -10,7 +10,7 @@ import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
 import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
-import 'package:roommate/features/navigationbar/widgets/post_container.dart';
+import 'package:roommate/features/navigationbar/widgets/room_owner_post_container.dart';
 import 'package:roommate/features/view/widget/appbar_chip.dart';
 
 /// 상대방 프로필 화면
@@ -558,7 +558,7 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
                                 )
                               : const SizedBox.shrink();
                         }
-                        return PostContainer(post: _posts[index]);
+                        return RoomOwnerPostContainer(post: _posts[index]);
                       },
                     ),
                   ),

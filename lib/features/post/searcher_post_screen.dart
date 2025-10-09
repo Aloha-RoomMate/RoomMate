@@ -96,7 +96,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
     final List<String>? result = await Navigator.of(context).push(
       MaterialPageRoute(
         // SearcherScreen이 이제 선택기(picker)로 사용됩니다.
-        builder: (context) => const SearcherPostScreen(),
+        builder: (context) => const SearcherScreen(),
       ),
     );
 

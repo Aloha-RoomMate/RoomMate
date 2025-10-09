@@ -17,7 +17,7 @@ import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
 import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
-import 'package:roommate/features/navigationbar/widgets/post_container.dart';
+import 'package:roommate/features/navigationbar/widgets/room_owner_post_container.dart';
 
 class MypageScreen extends StatefulWidget {
   const MypageScreen({super.key, required this.isBlocked});
@@ -782,7 +782,7 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
                                 )
                               : const SizedBox.shrink();
                         }
-                        return PostContainer(post: _posts[index]);
+                        return RoomOwnerPostContainer(post: _posts[index]);
                       },
                     ),
                   ),
