@@ -28,7 +28,6 @@ class ChatListScreen extends StatelessWidget {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('채팅')),
       body: StreamBuilder<QuerySnapshot>(
         stream: chatStream,
         builder: (context, snapshot) {

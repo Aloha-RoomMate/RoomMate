@@ -105,7 +105,7 @@ class _MainNavigationState extends State<MainNavigation> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
-  // ---------- main action ----------
+  // ---------- + 버튼 동작 ----------
   void _onPostTap(AppUser? user) {
     // 1) 로그인/로딩 체크
     if (user == null) {
@@ -149,31 +149,49 @@ class _MainNavigationState extends State<MainNavigation> {
     }
   }
 
+  /// 인덱스별 AppBar 구성
+  PreferredSizeWidget? _buildAppBar() {
+    // 마이페이지는 하위 위젯(MypageScreen)이 자체 AppBar를 가짐 → 상위 AppBar 숨김
+    if (_selectedIndex == 3) return null;
+
+    final title = _appBarTitles[_selectedIndex];
+
+    // 홈만 + 아이콘 노출
+    final actions = <Widget>[];
+    if (_selectedIndex == 0) {
+      actions.add(
+        IconButton(
+          onPressed: () => _onPostTap(_currentUser),
+          icon: const FaIcon(FontAwesomeIcons.plus),
+          tooltip: '게시글 작성',
+        ),
+      );
+    }
+
+    return AppBar(
+      toolbarHeight: Sizes.size40,
+      title: Text(title),
+      actionsPadding: const EdgeInsets.only(right: Sizes.size20),
+      actions: actions,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // body: 인덱스별로 화면 배치
+    final body = IndexedStack(
+      index: _selectedIndex,
+      children: const [
+        HomeScreen(), // 0
+        ChatListScreen(), // 1
+        MapScreen(), // 2
+        MypageScreen(isBlocked: true), // 3 (자체 AppBar 사용)
+      ],
+    );
+
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: Sizes.size40,
-        title: Text(_appBarTitles[_selectedIndex]),
-        actionsPadding: const EdgeInsets.only(right: Sizes.size20),
-        actions: [
-          IconButton(
-            onPressed: () => _onPostTap(_currentUser),
-            icon: const FaIcon(FontAwesomeIcons.plus),
-            tooltip: '게시글 작성',
-          ),
-        ],
-      ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: const [
-          HomeScreen(),
-          ChatListScreen(),
-          // 지도가 무거우면 선택 시에만 랜더링
-          MapScreen(),
-          MypageScreen(isBlocked: true),
-        ],
-      ),
+      appBar: _buildAppBar(),
+      body: body,
       bottomNavigationBar: BottomNavigationBar(
         onTap: _onNavTab,
         currentIndex: _selectedIndex,
