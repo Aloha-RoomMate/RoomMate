@@ -74,7 +74,7 @@ class _MainNavigationState extends State<MainNavigation> {
       );
     } else {
       Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => const SearcherPost()),
+        MaterialPageRoute(builder: (context) => const SearcherPostScreen()),
       );
     }
   }
