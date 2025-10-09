@@ -1,18 +1,19 @@
-// features/post/room_owner_post.dart
 import 'dart:convert';
 import 'dart:io';
-import 'package:firebase_core/firebase_core.dart';
+import 'dart:math';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/post/widgets/form_button.dart';
-import 'package:http/http.dart' as http;
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class RoomOwnerPost extends StatefulWidget {
   const RoomOwnerPost({super.key});
@@ -22,7 +23,7 @@ class RoomOwnerPost extends StatefulWidget {
 }
 
 class _RoomOwnerPostState extends State<RoomOwnerPost> {
-  // ───────────────── controllers ─────────────────
+  // ── controllers ────────────────────────────────────────────────────────────
   final TextEditingController _titleCtrl = TextEditingController();
   final TextEditingController _addrCtrl = TextEditingController();
   final TextEditingController _depositCtrl = TextEditingController();
@@ -37,66 +38,11 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
   final TextEditingController _maxContractCtrl = TextEditingController();
   final TextEditingController _introductionCtrl = TextEditingController();
 
-  // ───────────────── external services ─────────────────
-  final supabase = Supabase.instance.client;
+  // ── image pick (UI 유지) ───────────────────────────────────────────────────
   final ImagePicker _picker = ImagePicker();
-  final String _apiKey = "devU01TX0FVVEgyMDI1MDkxMTE3MzcyNzExNjE3NjI=";
-
-  // Supabase Storage (✅ 버킷명 일원화)
-  static const String _bucket = 'RoomMate-image';
   final List<XFile> _pickedImages = [];
   bool _uploadingImages = false;
 
-  // UI state
-  List<dynamic> _addresses = [];
-  bool _isLoading = false;
-  bool _isPosting = false;
-  String _errorMessage = '';
-
-  // ───────────────── lifecycle ─────────────────
-  @override
-  void initState() {
-    super.initState();
-    for (final c in [
-      _titleCtrl,
-      _addrCtrl,
-      _depositCtrl,
-      _rentCtrl,
-      _manageFeeCtrl,
-      _corFloorCtrl,
-      _wholeFloorCtrl,
-      _areaCtrl,
-      _toiletCtrl,
-      _movingDateCtrl,
-      _minContractCtrl,
-      _maxContractCtrl,
-      _introductionCtrl,
-    ]) {
-      c.addListener(() {
-        if (mounted) setState(() {});
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _titleCtrl.dispose();
-    _addrCtrl.dispose();
-    _depositCtrl.dispose();
-    _rentCtrl.dispose();
-    _manageFeeCtrl.dispose();
-    _corFloorCtrl.dispose();
-    _wholeFloorCtrl.dispose();
-    _areaCtrl.dispose();
-    _toiletCtrl.dispose();
-    _movingDateCtrl.dispose();
-    _minContractCtrl.dispose();
-    _maxContractCtrl.dispose();
-    _introductionCtrl.dispose();
-    super.dispose();
-  }
-
-  // ───────────────── image pick / upload ─────────────────
   Future<void> _showPickSourceSheet() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -140,19 +86,15 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
     );
   }
 
-  /// 카메라로 1장 촬영 → 목록에 추가
   Future<void> _getCameraImage() async {
     try {
       final x = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 85, // 용량 절감
+        imageQuality: 85,
         preferredCameraDevice: CameraDevice.rear,
       );
-      if (x != null) {
-        setState(() => _pickedImages.add(x));
-      }
-    } catch (e) {
-      debugPrint('[camera] $e');
+      if (x != null) setState(() => _pickedImages.add(x));
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('카메라에서 이미지를 가져오지 못했어요.')),
@@ -160,15 +102,11 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
     }
   }
 
-  /// 앨범에서 여러 장 선택 → 목록에 추가
   Future<void> _getPhotoLibraryImages() async {
     try {
       final files = await _picker.pickMultiImage(imageQuality: 85);
-      if (files.isNotEmpty) {
-        setState(() => _pickedImages.addAll(files));
-      }
-    } catch (e) {
-      debugPrint('[gallery] $e');
+      if (files.isNotEmpty) setState(() => _pickedImages.addAll(files));
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('앨범에서 이미지를 가져오지 못했어요.')),
@@ -176,62 +114,15 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
     }
   }
 
-  Future<void> _pickImages() async {
-    final files = await _picker.pickMultiImage(imageQuality: 85);
-    if (files.isNotEmpty) {
-      setState(() => _pickedImages.addAll(files));
-    }
-  }
+  void _removeImageAt(int index) =>
+      setState(() => _pickedImages.removeAt(index));
 
-  void _removeImageAt(int index) {
-    setState(() => _pickedImages.removeAt(index));
-  }
-
-  void _log(Object o) => debugPrint('[RoomOwnerPosts] $o');
-
-  /// Supabase(Private 버킷)에 업로드 후, Storage 경로 리스트 반환
-  Future<List<String>> _uploadAllImagesToSupabase({
-    required String uid,
-    required String postId,
-  }) async {
-    setState(() => _uploadingImages = true);
-    final paths = <String>[];
-    try {
-      for (int i = 0; i < _pickedImages.length; i++) {
-        final xf = _pickedImages[i];
-        _log('upload start: ${xf.path}');
-        final ext = xf.path.split('.').last.toLowerCase();
-        final filename = '${DateTime.now().millisecondsSinceEpoch}-$i.$ext';
-        final storagePath = 'roomOwnerPosts/$uid/$postId/$filename';
-
-        // bytes 업로드 (경로/권한 이슈 최소화)
-        final bytes = await xf.readAsBytes();
-        await supabase.storage
-            .from(_bucket)
-            .uploadBinary(
-              storagePath,
-              bytes,
-              fileOptions: FileOptions(
-                cacheControl: '3600',
-                upsert: false,
-                contentType: _guessMimeType(ext),
-              ),
-            );
-
-        _log('upload done: $storagePath');
-        paths.add(storagePath);
-      }
-      return paths;
-    } catch (e, st) {
-      _log('upload error: $e\n$st');
-      rethrow;
-    } finally {
-      if (mounted) setState(() => _uploadingImages = false);
-    }
-  }
+  // ── Supabase 업로드 ─────────────────────────────────────────────────────────
+  static const String _bucket = 'RoomMate-image';
+  final _supabase = Supabase.instance.client;
 
   String _guessMimeType(String ext) {
-    switch (ext) {
+    switch (ext.toLowerCase()) {
       case 'png':
         return 'image/png';
       case 'webp':
@@ -245,7 +136,49 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
     }
   }
 
-  // ───────────────── address search ─────────────────
+  Future<List<String>> _uploadAllImagesToSupabase({
+    required String uid,
+    required String postId,
+  }) async {
+    if (_pickedImages.isEmpty) return <String>[];
+    setState(() => _uploadingImages = true);
+
+    final uploadedPaths = <String>[];
+    try {
+      for (int i = 0; i < _pickedImages.length; i++) {
+        final xf = _pickedImages[i];
+        final ext = xf.path.split('.').last;
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}-$i.$ext';
+        final storagePath = 'roomOwnerPosts/$uid/$postId/$fileName';
+
+        final bytes = await xf.readAsBytes();
+        await _supabase.storage
+            .from(_bucket)
+            .uploadBinary(
+              storagePath,
+              bytes,
+              fileOptions: FileOptions(
+                contentType: _guessMimeType(ext),
+                upsert: false,
+                cacheControl: '3600',
+              ),
+            );
+        uploadedPaths.add(storagePath); // ⚠️ "경로" 저장 (서명URL 아님)
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingImages = false);
+    }
+    return uploadedPaths;
+  }
+
+  // ── Juso 검색 ───────────────────────────────────────────────────────────────
+  final String _jusoApiKey = "devU01TX0FVVEgyMDI1MDkxMTE3MzcyNzExNjE3NjI=";
+  List<dynamic> _addresses = [];
+  bool _isLoading = false;
+  bool _isPosting = false;
+  String _errorMessage = '';
+  DateTime? _selectedMovingDate;
+
   Future<void> _searchAddress(String keyword) async {
     if (keyword.isEmpty) {
       setState(() {
@@ -261,7 +194,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
     });
 
     final url = Uri.https('www.juso.go.kr', '/addrlink/addrLinkApi.do', {
-      'confmKey': _apiKey,
+      'confmKey': _jusoApiKey,
       'currentPage': '1',
       'countPerPage': '20',
       'keyword': keyword,
@@ -269,40 +202,84 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
     });
 
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) {
-        final decodedData = jsonDecode(response.body);
-        if (decodedData['results'] != null &&
-            decodedData['results']['juso'] != null) {
-          setState(() {
-            _addresses = decodedData['results']['juso'];
-            if (_addresses.isEmpty) _errorMessage = '검색 결과가 없습니다.';
-          });
-        } else {
-          final commonData = decodedData['results']['common'];
-          setState(() {
-            _errorMessage = commonData['errorMessage'] ?? '알 수 없는 오류가 발생했습니다.';
-            _addresses = [];
-          });
-        }
-      } else {
+      final res = await http.get(url);
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body);
+        final juso = decoded['results']?['juso'] as List?;
         setState(() {
-          _errorMessage = 'API 서버 오류: ${response.statusCode}';
+          _addresses = juso ?? [];
+          if (_addresses.isEmpty) _errorMessage = '검색 결과가 없습니다.';
         });
+      } else {
+        setState(() => _errorMessage = 'API 서버 오류: ${res.statusCode}');
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = '데이터 요청 중 오류가 발생했습니다: $e';
-      });
+      setState(() => _errorMessage = '데이터 요청 중 오류가 발생했습니다: $e');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  // ───────────────── small utils ─────────────────
+  // ── VWorld 지오코딩 + 200m 랜덤 ────────────────────────────────────────────
+  Future<Map<String, double>?> _addrToCoordinate(String address) async {
+    const KEY = '859C0BAE-5962-3698-97E5-FE4089A6517A'; // 너가 쓰던 키
+    final url = Uri.https('api.vworld.kr', '/req/address', {
+      'service': 'address',
+      'request': 'getcoord',
+      'version': '2.0',
+      'crs': 'epsg:4326',
+      'address': address,
+      'refine': 'true',
+      'simple': 'false',
+      'format': 'json',
+      'type': 'road',
+      'key': KEY,
+    });
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode != 200) return null;
+
+      final decoded = jsonDecode(response.body);
+      if (decoded['response']?['status'] == 'OK') {
+        final p = decoded['response']['result']['point'];
+        final lon = double.tryParse('${p['x']}');
+        final lat = double.tryParse('${p['y']}');
+        if (lat == null || lon == null) return null;
+        return {'latitude': lat, 'longitude': lon};
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, double> _randomizeCoord(
+    Map<String, double> center,
+    double meter,
+  ) {
+    final r = Random();
+    const R = 6371000.0; // earth radius(m)
+    final lat = center['latitude']!;
+    final lon = center['longitude']!;
+
+    final dist = sqrt(r.nextDouble()) * meter; // 균일 분포
+    final ang = r.nextDouble() * 2 * pi;
+
+    final dLat = (dist * cos(ang)) / R;
+    final dLon = (dist * sin(ang)) / (R * cos(lat * pi / 180));
+
+    return {
+      'latitude': lat + dLat * 180 / pi,
+      'longitude': lon + dLon * 180 / pi,
+    };
+  }
+
+  // ── misc ───────────────────────────────────────────────────────────────────
   void _onScaffoldTap(BuildContext context) => FocusScope.of(context).unfocus();
 
   void _onTimePickerChanged(DateTime date) {
+    _selectedMovingDate = date;
     _movingDateCtrl.text =
         "${date.year.toString()}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
   }
@@ -310,12 +287,14 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
   void _onTimeFieldTap() async {
     await showModalBottomSheet(
       context: context,
-      builder: (context) => CupertinoDatePicker(
-        mode: CupertinoDatePickerMode.date,
-        onDateTimeChanged: _onTimePickerChanged,
-        minimumDate: DateTime.now(),
-        initialDateTime: DateTime.now(),
-      ),
+      builder: (context) {
+        return CupertinoDatePicker(
+          mode: CupertinoDatePickerMode.date,
+          onDateTimeChanged: (date) => _onTimePickerChanged(date),
+          minimumDate: DateTime.now(),
+          initialDateTime: DateTime.now(),
+        );
+      },
     );
   }
 
@@ -335,105 +314,65 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
         _introductionCtrl.text.isNotEmpty;
   }
 
-  Map<String, dynamic> _buildPayload() {
-    return {
-      'postType': 'roomOwner', // ✅ 리스트 필터와 맞추기
-      'title': _titleCtrl.text,
-      'addressLabel': _addrCtrl.text, // ✅ 카드에서 쓰는 키
-      'address': _addrCtrl.text, // (선택) 기존 키 유지해도 무방
-      'deposit': int.tryParse(_depositCtrl.text) ?? 0,
-      'rent': int.tryParse(_rentCtrl.text) ?? 0,
-      'manageFee': int.tryParse(_manageFeeCtrl.text) ?? 0,
-      'corFloor': int.tryParse(_corFloorCtrl.text) ?? 0,
-      'wholeFloor': int.tryParse(_wholeFloorCtrl.text) ?? 0,
-      'area': int.tryParse(_areaCtrl.text) ?? 0,
-      'toilet': int.tryParse(_toiletCtrl.text) ?? 0,
-      'minContract': int.tryParse(_minContractCtrl.text) ?? 0,
-      'maxContract': int.tryParse(_maxContractCtrl.text) ?? 0,
-      'introduction': _introductionCtrl.text,
-      'movingDate': _movingDateCtrl.text.isEmpty
-          ? null
-          : Timestamp.fromDate(DateTime.parse(_movingDateCtrl.text)),
-      'updatedAt': DateTime.now().toIso8601String(),
-    };
-  }
-
-  // ───────────────── submit ─────────────────
+  // ── submit ─────────────────────────────────────────────────────────────────
   Future<void> _onNextTap() async {
     if (!_isNextAvailable() || _isPosting) return;
 
     try {
       setState(() => _isPosting = true);
 
-      // 0) 앱/프로젝트 정보
-      _log('Firebase projectId=${Firebase.app().options.projectId}');
-
-      // 1) 로그인 상태
+      // 1) 로그인(uid)
       final auth = FirebaseAuth.instance;
-      final user = auth.currentUser ?? (await auth.signInAnonymously()).user!;
-      final uid = user.uid;
-      _log('auth uid=$uid isAnon=${user.isAnonymous}');
+      final me = auth.currentUser ?? (await auth.signInAnonymously()).user!;
+      final uid = me.uid;
 
-      // 2) payload 구성
-      final built = _buildPayload();
-      final basePayload = {
-        ...built,
+      // 2) 주소 → 좌표
+      final center = await _addrToCoordinate(_addrCtrl.text);
+      if (center == null) {
+        throw Exception('주소를 좌표로 변환하지 못했습니다.');
+      }
+      final jitter = _randomizeCoord(center, 200.0);
+
+      // 3) Firestore 기본 문서 생성 (imageUrls = 빈 배열)
+      final col = FirebaseFirestore.instance.collection('roomOwnerPosts');
+      final docRef = await col.add({
         'authorId': uid,
+        'postType': 'roomOwner',
+        'title': _titleCtrl.text,
+        'addressLabel': _addrCtrl.text,
+        'address': _addrCtrl.text,
+        'addr': GeoPoint(jitter['latitude']!, jitter['longitude']!),
+        'deposit': int.tryParse(_depositCtrl.text) ?? 0,
+        'rent': int.tryParse(_rentCtrl.text) ?? 0,
+        'manageFee': int.tryParse(_manageFeeCtrl.text) ?? 0,
+        'corFloor': int.tryParse(_corFloorCtrl.text) ?? 0,
+        'wholeFloor': int.tryParse(_wholeFloorCtrl.text) ?? 0,
+        'area': int.tryParse(_areaCtrl.text) ?? 0,
+        'toilet': int.tryParse(_toiletCtrl.text) ?? 0,
+        'minContract': int.tryParse(_minContractCtrl.text) ?? 0,
+        'maxContract': int.tryParse(_maxContractCtrl.text) ?? 0,
+        'introduction': _introductionCtrl.text,
+        'movingDate': _selectedMovingDate == null
+            ? null
+            : Timestamp.fromDate(_selectedMovingDate!),
         'imageUrls': <String>[],
         'createdAt': FieldValue.serverTimestamp(),
-      };
-
-      // 2-1) 핵심 필드 타입/값 로그
-      _log('payload keys=${basePayload.keys.toList()}');
-      _log('authorId=${basePayload['authorId']}');
-      _log('createdAtType=${basePayload['createdAt']?.runtimeType}');
-      _log(
-        'movingDate=${basePayload['movingDate']} (type=${basePayload['movingDate']?.runtimeType})',
-      );
-      _log('addr(field in payload?)=${basePayload.containsKey('addr')}');
-      _log('address(string)=${basePayload['address']}');
-      _log(
-        'updatedAt=${basePayload['updatedAt']} (type=${basePayload['updatedAt']?.runtimeType})',
-      );
-
-      // 3) 쓰기
-      final col = FirebaseFirestore.instance.collection('roomOwnerPosts');
-      _log('WRITE TO: ${col.path}');
-      DocumentReference docRef;
-      try {
-        docRef = await col.add(basePayload);
-        _log('create ok: docId=${docRef.id}');
-      } on FirebaseException catch (e) {
-        _log('CREATE FAIL code=${e.code} message=${e.message}');
-        rethrow;
-      }
-
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
       final postId = docRef.id;
 
-      // 4) 이미지 업로드
-      List<String> imagePaths = [];
-      if (_pickedImages.isNotEmpty) {
-        imagePaths = await _withTimeoutRetry<List<String>>(
-          () => _uploadAllImagesToSupabase(uid: uid, postId: postId),
-          timeoutSec: 25,
-          retries: 2,
-        );
-        _log('uploaded ${imagePaths.length} images');
-      }
+      // 4) Supabase에 이미지 업로드 → 경로 리스트 취득
+      final uploadedPaths = await _uploadAllImagesToSupabase(
+        uid: uid,
+        postId: postId,
+      );
 
-      // 5) Firestore 업데이트(이미지 경로)
-      if (imagePaths.isNotEmpty) {
-        try {
-          await docRef.update({
-            'imageUrls': imagePaths,
-            // 규칙상 필수는 아니지만, 관례상 updatedAt도 서버시간으로
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-          _log('update ok (imageUrls)');
-        } on FirebaseException catch (e) {
-          _log('UPDATE FAIL code=${e.code} message=${e.message}');
-          rethrow;
-        }
+      // 5) Firestore 문서 imageUrls 업데이트
+      if (uploadedPaths.isNotEmpty) {
+        await docRef.update({
+          'imageUrls': uploadedPaths,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       }
 
       if (!mounted) return;
@@ -441,44 +380,43 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
         const SnackBar(content: Text('글 포스팅 성공~')),
       );
       Navigator.of(context).pop();
-    } catch (e, st) {
-      _log('onNextTap error: $e\n$st');
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('오류 발생~ $e')),
+        SnackBar(content: Text('오류: $e')),
       );
     } finally {
       if (mounted) setState(() => _isPosting = false);
     }
   }
 
-  // 간단 타임아웃 + 재시도
-  Future<T> _withTimeoutRetry<T>(
-    Future<T> Function() job, {
-    int timeoutSec = 15,
-    int retries = 1,
-  }) async {
-    int attempt = 0;
-    while (true) {
-      attempt++;
-      try {
-        return await job().timeout(Duration(seconds: timeoutSec));
-      } catch (e) {
-        if (attempt > retries) rethrow;
-        await Future.delayed(const Duration(seconds: 1));
-      }
-    }
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _addrCtrl.dispose();
+    _depositCtrl.dispose();
+    _rentCtrl.dispose();
+    _manageFeeCtrl.dispose();
+    _corFloorCtrl.dispose();
+    _wholeFloorCtrl.dispose();
+    _areaCtrl.dispose();
+    _toiletCtrl.dispose();
+    _movingDateCtrl.dispose();
+    _minContractCtrl.dispose();
+    _maxContractCtrl.dispose();
+    _introductionCtrl.dispose();
+    super.dispose();
   }
 
-  // ───────────────── UI ─────────────────
+  // ── UI ─────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _onScaffoldTap(context),
+      onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
           elevation: 10,
-          title: Text('게시글 작성', style: TextStyle(fontSize: Sizes.size24)),
+          title: const Text('게시글 작성', style: TextStyle(fontSize: Sizes.size24)),
         ),
         body: Padding(
           padding: const EdgeInsets.all(24),
@@ -487,7 +425,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // 제목
-                Text(
+                const Text(
                   '제목을 입력해주세요!',
                   style: TextStyle(
                     fontSize: Sizes.size16,
@@ -504,22 +442,22 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                 ),
                 Gaps.v24,
 
-                // 주소 안내
-                Text(
+                // 안내
+                const Text(
                   '주소를 입력해주세요!',
                   style: TextStyle(
                     fontSize: Sizes.size16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Text(
-                  '다른 유저에게는 XX동 \'부근\'으로 보여져요. \n지도에는 실제 주소 반경 200m 내의 랜덤한 위치로 나타나요',
+                const Text(
+                  '다른 유저에게는 XX동 \'부근\'으로 보여져요.\n지도에는 실제 주소 반경 200m 내의 랜덤한 위치로 표시돼요.',
                   style: TextStyle(fontSize: Sizes.size14, color: Colors.grey),
                 ),
                 Gaps.v6,
 
-                // 사진 업로드 섹션
-                Text(
+                // 사진 업로드(선택 UI 그대로)
+                const Text(
                   '사진 업로드',
                   style: TextStyle(
                     fontSize: Sizes.size16,
@@ -594,13 +532,12 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                       child: TextField(
                         controller: _addrCtrl,
                         decoration: const InputDecoration(
-                          hintText: '주소 입력.',
+                          hintText: '주소 입력',
                           border: OutlineInputBorder(),
                         ),
                         onSubmitted: (value) => _searchAddress(value),
                       ),
                     ),
-                    Gaps.h12,
                   ],
                 ),
                 Gaps.v24,
@@ -681,7 +618,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                 Gaps.v24,
 
                 // 전용면적/화장실
-                Text(
+                const Text(
                   '전용 면적 / 화장실 개수',
                   style: TextStyle(
                     fontSize: Sizes.size16,
@@ -717,7 +654,7 @@ class _RoomOwnerPostState extends State<RoomOwnerPost> {
                 Gaps.v24,
 
                 // 입주일
-                Text(
+                const Text(
                   '입주가능일',
                   style: TextStyle(
                     fontSize: Sizes.size16,
