@@ -28,6 +28,22 @@ class _MypageScreenState extends State<MypageScreen> {
 
   File? _profileImage;
 
+  String _fmtHm(int? minutes, {bool use12h = false}) {
+    if (minutes == null) return "-";
+    final h24 = (minutes ~/ 60) % 24;
+    final m = minutes % 60;
+
+    if (!use12h) {
+      // 24시간 표기: 08:30
+      return "${h24.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}";
+    } else {
+      // 12시간 표기: 오전 8:30 / 오후 8:30 (원하면 이걸 사용)
+      final isAm = h24 < 12;
+      final h12 = (h24 % 12 == 0) ? 12 : (h24 % 12);
+      return "${isAm ? "오전" : "오후"} $h12:${m.toString().padLeft(2, '0')}";
+    }
+  }
+
   void _onNextTap() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const DailyRhythmScreen()),
@@ -141,8 +157,8 @@ class _MypageScreenState extends State<MypageScreen> {
         final data = snapshot.data!;
 
         // userPass 하위 데이터가 없을 수도 있으므로 상위 필드로 폴백
-        final dr = data.userPass?.dailyRhythm ?? data.dailyRhythm;
-        final col = data.userPass?.coliving ?? data.coliving;
+        final dr = data.dailyRhythm ?? data.dailyRhythm;
+        final col = data.coliving ?? data.coliving;
         final ut = data.userType;
         final h = data.hobby;
 
@@ -243,25 +259,23 @@ class _MypageScreenState extends State<MypageScreen> {
                                         ChipButton(text: d, isSelected: true),
                                     ],
                                   ),
-                                  if ((dr?.workDays ?? const <String>[])
-                                      .isNotEmpty)
-                                    LabeldRow(
-                                      label: "주말 시간",
-                                      chips: [
-                                        if (dr?.weekAwakeMins != null)
-                                          ChipButton(
-                                            text: "기상 ${dr!.weekAwakeMins}",
-                                            isSelected: true,
-                                          ),
-                                        if (dr?.weekSleepMins != null)
-                                          ChipButton(
-                                            text: "취침 ${dr!.weekSleepMins}",
-                                            isSelected: true,
-                                          ),
-                                      ],
-                                    )
-                                  else
-                                    const LabeldRow(label: "주말 시간", chips: []),
+                                  LabeldRow(
+                                    label: "주중 시간",
+                                    chips: [
+                                      if (dr?.weekAwakeMins != null)
+                                        ChipButton(
+                                          text:
+                                              "기상 ${_fmtHm(dr!.weekAwakeMins)}",
+                                          isSelected: true,
+                                        ),
+                                      if (dr?.weekSleepMins != null)
+                                        ChipButton(
+                                          text:
+                                              "취침 ${_fmtHm(dr!.weekSleepMins)}",
+                                          isSelected: true,
+                                        ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
