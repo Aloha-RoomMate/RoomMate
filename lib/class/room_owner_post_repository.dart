@@ -75,4 +75,26 @@ class RoomOwnerPostRepository {
   }
 
   Future<void> deletePost(String postId) => _col.doc(postId).delete();
+
+  /// 현재 지도의 뷰포트(사각형) 안에 들어오는 roomOwner 게시글만 가져오기
+  Future<List<RoomOwnerPost>> fetchOwnerPostsInBounds({
+    required double minLat,
+    required double minLng,
+    required double maxLat,
+    required double maxLng,
+    int limit = 200,
+  }) async {
+    // GeoPoint는 (lat, lng) 순으로 정렬되므로 사각형 범위 질의가 가능
+    final snap = await _col
+        .where('postType', isEqualTo: 'roomOwner')
+        .where('addr', isGreaterThanOrEqualTo: GeoPoint(minLat, minLng))
+        .where('addr', isLessThanOrEqualTo: GeoPoint(maxLat, maxLng))
+        .limit(limit)
+        .get();
+
+    return snap.docs
+        .map((d) => RoomOwnerPost.fromDoc(d))
+        .where((p) => p.addr != null) // 혹시 null 방어
+        .toList();
+  }
 }
