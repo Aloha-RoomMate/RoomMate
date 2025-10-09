@@ -33,7 +33,7 @@ class HomeScreen extends StatelessWidget {
                 PostListView(postType: 'roomOwner'),
                 // TODO: SearcherPost 모델이 준비되면 아래를 활성화
                 // PostListView(postType: 'Searcher'),
-                Center(child: Text("Searcher 게시글 목록 (개발 중)")),
+                PostListView(postType: 'Searcher'),
               ],
             ),
           ),
