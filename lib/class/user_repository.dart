@@ -47,6 +47,8 @@ class UserRepository {
           {
             ...base,
             'createdAt': FieldValue.serverTimestamp(),
+            // 최초 생성 시 pass 기본 false로 초기화(없으면 fromMap에서 false 처리되긴 함)
+            'userPass': {'pass': false},
           },
           SetOptions(merge: true),
         );
@@ -55,31 +57,28 @@ class UserRepository {
   }
 
   // ---------------------------------------------------------------------------
-  // userPass 집계/판정 로직
+  // userPass 집계/판정 로직 (상위 필드만 보고 판단)
   // ---------------------------------------------------------------------------
 
-  /// 현재 문서를 읽어 userPass.pass 조건을 계산한다.
   bool _calcPass(Map<String, dynamic> data) {
-    final up =
-        (data['userPass'] as Map<String, dynamic>?) ??
-        const <String, dynamic>{};
+    final dr = data['dailyRhythm'];
+    final cl = data['coliving'];
+    final ds = data['disease'];
 
-    final hasDR =
-        up['dailyRhythm'] is Map && (up['dailyRhythm'] as Map).isNotEmpty;
-    final hasCL = up['coliving'] is Map && (up['coliving'] as Map).isNotEmpty;
-    final hasDS = up['disease'] is Map && (up['disease'] as Map).isNotEmpty;
-
-    // introduction은 현재 { introduction: String } 형태로 저장되는 경우 지원
-    final introAny = up['introduction'];
+    // introduction은 string 또는 { introduction: string } 모두 허용
+    final introAny = data['introduction'];
     final introText = (introAny is Map)
         ? (introAny['introduction']?.toString() ?? '')
         : (introAny is String ? introAny : '');
+
+    final hasDR = dr is Map && dr.isNotEmpty;
+    final hasCL = cl is Map && cl.isNotEmpty;
+    final hasDS = ds is Map && ds.isNotEmpty;
     final hasIntro = introText.length >= 50;
 
     return hasDR && hasCL && hasDS && hasIntro;
   }
 
-  /// userPass.pass를 재계산해서 저장 (userPass 부분이 변경될 때마다 호출)
   Future<void> _recomputeAndSetPass() async {
     final ref = _meDoc();
     final snap = await ref.get();
@@ -88,21 +87,19 @@ class UserRepository {
 
     await ref.set(
       {
-        'userPass': {'pass': pass},
+        'userPass': {'pass': pass}, // ✅ pass만 유지
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
   }
 
-  /// 런타임 계산 버전(저장 안 해도 바로 락 상태 확인 가능)
   Future<bool> getUserPassStatus() async {
     final s = await _meDoc().get();
     final data = s.data() ?? const <String, dynamic>{};
     return _calcPass(data);
   }
 
-  /// 실시간 계산(마이페이지에서 오버레이 락에 쓰면 즉시 반영)
   Stream<bool> watchUserPassStatus() {
     return _meDoc().snapshots().map((s) {
       final data = s.data() ?? const <String, dynamic>{};
@@ -111,7 +108,7 @@ class UserRepository {
   }
 
   // ---------------------------------------------------------------------------
-  // Writers (상위 필드 + userPass.* 함께 세팅)
+  // Writers (상위 필드 저장 + pass만 재계산)
   // ---------------------------------------------------------------------------
 
   Future<void> setDailyRhythm(DailyRhythm rhythm) async {
@@ -119,9 +116,6 @@ class UserRepository {
     await ref.set(
       {
         'dailyRhythm': rhythm.toMap(),
-        'userPass': {
-          'dailyRhythm': rhythm.toMap(),
-        },
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
@@ -149,13 +143,9 @@ class UserRepository {
 
   Future<void> setColiving(Coliving cl) async {
     final ref = _meDoc();
-    final map = cl.toMap();
     await ref.set(
       {
-        'coliving': map,
-        'userPass': {
-          'coliving': map,
-        },
+        'coliving': cl.toMap(),
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
@@ -165,13 +155,9 @@ class UserRepository {
 
   Future<void> setDisease(DiseaseInfo d) async {
     final ref = _meDoc();
-    final map = d.toMap();
     await ref.set(
       {
-        'disease': map,
-        'userPass': {
-          'disease': map,
-        },
+        'disease': d.toMap(),
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
@@ -185,9 +171,6 @@ class UserRepository {
     await ref.set(
       {
         'introduction': map, // 상위 필드에도 동일 포맷
-        'userPass': {
-          'introduction': map,
-        },
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
@@ -210,15 +193,16 @@ class UserRepository {
   }
 
   Future<void> setHobby(Hobby hobby) async {
+    // ✅ 취미는 UserLike 로만 저장 (중복 저장 방지)
     await _meDoc().set(
       {
-        // 과거 'UserLike' 키도 유지한다면 아래 라인 그대로,
-        // 새로 'hobby'로만 쓰려면 'hobby': hobby.toMap() 로 변경.
         'UserLike': hobby.toMap(),
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
+    // pass 기준에는 포함하지 않으므로 재계산 생략(정책에 따라 넣고 싶으면 호출)
+    // await _recomputeAndSetPass();
   }
 
   // ---------------------------------------------------------------------------
