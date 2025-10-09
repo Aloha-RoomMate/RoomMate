@@ -608,8 +608,23 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   '다른 유저에게는 XX동 \'부근\'으로 보여져요.\n지도에는 실제 주소 반경 200m 내의 랜덤한 위치로 표시돼요.',
                   style: TextStyle(fontSize: Sizes.size14, color: Colors.grey),
                 ),
-                Gaps.v6,
-
+                Gaps.v12,
+                // 주소 입력/검색
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _addrCtrl,
+                        decoration: const InputDecoration(
+                          hintText: '주소 입력.',
+                          border: OutlineInputBorder(),
+                        ),
+                        onSubmitted: _searchAddress,
+                      ),
+                    ),
+                  ],
+                ),
+                Gaps.v24,
                 // 사진 업로드
                 const Text(
                   '사진 업로드',
@@ -677,23 +692,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       ],
                     ),
                   ),
-                Gaps.v12,
-
-                // 주소 입력/검색
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _addrCtrl,
-                        decoration: const InputDecoration(
-                          hintText: '주소 입력.',
-                          border: OutlineInputBorder(),
-                        ),
-                        onSubmitted: _searchAddress,
-                      ),
-                    ),
-                  ],
-                ),
                 Gaps.v24,
                 SizedBox(
                   height: _addresses.isNotEmpty ? 300 : 0,
