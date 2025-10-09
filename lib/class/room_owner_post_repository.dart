@@ -1,3 +1,4 @@
+// lib/class/room_owner_post_repository.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:roommate/class/room_owner_post.dart';
 
@@ -14,136 +15,164 @@ class RoomOwnerPostRepository {
   RoomOwnerPostRepository({FirebaseFirestore? db})
     : _db = db ?? FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> get _collectionRef =>
-      _db.collection('roomOwnerPosts'); // ✅ 복수형으로 통일
+  CollectionReference<Map<String, dynamic>> get _col =>
+      _db.collection('roomOwnerPosts'); // ✅ 복수형 통일
+
+  // -------------------- C / U / R / D --------------------
 
   Future<String> createPost(RoomOwnerPost post) async {
     final data = {
       ...post.toMap(),
-      'createdAt': FieldValue.serverTimestamp(), // ✅ 정렬/규칙용
+      'createdAt': FieldValue.serverTimestamp(),
       if (post.imageUrls == null) 'imageUrls': <String>[],
     };
-    final docRef = await _collectionRef.add(data);
-    return docRef.id;
+    final doc = await _col.add(data);
+    return doc.id;
   }
 
   Future<void> updatePost(String postId, Map<String, dynamic> patch) async {
-    await _collectionRef.doc(postId).update({
+    await _col.doc(postId).update({
       ...patch,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
   Future<RoomOwnerPost?> fetchById(String postId) async {
-    final doc = await _collectionRef.doc(postId).get();
+    final doc = await _col.doc(postId).get();
     if (!doc.exists) return null;
     return RoomOwnerPost.fromDoc(doc);
   }
 
-  /// 피드(예: postType 별) 조회 + 페이지네이션
+  Future<void> deletePost(String postId) => _col.doc(postId).delete();
+
+  // -------------------- 목록 / 피드 --------------------
+
+  /// postType 피드(페이지네이션)
   Future<PaginatedPostsResult> fetchPosts({
     required String postType,
     DocumentSnapshot? lastItem,
     int limit = 20,
   }) async {
-    Query<Map<String, dynamic>> postsQuery = _collectionRef
+    var q = _col
         .where('postType', isEqualTo: postType)
         .orderBy('createdAt', descending: true)
         .limit(limit);
 
-    if (lastItem != null) {
-      postsQuery = postsQuery.startAfterDocument(lastItem);
-    }
+    if (lastItem != null) q = q.startAfterDocument(lastItem);
 
-    final snapshot = await postsQuery.get();
-    final posts = snapshot.docs.map(RoomOwnerPost.fromDoc).toList();
-
+    final snap = await q.get();
+    final posts = snap.docs.map(RoomOwnerPost.fromDoc).toList();
     return PaginatedPostsResult(
       posts: posts,
-      lastDocument: snapshot.docs.isNotEmpty ? snapshot.docs.last : null,
+      lastDocument: snap.docs.isNotEmpty ? snap.docs.last : null,
     );
   }
 
-  /// 특정 사용자(uid)의 글 전부(정렬만, 페이지네이션 없음)
+  /// 특정 사용자 글 전체(단순 정렬)
   Future<List<RoomOwnerPost>> fetchPostByUser(String uid) async {
-    final snapshot = await _collectionRef
+    final snap = await _col
         .where('authorId', isEqualTo: uid)
         .orderBy('createdAt', descending: true)
         .get();
-    return snapshot.docs.map(RoomOwnerPost.fromDoc).toList();
+    return snap.docs.map(RoomOwnerPost.fromDoc).toList();
   }
 
-  /// 특정 사용자(uid)의 글 — 페이지네이션 (인덱스 빌드 중이면 폴백)
+  /// 특정 사용자 글 — 페이지네이션 (인덱스 빌드 중이면 폴백)
   Future<PaginatedPostsResult> fetchUserPostsPaged({
     required String uid,
     DocumentSnapshot? lastItem,
     int limit = 20,
   }) async {
     try {
-      Query<Map<String, dynamic>> postsQuery = _collectionRef
+      var q = _col
           .where('authorId', isEqualTo: uid)
           .orderBy('createdAt', descending: true)
           .limit(limit);
+      if (lastItem != null) q = q.startAfterDocument(lastItem);
 
-      if (lastItem != null) {
-        postsQuery = postsQuery.startAfterDocument(lastItem);
-      }
-
-      final snapshot = await postsQuery.get();
-      final posts = snapshot.docs.map(RoomOwnerPost.fromDoc).toList();
-
+      final snap = await q.get();
+      final list = snap.docs.map(RoomOwnerPost.fromDoc).toList();
       return PaginatedPostsResult(
-        posts: posts,
-        lastDocument: snapshot.docs.isNotEmpty ? snapshot.docs.last : null,
+        posts: list,
+        lastDocument: snap.docs.isNotEmpty ? snap.docs.last : null,
       );
     } on FirebaseException catch (e) {
-      final message = e.message ?? '';
-      final isIndexBuilding =
+      final msg = e.message ?? '';
+      final building =
           e.code == 'failed-precondition' &&
-          (message.contains('index') || message.contains('currently building'));
+          (msg.contains('index') || msg.contains('currently building'));
+      if (!building) rethrow;
 
-      if (!isIndexBuilding) rethrow;
+      // 🩹 폴백: 서버 정렬 없이 받아서 클라에서 createdAt desc 정렬
+      var q = _col.where('authorId', isEqualTo: uid).limit(limit);
+      if (lastItem != null) q = q.startAfterDocument(lastItem);
 
-      // 🩹 폴백: 서버 정렬 없이 가져온 뒤 클라이언트에서 createdAt desc 정렬
-      Query<Map<String, dynamic>> fallbackQuery = _collectionRef
-          .where('authorId', isEqualTo: uid)
-          .limit(limit);
-
-      if (lastItem != null) {
-        fallbackQuery = fallbackQuery.startAfterDocument(lastItem);
-      }
-
-      final snapshot = await fallbackQuery.get();
-
-      final sortedDocs = snapshot.docs.toList()
+      final snap = await q.get();
+      final docs = snap.docs.toList()
         ..sort((a, b) {
-          final aTs = a.data()['createdAt'];
-          final bTs = b.data()['createdAt'];
-          final aDt = (aTs is Timestamp)
-              ? aTs.toDate()
+          final at = a.data()['createdAt'];
+          final bt = b.data()['createdAt'];
+          final ad = (at is Timestamp)
+              ? at.toDate()
               : DateTime.fromMillisecondsSinceEpoch(0);
-          final bDt = (bTs is Timestamp)
-              ? bTs.toDate()
+          final bd = (bt is Timestamp)
+              ? bt.toDate()
               : DateTime.fromMillisecondsSinceEpoch(0);
-          return bDt.compareTo(aDt); // desc
+          return bd.compareTo(ad); // desc
         });
 
-      final posts = sortedDocs.map(RoomOwnerPost.fromDoc).toList();
-
+      final list = docs.map(RoomOwnerPost.fromDoc).toList();
       return PaginatedPostsResult(
-        posts: posts,
-        lastDocument: snapshot.docs.isNotEmpty ? snapshot.docs.last : null,
+        posts: list,
+        lastDocument: snap.docs.isNotEmpty ? snap.docs.last : null,
       );
     }
   }
 
+  /// 최신글 일부
   Future<List<RoomOwnerPost>> fetchAllPosts({int limit = 20}) async {
-    final snapshot = await _collectionRef
+    final snap = await _col
         .orderBy('createdAt', descending: true)
         .limit(limit)
         .get();
-    return snapshot.docs.map(RoomOwnerPost.fromDoc).toList();
+    return snap.docs.map(RoomOwnerPost.fromDoc).toList();
   }
 
-  Future<void> deletePost(String postId) => _collectionRef.doc(postId).delete();
+  // -------------------- 지도(뷰포트 내) --------------------
+
+  /// 현재 지도 사각형(viewport) 안의 RoomOwner 글만 가져오기
+  ///
+  /// ⚠️ Firestore의 GeoPoint 단일 필드 범위 질의는 사전식 정렬이라
+  ///    정확한 사각형 컷이 되지 않을 수 있음.
+  ///    → 1) GeoPoint로 대략 범위 질의
+  ///    → 2) 클라이언트에서 lat/lng로 최종 필터
+  Future<List<RoomOwnerPost>> fetchOwnerPostsInBounds({
+    required double minLat,
+    required double minLng,
+    required double maxLat,
+    required double maxLng,
+    int limit = 200,
+  }) async {
+    // 1) 대략 범위(사전식)로 1차 컷
+    final snap = await _col
+        .where('postType', isEqualTo: 'roomOwner')
+        .where('addr', isGreaterThanOrEqualTo: GeoPoint(minLat, minLng))
+        .where('addr', isLessThanOrEqualTo: GeoPoint(maxLat, maxLng))
+        .limit(limit)
+        .get();
+
+    // 2) 최종 사각형 필터
+    var list = snap.docs.map(RoomOwnerPost.fromDoc).where((p) {
+      final gp = p.addr;
+      if (gp == null) return false;
+      final lat = gp.latitude, lng = gp.longitude;
+      return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+    }).toList();
+
+    // 필요시 최종 개수 제한(1차 limit에서 더 줄어들 수 있음)
+    if (list.length > limit) {
+      list = list.take(limit).toList();
+    }
+    return list;
+  }
 }

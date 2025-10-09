@@ -456,8 +456,7 @@ class _MypageScreenState extends State<MypageScreen> {
                             _MyPostsSection(
                               title: "내가 만든 쿠키~",
                               repo: _postRepo,
-                              currentUid:
-                                  FirebaseAuth.instance.currentUser!.uid,
+                              currentUid: me.uid, // ← 안전
                             ),
 
                             Gaps.v24,

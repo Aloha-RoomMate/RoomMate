@@ -1,90 +1,229 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/searcher_post.dart';
+import 'package:roommate/class/searcher_post_repository.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/widgets/form_button.dart';
-import 'package:roommate/features/category/widgets/selection_chip.dart';
+import 'package:roommate/features/authentication/userinfo/searcher_screen.dart'; // ✅ SearcherScreen import
+import 'package:roommate/features/category/widgets/category_button.dart';
+import 'package:roommate/features/post/widgets/form_button.dart';
 
-class SearcherPost extends StatefulWidget {
-  const SearcherPost({super.key});
+class SearcherPostScreen extends StatefulWidget {
+  const SearcherPostScreen({super.key});
 
   @override
-  State<SearcherPost> createState() => _SearcherPostState();
+  State<SearcherPostScreen> createState() => _SearcherPostScreenState();
 }
 
-class _SearcherPostState extends State<SearcherPost> {
-  List<List<bool>> _chipOptionSelected = [
-    List.filled(1, false),
-    List.filled(4, false),
-    List.filled(4, false),
-    List.filled(2, false),
-  ];
-  TextEditingController _controller = TextEditingController();
+class _SearcherPostScreenState extends State<SearcherPostScreen> {
+  // --- Repositories ---
+  final UserRepository _userRepository = UserRepository();
+  final SearcherPostRepository _postRepository = SearcherPostRepository();
 
-  bool _checkNextButtonAvailable() {
-    for (final groupState in _chipOptionSelected) {
-      if (!groupState.contains(true)) {
-        return false;
-      }
+  // --- Controllers ---
+  final _titleCtrl = TextEditingController();
+  final _depositCtrl = TextEditingController();
+  final _minRentCtrl = TextEditingController();
+  final _maxRentCtrl = TextEditingController();
+  final _movingDateCtrl = TextEditingController();
+  final _minContractCtrl = TextEditingController();
+  final _maxContractCtrl = TextEditingController();
+  final _introductionCtrl = TextEditingController();
+
+  // --- State Variables ---
+  AppUser? _currentUser;
+  bool _isPosting = false;
+  DateTime? _selectedMovingDate;
+
+  // Chip 및 위치 선택 상태
+  final Set<String> _selectedWantAreas = {}; // ✅ 희망 위치 저장
+  final Set<String> _selectedRoomTypes = {};
+  final Set<String> _selectedPaymentStructures = {};
+
+  // Chip 옵션
+  final List<String> _roomTypeOptions = ['원 룸', '투 룸', '빌라', '아파트'];
+  final List<String> _paymentOptions = ['보증금 분담', '월세 분담', '관리비 분담', '공과금 분담'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUser();
+    // 컨트롤러 리스너 추가하여 버튼 상태 실시간 업데이트
+    final controllers = [
+      _titleCtrl,
+      _depositCtrl,
+      _minRentCtrl,
+      _maxRentCtrl,
+      _movingDateCtrl,
+      _minContractCtrl,
+      _maxContractCtrl,
+      _introductionCtrl,
+    ];
+    for (var controller in controllers) {
+      controller.addListener(() => setState(() {}));
     }
-    return true;
   }
 
-  void _onScaffoldTap(BuildContext context) {
-    FocusScope.of(context).unfocus();
+  Future<void> _loadCurrentUser() async {
+    _currentUser = await _userRepository.fetchMe();
+    if (mounted) setState(() {});
   }
 
-  void _onChipTap(int groupIndex, int buttonIndex) {
+  @override
+  void dispose() {
+    final controllers = [
+      _titleCtrl,
+      _depositCtrl,
+      _minRentCtrl,
+      _maxRentCtrl,
+      _movingDateCtrl,
+      _minContractCtrl,
+      _maxContractCtrl,
+      _introductionCtrl,
+    ];
+    for (var controller in controllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  // ✅ 1. 희망 위치 선택 화면으로 이동하고 결과를 받아오는 함수
+  Future<void> _onAreaTap() async {
+    // SearcherScreen으로 이동하고, List<String> 타입의 결과를 기다립니다.
+    final List<String>? result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        // SearcherScreen이 이제 선택기(picker)로 사용됩니다.
+        builder: (context) => const SearcherPostScreen(),
+      ),
+    );
+
+    // 결과가 null이 아니고 비어있지 않다면, 상태를 업데이트합니다.
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        _selectedWantAreas
+          ..clear()
+          ..addAll(result);
+      });
+    }
+  }
+
+  void _onChipTap(Set<String> selectionSet, String value) {
     setState(() {
-      _chipOptionSelected[groupIndex][buttonIndex] =
-          !_chipOptionSelected[groupIndex][buttonIndex];
+      if (selectionSet.contains(value)) {
+        selectionSet.remove(value);
+      } else {
+        selectionSet.add(value);
+      }
     });
   }
 
   void _onTimePickerChanged(DateTime date) {
-    final textDate = date.toString().split(' ')[0];
-    _controller.value = TextEditingValue(text: textDate);
+    setState(() {
+      _selectedMovingDate = date;
+      _movingDateCtrl.text =
+          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    });
   }
 
-  void _onTimeFieldTap() async {
+  Future<void> _onTimeFieldTap() async {
     await showModalBottomSheet(
       context: context,
       builder: (context) {
-        return CupertinoDatePicker(
-          mode: CupertinoDatePickerMode.date,
-          onDateTimeChanged: _onTimePickerChanged,
+        return SizedBox(
+          height: 300,
+          child: CupertinoDatePicker(
+            mode: CupertinoDatePickerMode.date,
+            onDateTimeChanged: _onTimePickerChanged,
+            minimumDate: DateTime.now(),
+            initialDateTime: _selectedMovingDate ?? DateTime.now(),
+          ),
         );
       },
     );
   }
 
+  bool _isNextAvailable() {
+    final controllers = [
+      _titleCtrl,
+      _depositCtrl,
+      _minRentCtrl,
+      _maxRentCtrl,
+      _movingDateCtrl,
+      _minContractCtrl,
+      _maxContractCtrl,
+      _introductionCtrl,
+    ];
+    final allFieldsFilled = controllers.every((c) => c.text.isNotEmpty);
+    // ✅ 희망 위치 선택 여부도 검사에 포함
+    final allChipsSelected =
+        _selectedWantAreas.isNotEmpty &&
+        _selectedRoomTypes.isNotEmpty &&
+        _selectedPaymentStructures.isNotEmpty;
+    return allFieldsFilled && allChipsSelected && _currentUser != null;
+  }
+
+  void _onSave() async {
+    if (!_isNextAvailable() || _isPosting) return;
+    setState(() => _isPosting = true);
+
+    try {
+      final newPost = SearcherPost(
+        authorId: _currentUser!.uid,
+        title: _titleCtrl.text,
+        wantArea: _selectedWantAreas.toList(), // ✅ 선택된 희망 위치 저장
+        wantRoom: _selectedRoomTypes.toList(),
+        deposit: int.tryParse(_depositCtrl.text) ?? 0,
+        minRent: int.tryParse(_minRentCtrl.text) ?? 0,
+        maxRent: int.tryParse(_maxRentCtrl.text) ?? 0,
+        wantPay: _selectedPaymentStructures.toList(),
+        movingDate: _selectedMovingDate != null
+            ? Timestamp.fromDate(_selectedMovingDate!)
+            : Timestamp.now(),
+        minContract: int.tryParse(_minContractCtrl.text) ?? 0,
+        maxContract: int.tryParse(_maxContractCtrl.text) ?? 0,
+        introduction: _introductionCtrl.text,
+        createdAt: DateTime.now(),
+      );
+
+      await _postRepository.createPost(newPost);
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('게시글이 성공적으로 등록되었습니다!')));
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      debugPrint("게시글 생성 오류: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('오류가 발생했습니다: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isPosting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _onScaffoldTap(context),
+      onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
-          elevation: 10,
-          title: Text(
-            '게시글 작성',
-            style: TextStyle(
-              fontSize: Sizes.size24,
-            ),
-          ),
+          elevation: 1,
+          title: const Text('게시글 작성', style: TextStyle(fontSize: Sizes.size20)),
         ),
         body: Padding(
-          padding: EdgeInsets.only(
-            top: Sizes.size24,
-            left: Sizes.size24,
-            right: Sizes.size24,
-            bottom: Sizes.size24,
-          ),
+          padding: const EdgeInsets.all(Sizes.size24),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   '제목을 입력해주세요!',
                   style: TextStyle(
                     fontSize: Sizes.size16,
@@ -93,37 +232,56 @@ class _SearcherPostState extends State<SearcherPost> {
                 ),
                 Gaps.v6,
                 TextField(
-                  decoration: InputDecoration(
+                  controller: _titleCtrl,
+                  decoration: const InputDecoration(
                     hintText: '제목 입력',
                     border: OutlineInputBorder(),
                   ),
                 ),
                 Gaps.v24,
+                const Text(
+                  '희망 위치',
+                  style: TextStyle(
+                    fontSize: Sizes.size16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Gaps.v6,
+                // ✅ 2. TextField를 CategoryButton 형태로 대체
                 Wrap(
                   children: [
-                    SelectionChip(
-                      textOptions: ['선택하기'],
-                      onChipTap: _onChipTap,
-                      checkList: _chipOptionSelected,
-                      indexOfQuestion: 0,
-                      question: '희망 위치',
+                    CategoryButton(
+                      text: _selectedWantAreas.isEmpty
+                          ? "선택하기"
+                          : _selectedWantAreas.join(', '), // 선택된 지역 표시
+                      isSelected: _selectedWantAreas.isNotEmpty,
+                      myonTap: _onAreaTap, // 탭하면 선택 화면으로 이동
                     ),
                   ],
                 ),
                 Gaps.v24,
+                const Text(
+                  '희망 방 종류/구조',
+                  style: TextStyle(
+                    fontSize: Sizes.size16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Gaps.v10,
                 Wrap(
+                  spacing: Sizes.size8,
+                  runSpacing: Sizes.size8,
                   children: [
-                    SelectionChip(
-                      textOptions: ['원 룸', '투 룸', '빌라', '아파트'],
-                      onChipTap: _onChipTap,
-                      checkList: _chipOptionSelected,
-                      indexOfQuestion: 1,
-                      question: '희망 방 종류/구조',
-                    ),
+                    for (final option in _roomTypeOptions)
+                      CategoryButton(
+                        text: option,
+                        isSelected: _selectedRoomTypes.contains(option),
+                        myonTap: () => _onChipTap(_selectedRoomTypes, option),
+                      ),
                   ],
                 ),
                 Gaps.v24,
-                Text(
+                const Text(
                   '수용 가능 보증금/월세(관리비 포함)',
                   style: TextStyle(
                     fontSize: Sizes.size16,
@@ -135,12 +293,10 @@ class _SearcherPostState extends State<SearcherPost> {
                   children: [
                     Expanded(
                       child: TextField(
+                        controller: _depositCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: "보증금(만 원)",
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size12,
-                          ),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -148,12 +304,10 @@ class _SearcherPostState extends State<SearcherPost> {
                     Gaps.h8,
                     Expanded(
                       child: TextField(
+                        controller: _minRentCtrl,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           hintText: "최소 월세(만 원)",
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size10,
-                          ),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -161,12 +315,10 @@ class _SearcherPostState extends State<SearcherPost> {
                     Gaps.h8,
                     Expanded(
                       child: TextField(
+                        controller: _maxRentCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: "최대 월세(만 원)",
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size10,
-                          ),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -174,20 +326,30 @@ class _SearcherPostState extends State<SearcherPost> {
                   ],
                 ),
                 Gaps.v24,
+                const Text(
+                  '희망 지불 구조',
+                  style: TextStyle(
+                    fontSize: Sizes.size16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Gaps.v10,
                 Wrap(
+                  spacing: Sizes.size8,
+                  runSpacing: Sizes.size8,
                   children: [
-                    SelectionChip(
-                      textOptions: ['보증금 분담', '월세 분담', '관리비 분담', '공과금 분담'],
-                      onChipTap: _onChipTap,
-                      checkList: _chipOptionSelected,
-                      indexOfQuestion: 2,
-                      question: '희망 지불 구조',
-                    ),
+                    for (final option in _paymentOptions)
+                      CategoryButton(
+                        text: option,
+                        isSelected: _selectedPaymentStructures.contains(option),
+                        myonTap: () =>
+                            _onChipTap(_selectedPaymentStructures, option),
+                      ),
                   ],
                 ),
                 Gaps.v24,
-                Text(
-                  '입주가능일',
+                const Text(
+                  '입주 희망일',
                   style: TextStyle(
                     fontSize: Sizes.size16,
                     fontWeight: FontWeight.bold,
@@ -196,31 +358,31 @@ class _SearcherPostState extends State<SearcherPost> {
                 Gaps.v6,
                 TextField(
                   onTap: _onTimeFieldTap,
-                  controller: _controller,
+                  controller: _movingDateCtrl,
                   readOnly: true,
-                  decoration: InputDecoration(
-                    suffixIcon: Padding(
-                      padding: EdgeInsets.all(10),
-                      child: FaIcon(
-                        FontAwesomeIcons.calendar,
-                      ),
-                    ),
-                    hintText: '입주 가능일',
+                  decoration: const InputDecoration(
+                    hintText: '입주 희망일 선택',
                     border: OutlineInputBorder(),
+                    suffixIcon: Icon(CupertinoIcons.calendar),
                   ),
                 ),
                 Gaps.v24,
+                const Text(
+                  '희망 계약 기간',
+                  style: TextStyle(
+                    fontSize: Sizes.size16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Gaps.v6,
                 Row(
                   children: [
                     Expanded(
-                      flex: 1,
                       child: TextField(
+                        controller: _minContractCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          hintText: '최소 거주 기간(개월)',
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size14,
-                          ),
+                        decoration: const InputDecoration(
+                          hintText: "최소(개월)",
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -228,12 +390,10 @@ class _SearcherPostState extends State<SearcherPost> {
                     Gaps.h12,
                     Expanded(
                       child: TextField(
+                        controller: _maxContractCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          hintText: '최대 거주 기간(개월)',
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.size14,
-                          ),
+                        decoration: const InputDecoration(
+                          hintText: "최대(개월)",
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -241,23 +401,44 @@ class _SearcherPostState extends State<SearcherPost> {
                   ],
                 ),
                 Gaps.v24,
+                const Text(
+                  '자유 소개',
+                  style: TextStyle(
+                    fontSize: Sizes.size16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Gaps.v6,
                 TextField(
+                  controller: _introductionCtrl,
                   minLines: 3,
-                  maxLines: null,
+                  maxLines: 5,
                   keyboardType: TextInputType.multiline,
-                  decoration: InputDecoration(
-                    hintText:
-                        '자유롭게 글을 작성해주세요!\n취미, 희망 진로, 동거 규칙에 대해 작성해주시면 좋아요!',
-                    hintStyle: TextStyle(
-                      fontSize: Sizes.size14,
-                    ),
+                  decoration: const InputDecoration(
+                    hintText: '자유롭게 글을 작성해주세요!',
                     border: OutlineInputBorder(),
                   ),
                 ),
                 Gaps.v24,
-                FormButton(
-                  enabled: true,
-                  widget: Text('다음'),
+                GestureDetector(
+                  onTap: _isPosting ? null : _onSave,
+                  child: FormButton(
+                    enabled: _isNextAvailable(),
+                    widget: _isPosting
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            '게시하기',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: Sizes.size16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
                 ),
               ],
             ),
