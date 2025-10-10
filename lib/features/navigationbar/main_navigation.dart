@@ -169,6 +169,7 @@ class _MainNavigationState extends State<MainNavigation> {
     }
 
     return AppBar(
+      backgroundColor: Colors.white,
       toolbarHeight: Sizes.size40,
       title: Text(title),
       actionsPadding: const EdgeInsets.only(right: Sizes.size20),

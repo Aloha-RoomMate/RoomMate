@@ -166,6 +166,8 @@ class _MypageScreenState extends State<MypageScreen> {
         return Scaffold(
           key: _scaffoldKey,
           appBar: AppBar(
+            scrolledUnderElevation: 0,
+            backgroundColor: Colors.white,
             toolbarHeight: Sizes.size40,
             title: const Text('마이페이지'),
             actions: [
@@ -454,7 +456,7 @@ class _MypageScreenState extends State<MypageScreen> {
 
                             // ✅ 내가 만든 쿠키~ : 상자 내부에서 전체 스크롤(페이지네이션)
                             _MyPostsSection(
-                              title: "내가 만든 쿠키~",
+                              title: "내가 쓴 글",
                               repo: _postRepo,
                               currentUid: me.uid, // ← 안전
                             ),
@@ -721,7 +723,7 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
   Widget build(BuildContext context) {
     final boxColor = Theme.of(context).primaryColor.withValues(alpha: 0.06);
     final h = MediaQuery.of(context).size.height;
-    final boxHeight = (h * 0.60).clamp(360.0, 680.0); // 화면에 어울리는 높이
+    final boxHeight = (h * 0.60).clamp(360.0, 720.0); // 화면에 어울리는 높이
 
     final header = Row(
       children: [
@@ -754,7 +756,7 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
       ),
       decoration: BoxDecoration(
         color: boxColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Sizes.size18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
