@@ -25,6 +25,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final ChatRepository _chatRepo = ChatRepository();
   final user = FirebaseAuth.instance.currentUser!;
+  String? _lastClearedMsgId; // 중복 mark 방지(선택)
 
   void _sendMessage() async {
     if (_msgCtrl.text.trim().isEmpty) return;
@@ -35,6 +36,15 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
       }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ 화면 진입 시 읽음 처리
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _chatRepo.markChatRead(widget.chatRoomId);
     });
   }
 
@@ -65,6 +75,17 @@ class _ChatScreenState extends State<ChatScreen> {
                   }
 
                   final docs = snapshot.data!.docs;
+
+                  // ✅ 최신 메시지가 '상대'가 보낸 거면 읽음 처리
+                  if (docs.isNotEmpty) {
+                    final lastDoc = docs.last;
+                    final lastData = lastDoc.data();
+                    final isMine = lastData["senderId"] == user.uid;
+                    if (!isMine && _lastClearedMsgId != lastDoc.id) {
+                      _chatRepo.markChatRead(widget.chatRoomId);
+                      _lastClearedMsgId = lastDoc.id;
+                    }
+                  }
 
                   return ListView.builder(
                     controller: _scrollController,
@@ -133,6 +154,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                   ),
                                 ),
                               ),
+
                             Row(
                               mainAxisAlignment: isMe
                                   ? MainAxisAlignment.end
