@@ -499,7 +499,7 @@ class _MypageScreenState extends State<MypageScreen> {
                               ),
                               const SizedBox(height: 12),
                               const Text(
-                                "추가적인 유저 정보를 입력하면\n 사용하실수 있습니다.\n자물쇠를 줄러주세요.",
+                                "추가적인 유저 정보를 입력하면\n 사용하실수 있습니다.\n자물쇠를 눌러주세요.",
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 18,
