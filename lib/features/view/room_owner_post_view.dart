@@ -84,13 +84,13 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: Sizes.size20, color: Colors.grey.shade600),
-          Gaps.h16,
+          Gaps.h16(context),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: const TextStyle(fontSize: Sizes.size16)),
-                Gaps.v6,
+                Gaps.v6(context),
                 Align(
                   alignment: valueRight
                       ? Alignment.centerRight
@@ -347,7 +347,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Gaps.v16,
+                  Gaps.v16(context),
                   _buildInfoRow(
                     Icons.location_on_outlined,
                     "위치",
@@ -398,7 +398,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Gaps.v16,
+                  Gaps.v16(context),
                   _buildInfoRow(
                     Icons.event_available_outlined,
                     "입주 가능일",
@@ -424,12 +424,12 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Gaps.v16,
+                  Gaps.v16(context),
                   Text(
                     widget.post.introduction ?? '작성된 소개글이 없습니다.',
                     style: const TextStyle(fontSize: Sizes.size16, height: 1.5),
                   ),
-                  Gaps.v20,
+                  Gaps.v20(context),
                 ],
               ),
             ),

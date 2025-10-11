@@ -78,7 +78,7 @@ class _SearcherPostViewState extends State<SearcherPostView> {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            Gaps.v14,
+            Gaps.v14(context),
 
             // 이미지 그리드
             FutureBuilder<List<String>>(
@@ -123,7 +123,7 @@ class _SearcherPostViewState extends State<SearcherPostView> {
                 );
               },
             ),
-            Gaps.v16,
+            Gaps.v16(context),
 
             // 정보 블록
             _InfoRow(
@@ -131,37 +131,37 @@ class _SearcherPostViewState extends State<SearcherPostView> {
               label: '희망 지역',
               value: wantAreas.isEmpty ? '-' : wantAreas,
             ),
-            Gaps.v10,
+            Gaps.v10(context),
             _InfoRow(
               icon: FontAwesomeIcons.houseChimney,
               label: '희망 구조',
               value: wantRoom.isEmpty ? '-' : wantRoom,
             ),
-            Gaps.v10,
+            Gaps.v10(context),
             _InfoRow(
               icon: FontAwesomeIcons.handHoldingDollar,
               label: '지불 구조',
               value: wantPay.isEmpty ? '-' : wantPay,
             ),
-            Gaps.v10,
+            Gaps.v10(context),
             _InfoRow(
               icon: FontAwesomeIcons.coins,
               label: '예산',
               value: '보증금 $deposit만 / 월세 $minRent~$maxRent만',
             ),
-            Gaps.v10,
+            Gaps.v10(context),
             _InfoRow(
               icon: FontAwesomeIcons.calendar,
               label: '입주 희망일',
               value: moving,
             ),
-            Gaps.v10,
+            Gaps.v10(context),
             _InfoRow(
               icon: FontAwesomeIcons.solidClock,
               label: '희망 계약',
               value: contract,
             ),
-            Gaps.v16,
+            Gaps.v16(context),
 
             const Text(
               '자기소개',
@@ -170,12 +170,12 @@ class _SearcherPostViewState extends State<SearcherPostView> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            Gaps.v6,
+            Gaps.v6(context),
             Text(
               (p.introduction ?? '').isEmpty ? '소개가 없습니다.' : p.introduction!,
               style: const TextStyle(fontSize: Sizes.size14, height: 1.5),
             ),
-            Gaps.v40,
+            Gaps.v40(context),
           ],
         ),
       ),
@@ -198,7 +198,7 @@ class _InfoRow extends StatelessWidget {
     return Row(
       children: [
         FaIcon(icon, size: Sizes.size14),
-        Gaps.h8,
+        Gaps.h8(context),
         Text(
           '$label : ',
           style: const TextStyle(

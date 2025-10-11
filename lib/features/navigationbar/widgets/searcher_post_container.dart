@@ -114,7 +114,7 @@ class SearcherPostContainer extends StatelessWidget {
                   ),
                 ),
               ),
-              Gaps.h16,
+              Gaps.h16(context),
 
               // === 본문 ===
               Expanded(
@@ -131,7 +131,7 @@ class SearcherPostContainer extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    Gaps.v6,
+                    Gaps.v6(context),
 
                     // 희망 지역
                     Row(
@@ -141,7 +141,7 @@ class SearcherPostContainer extends StatelessWidget {
                           FontAwesomeIcons.locationDot,
                           size: Sizes.size12,
                         ),
-                        Gaps.h6,
+                        Gaps.h6(context),
                         Expanded(
                           child: Text(
                             wantAreas.isEmpty
@@ -153,7 +153,7 @@ class SearcherPostContainer extends StatelessWidget {
                         ),
                       ],
                     ),
-                    Gaps.v6,
+                    Gaps.v6(context),
 
                     // 예산/입주일
                     Row(
@@ -162,7 +162,7 @@ class SearcherPostContainer extends StatelessWidget {
                           FontAwesomeIcons.coins,
                           size: Sizes.size12,
                         ),
-                        Gaps.h6,
+                        Gaps.h6(context),
                         Expanded(
                           child: Text(
                             priceLine,
@@ -170,12 +170,12 @@ class SearcherPostContainer extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Gaps.h8,
+                        Gaps.h8(context),
                         const FaIcon(
                           FontAwesomeIcons.calendar,
                           size: Sizes.size12,
                         ),
-                        Gaps.h6,
+                        Gaps.h6(context),
                         Text(moving.isEmpty ? '-' : moving),
                       ],
                     ),
@@ -183,7 +183,7 @@ class SearcherPostContainer extends StatelessWidget {
                 ),
               ),
 
-              Gaps.h8,
+              Gaps.h8(context),
               const FaIcon(FontAwesomeIcons.arrowRight, size: Sizes.size16),
             ],
           ),

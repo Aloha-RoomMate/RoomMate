@@ -99,7 +99,7 @@ class _UserProfileViewState extends State<UserProfileView> {
             actions: [
               if (isPass) const AppbarChip(text: 'PASS 인증', color: Colors.red),
               if (_looksStudent(user)) ...[
-                Gaps.h4,
+                Gaps.h4(context),
                 const AppbarChip(text: '대학생 인증', color: Colors.green),
               ],
             ],
@@ -134,7 +134,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                               )
                             : null,
                       ),
-                      Gaps.v8,
+                      Gaps.v8(context),
                       Text(
                         user.displayName,
                         textAlign: TextAlign.center,
@@ -145,12 +145,12 @@ class _UserProfileViewState extends State<UserProfileView> {
                       Text(userTypeInfo?.type ?? '-'),
                     ],
                   ),
-                  Gaps.v12,
+                  Gaps.v12(context),
                   Divider(
                     height: 1,
                     color: Theme.of(context).primaryColor.withAlpha(100),
                   ),
-                  Gaps.v12,
+                  Gaps.v12(context),
 
                   // ───────────────── 하루 리듬 (마이페이지와 동일 필드만) ─────────────────
                   AccordionWidget(
@@ -339,7 +339,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                     ),
                   ),
 
-                  Gaps.v12,
+                  Gaps.v12(context),
 
                   // ───────────────── 해당 유저의 게시글 (무한 스크롤) ─────────────────
                   _UserPostsSection(
@@ -348,7 +348,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                     authorUid: widget.targetUid,
                   ),
 
-                  Gaps.v24,
+                  Gaps.v24(context),
                 ],
               ),
             ),
@@ -536,7 +536,7 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           header,
-          Gaps.v8,
+          Gaps.v8(context),
           SizedBox(
             height: boxHeight,
             child: _isLoading
