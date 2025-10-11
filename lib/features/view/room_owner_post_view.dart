@@ -11,6 +11,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:roommate/class/chat_repository.dart';
 import 'package:roommate/features/chat/chat_screen.dart';
 import 'package:roommate/features/post/room_owner_post_screen.dart';
+import 'package:roommate/features/view/user_profile_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RoomOwnerPostView extends StatefulWidget {
@@ -69,20 +70,41 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
     return res.map((e) => e.signedUrl).toList();
   }
 
-  Widget _buildInfoRow(IconData icon, String title, String value) {
+  /// ✅ 변경된 스택형 정보 행: 제목 아래로 값이 감싸지며 내려감
+  // 제목 아래 값 스택형 + 값 정렬 옵션 추가
+  Widget _buildInfoRow(
+    IconData icon,
+    String title,
+    String value, {
+    bool valueRight = false, // ← 값을 오른쪽 정렬할지 여부
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Sizes.size8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: Sizes.size20, color: Colors.grey.shade600),
           Gaps.h16,
-          Text(title, style: const TextStyle(fontSize: Sizes.size16)),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: Sizes.size16,
-              fontWeight: FontWeight.w600,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: Sizes.size16)),
+                Gaps.v6,
+                Align(
+                  alignment: valueRight
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    textAlign: valueRight ? TextAlign.right : TextAlign.left,
+                    style: const TextStyle(
+                      fontSize: Sizes.size16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -298,7 +320,20 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                         subtitle: const Text('프로필 보기'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // TODO: 작성자 프로필
+                          final uid = widget.post.authorId;
+                          if (uid == null || uid.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('작성자 UID를 찾을 수 없어요.'),
+                              ),
+                            );
+                            return;
+                          }
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => UserProfileView(targetUid: uid),
+                            ),
+                          );
                         },
                       );
                     },
@@ -322,31 +357,37 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                     Icons.attach_money_outlined,
                     "보증금",
                     "${numberFormat.format(widget.post.deposit ?? 0)}만원",
+                    valueRight: true,
                   ),
                   _buildInfoRow(
                     Icons.local_atm_outlined,
                     "월세",
                     "${numberFormat.format(widget.post.rent ?? 0)}만원",
+                    valueRight: true,
                   ),
                   _buildInfoRow(
                     Icons.receipt_long_outlined,
                     "관리비",
                     "${numberFormat.format(widget.post.manageFee ?? 0)}만원",
+                    valueRight: true,
                   ),
                   _buildInfoRow(
                     Icons.stairs_outlined,
                     "층수",
                     "${widget.post.corFloor ?? '-'}층 / ${widget.post.wholeFloor ?? '-'}층",
+                    valueRight: true,
                   ),
                   _buildInfoRow(
                     Icons.square_foot_outlined,
                     "전용 면적",
                     "${widget.post.area ?? '-'}평",
+                    valueRight: true,
                   ),
                   _buildInfoRow(
                     Icons.bathtub_outlined,
                     "화장실 개수",
                     "${widget.post.toilet ?? '-'}개",
+                    valueRight: true,
                   ),
 
                   const Divider(height: Sizes.size40),
@@ -366,11 +407,13 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                             'yyyy년 MM월 dd일',
                           ).format(widget.post.movingDate!.toDate())
                         : "정보 없음",
+                    valueRight: true,
                   ),
                   _buildInfoRow(
                     Icons.article_outlined,
                     "계약 기간",
                     "${widget.post.minContract ?? '-'}개월 ~ ${widget.post.maxContract ?? '-'}개월",
+                    valueRight: true,
                   ),
 
                   const Divider(height: Sizes.size40),

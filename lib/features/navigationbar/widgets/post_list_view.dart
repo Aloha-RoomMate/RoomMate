@@ -3,11 +3,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
+import 'package:roommate/class/searcher_post.dart';
+import 'package:roommate/class/searcher_post_repository.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/navigationbar/widgets/post_container.dart';
+import 'package:roommate/features/navigationbar/widgets/room_owner_post_container.dart';
+import 'package:roommate/features/navigationbar/widgets/searcher_post_container.dart';
 
 class PostListView extends StatefulWidget {
-  final String postType; // 'roomOwner' 또는 'Searcher'
+  /// 'roomOwner' 또는 'Searcher'
+  final String postType;
 
   const PostListView({
     super.key,
@@ -19,15 +23,27 @@ class PostListView extends StatefulWidget {
 }
 
 class _PostListViewState extends State<PostListView> {
-  final RoomOwnerPostRepository _repository = RoomOwnerPostRepository();
+  static const _pageSize = 20;
+
+  final RoomOwnerPostRepository _ownerRepo = RoomOwnerPostRepository();
+  final SearcherPostRepository _searcherRepo = SearcherPostRepository();
+
   final ScrollController _scrollController = ScrollController();
 
-  final List<RoomOwnerPost> _posts = [];
+  /// 두 타입 모두 담기 위해 Object 사용
+  final List<Object> _items = [];
+
   bool _isLoadingMore = false;
   bool _hasMore = true;
   DocumentSnapshot? _lastDocument;
 
   late final Future<void> _initialLoadFuture;
+
+  bool get _isRoomOwner =>
+      widget.postType.toLowerCase() == 'roomowner' ||
+      widget.postType.toLowerCase() == 'room_owner' ||
+      widget.postType.toLowerCase() == 'room-owner' ||
+      widget.postType.toLowerCase() == 'room owner';
 
   @override
   void initState() {
@@ -43,37 +59,45 @@ class _PostListViewState extends State<PostListView> {
         (u) => u != null,
       );
     }
-    await _fetchInitialPosts();
+    await _fetchInitial();
   }
 
-  Future<void> _fetchInitialPosts() async {
+  Future<void> _fetchInitial() async {
     if (_isLoadingMore) return;
     setState(() => _isLoadingMore = true);
 
-    final result = await _repository.fetchPosts(postType: widget.postType);
-
-    if (mounted) {
+    if (_isRoomOwner) {
+      final res = await _ownerRepo.fetchPosts(postType: 'roomOwner');
+      if (!mounted) return;
       setState(() {
-        _posts
+        _items
           ..clear()
-          ..addAll(result.posts);
-        _lastDocument = result.lastDocument;
-        _hasMore = result.posts.length == 20;
+          ..addAll(res.posts); // List<RoomOwnerPost>
+        _lastDocument = res.lastDocument;
+        _hasMore = res.posts.length == _pageSize;
+        _isLoadingMore = false;
+      });
+    } else {
+      final res = await _searcherRepo.fetchPosts(postType: 'Searcher');
+      if (!mounted) return;
+      setState(() {
+        _items
+          ..clear()
+          ..addAll(res.posts); // List<SearcherPost>
+        _lastDocument = res.lastDocument;
+        _hasMore = res.posts.length == _pageSize;
         _isLoadingMore = false;
       });
     }
   }
 
-  // 🔹 Pull-to-refresh에서 호출
-  Future<void> _refreshPosts() async {
-    // 상태 초기화
+  Future<void> _refresh() async {
     _lastDocument = null;
     _hasMore = true;
     _isLoadingMore = false;
-    _posts.clear();
-    if (mounted) setState(() {}); // 깜빡임 줄이려면 생략 가능
-
-    await _fetchInitialPosts();
+    _items.clear();
+    if (mounted) setState(() {});
+    await _fetchInitial();
   }
 
   void _onScroll() {
@@ -81,24 +105,36 @@ class _PostListViewState extends State<PostListView> {
             _scrollController.position.maxScrollExtent - 200 &&
         !_isLoadingMore &&
         _hasMore) {
-      _fetchMorePosts();
+      _fetchMore();
     }
   }
 
-  Future<void> _fetchMorePosts() async {
+  Future<void> _fetchMore() async {
     if (_isLoadingMore) return;
     setState(() => _isLoadingMore = true);
 
-    final result = await _repository.fetchPosts(
-      postType: widget.postType,
-      lastItem: _lastDocument,
-    );
-
-    if (mounted) {
+    if (_isRoomOwner) {
+      final res = await _ownerRepo.fetchPosts(
+        postType: 'roomOwner',
+        lastItem: _lastDocument,
+      );
+      if (!mounted) return;
       setState(() {
-        _posts.addAll(result.posts);
-        _lastDocument = result.lastDocument;
-        _hasMore = result.posts.length == 20;
+        _items.addAll(res.posts);
+        _lastDocument = res.lastDocument;
+        _hasMore = res.posts.length == _pageSize;
+        _isLoadingMore = false;
+      });
+    } else {
+      final res = await _searcherRepo.fetchPosts(
+        postType: 'Searcher',
+        lastItem: _lastDocument,
+      );
+      if (!mounted) return;
+      setState(() {
+        _items.addAll(res.posts);
+        _lastDocument = res.lastDocument;
+        _hasMore = res.posts.length == _pageSize;
         _isLoadingMore = false;
       });
     }
@@ -115,34 +151,32 @@ class _PostListViewState extends State<PostListView> {
   Widget build(BuildContext context) {
     return FutureBuilder(
       future: _initialLoadFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          // 초기 로딩 중에도 당겨서 새로고침 가능하게 하려면 RefreshIndicator 감싸도 됨
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError) {
+        if (snap.hasError) {
           return RefreshIndicator(
-            onRefresh: _refreshPosts,
+            onRefresh: _refresh,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 const SizedBox(height: 120),
-                Center(child: Text('오류 발생: ${snapshot.error}')),
+                Center(child: Text('오류 발생: ${snap.error}')),
               ],
             ),
           );
         }
 
         return RefreshIndicator(
-          onRefresh: _refreshPosts,
+          onRefresh: _refresh,
           child: ListView.builder(
             controller: _scrollController,
-            physics: const AlwaysScrollableScrollPhysics(), // 빈 리스트여도 당겨짐
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(vertical: Sizes.size8),
-            itemCount: _posts.length + (_hasMore ? 1 : 0),
+            itemCount: _items.length + (_hasMore ? 1 : 0),
             itemBuilder: (context, index) {
-              if (index == _posts.length) {
-                // 바닥 로딩셀
+              if (index == _items.length) {
                 return _isLoadingMore
                     ? const Center(
                         child: Padding(
@@ -152,8 +186,16 @@ class _PostListViewState extends State<PostListView> {
                       )
                     : const SizedBox.shrink();
               }
-              final post = _posts[index];
-              return PostContainer(post: post);
+
+              final item = _items[index];
+
+              if (item is RoomOwnerPost) {
+                return RoomOwnerPostContainer(post: item);
+              } else if (item is SearcherPost) {
+                return SearcherPostContainer(post: item);
+              } else {
+                return const SizedBox.shrink();
+              }
             },
           ),
         );
