@@ -4,7 +4,6 @@ import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
-import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/authentication/widgets/hobby_widget.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 
@@ -160,7 +159,11 @@ class HobbyScreenState extends State<HobbyScreen> {
         final data = snapshot.data!;
 
         return Scaffold(
-          appBar: AppBar(title: const Text("")),
+          appBar: AppBar(
+            title: const Text(""),
+            backgroundColor: Colors.white,
+            scrolledUnderElevation: 0,
+          ),
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

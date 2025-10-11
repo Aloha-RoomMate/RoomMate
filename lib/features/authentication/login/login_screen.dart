@@ -13,12 +13,6 @@ class LoginScreen extends StatelessWidget {
   static const _webClientId =
       '909707662887-ld8djjd1eqbdu7hcellh7689j3q1n9ik.apps.googleusercontent.com';
 
-  void _onSignupTap(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-    );
-  }
-
   Future<void> _signInWithGoogle(BuildContext context) async {
     try {
       final google = GoogleSignIn(
@@ -54,30 +48,6 @@ class LoginScreen extends StatelessWidget {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('로그인 오류: $e')));
-    }
-  }
-
-  // ✅ 에뮬레이터 테스트 계정 로그인
-  Future<void> _signInWithTestAccount(
-    BuildContext context,
-    String email,
-    String password,
-  ) async {
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (!context.mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-      );
-    } on FirebaseAuthException catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('테스트 로그인 실패: ${e.code}')),
-      );
     }
   }
 
@@ -134,33 +104,6 @@ class LoginScreen extends StatelessWidget {
               ),
 
               // ✅ 아주 작은 테스트 계정 로그인 버튼 두 개
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  TextButton(
-                    onPressed: () => _signInWithTestAccount(
-                      context,
-                      "test1@test.com",
-                      "123456",
-                    ),
-                    child: const Text(
-                      "테스트1",
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => _signInWithTestAccount(
-                      context,
-                      "test2@test.com",
-                      "123456",
-                    ),
-                    child: const Text(
-                      "테스트2",
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
