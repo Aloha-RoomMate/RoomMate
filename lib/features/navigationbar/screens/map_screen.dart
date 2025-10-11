@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
+import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/navigationbar/widgets/owner_preview_card.dart';
 import 'package:roommate/features/view/room_owner_post_view.dart';
 
@@ -609,73 +610,81 @@ class _MapScreenState extends State<MapScreen> {
           // 1) 지도
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: NaverMap(
-              onMapReady: (c) {
-                _controller = c;
-                _refreshOwnerMarkersForViewport();
-              },
-              onCameraChange: (reason, animated) {
-                if (reason == NCameraUpdateReason.location ||
-                    reason == NCameraUpdateReason.control) {
-                  _zoomTo14OnNextIdle = true;
-                }
-              },
-              onCameraIdle: () async {
-                // 줌 14 보정
-                final ctrl0 = _controller; // ← 로컬 캡처
-                if (_zoomTo14OnNextIdle && ctrl0 != null) {
-                  _zoomTo14OnNextIdle = false;
-                  try {
-                    final pos = await ctrl0.getCameraPosition();
-                    final cu =
-                        NCameraUpdate.scrollAndZoomTo(
-                          target: pos.target,
-                          zoom: 14,
-                        )..setAnimation(
-                          duration: const Duration(milliseconds: 250),
-                        );
-                    if (mounted) {
-                      await ctrl0.updateCamera(cu);
-                    }
-                  } catch (_) {
-                    // ignore: map이 아직 준비 안 됐거나 이미 dispose된 케이스
-                  }
-                }
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(Sizes.size18),
 
-                if (_lockOverlayOps || _isAnimatingCamera) return;
-
-                _viewportDebounce?.cancel();
-
-                // 🔒 타이머 안에서 다시 로컬 캡처 + 널가드 + mounted 체크
-                _viewportDebounce = Timer(
-                  const Duration(milliseconds: 250),
-                  () async {
-                    if (!mounted) return;
-                    if (_lockOverlayOps || _isAnimatingCamera) return;
-
-                    final ctrl = _controller; // ← 다시 캡처
-                    if (ctrl == null) return;
-
-                    try {
-                      final cam = await ctrl.getCameraPosition(); // ← 안전
-                      if (cam.zoom < Z_ALL) {
-                        await _showAllOwnerMarkersFromCache();
-                      } else {
-                        await _refreshOwnerMarkersForViewport();
+              child: Stack(
+                children: [
+                  NaverMap(
+                    onMapReady: (c) {
+                      _controller = c;
+                      _refreshOwnerMarkersForViewport();
+                    },
+                    onCameraChange: (reason, animated) {
+                      if (reason == NCameraUpdateReason.location ||
+                          reason == NCameraUpdateReason.control) {
+                        _zoomTo14OnNextIdle = true;
                       }
-                    } catch (_) {
-                      // ignore
-                    }
-                  },
-                );
-              },
+                    },
+                    onCameraIdle: () async {
+                      // 줌 14 보정
+                      final ctrl0 = _controller; // ← 로컬 캡처
+                      if (_zoomTo14OnNextIdle && ctrl0 != null) {
+                        _zoomTo14OnNextIdle = false;
+                        try {
+                          final pos = await ctrl0.getCameraPosition();
+                          final cu =
+                              NCameraUpdate.scrollAndZoomTo(
+                                target: pos.target,
+                                zoom: 14,
+                              )..setAnimation(
+                                duration: const Duration(milliseconds: 250),
+                              );
+                          if (mounted) {
+                            await ctrl0.updateCamera(cu);
+                          }
+                        } catch (_) {
+                          // ignore: map이 아직 준비 안 됐거나 이미 dispose된 케이스
+                        }
+                      }
 
-              options: const NaverMapViewOptions(
-                initialCameraPosition: NCameraPosition(
-                  target: NLatLng(37.5665, 126.9780),
-                  zoom: 13.5,
-                ),
-                locationButtonEnable: true,
+                      if (_lockOverlayOps || _isAnimatingCamera) return;
+
+                      _viewportDebounce?.cancel();
+
+                      // 🔒 타이머 안에서 다시 로컬 캡처 + 널가드 + mounted 체크
+                      _viewportDebounce = Timer(
+                        const Duration(milliseconds: 250),
+                        () async {
+                          if (!mounted) return;
+                          if (_lockOverlayOps || _isAnimatingCamera) return;
+
+                          final ctrl = _controller; // ← 다시 캡처
+                          if (ctrl == null) return;
+
+                          try {
+                            final cam = await ctrl.getCameraPosition(); // ← 안전
+                            if (cam.zoom < Z_ALL) {
+                              await _showAllOwnerMarkersFromCache();
+                            } else {
+                              await _refreshOwnerMarkersForViewport();
+                            }
+                          } catch (_) {
+                            // ignore
+                          }
+                        },
+                      );
+                    },
+
+                    options: const NaverMapViewOptions(
+                      initialCameraPosition: NCameraPosition(
+                        target: NLatLng(37.5665, 126.9780),
+                        zoom: 13.5,
+                      ),
+                      locationButtonEnable: true,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
