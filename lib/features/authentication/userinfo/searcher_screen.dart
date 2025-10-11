@@ -171,7 +171,7 @@ class _SearcherScreenState extends State<SearcherScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
-                '거주를 희망하는 자치구와 동을\n최대 3개까지 선택하세요.',
+                '거주를 희망하는 자치구와 동을\n최대 5개까지 선택하세요.',
                 style: TextStyle(
                   fontSize: Sizes.size24,
                   fontWeight: FontWeight.w700,
