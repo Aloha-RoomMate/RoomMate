@@ -767,26 +767,23 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
             height: boxHeight,
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: _posts.length + (_hasMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == _posts.length) {
-                          return _isLoadingMore
-                              ? const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 16.0),
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                )
-                              : const SizedBox.shrink();
-                        }
-                        return RoomOwnerPostContainer(post: _posts[index]);
-                      },
-                    ),
+                : ListView.builder(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: _posts.length + (_hasMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == _posts.length) {
+                        return _isLoadingMore
+                            ? const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16.0),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              )
+                            : const SizedBox.shrink();
+                      }
+                      return RoomOwnerPostContainer(post: _posts[index]);
+                    },
                   ),
           ),
         ],
