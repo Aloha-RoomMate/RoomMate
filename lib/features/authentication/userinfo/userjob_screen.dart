@@ -1,9 +1,8 @@
 // 화면 깜빡임을 줄이기 위해 빌드를 너무 자주하게 하면 안된다.
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/authentication/userinfo/roomowner_screen.dart';
+import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
 import 'package:roommate/features/authentication/userinfo/searcher_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
@@ -16,7 +15,8 @@ class UserjobScreen extends StatefulWidget {
   State<UserjobScreen> createState() => _UserjobScreenState();
 }
 
-class _UserjobScreenState extends State<UserjobScreen> {
+class _UserjobScreenState extends State<UserjobScreen>
+    with SingleTickerProviderStateMixin {
   final List<bool> _jobSelections = List<bool>.filled(4, false);
 
   int? _selectedIndex;
@@ -26,10 +26,30 @@ class _UserjobScreenState extends State<UserjobScreen> {
 
   late Future<User?> _userFuture; // ✅ 캐싱용 Future
 
+  // === ⬇️ 추가: "다음" 버튼용 페이드 컨트롤러 ===
+  static const _fadeDur = Duration(milliseconds: 300);
+  late final AnimationController _btnAC;
+  late final Animation<double> _btnFade;
+  bool _btnBusy = false;
+  // === ⬆️ 추가 ===
+
   @override
   void initState() {
     super.initState();
     _userFuture = Future.value(FirebaseAuth.instance.currentUser);
+
+    // 버튼 최초 진입 페이드 인
+    _btnAC = AnimationController(vsync: this, duration: _fadeDur);
+    _btnFade = CurvedAnimation(parent: _btnAC, curve: Curves.easeInOut);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _btnAC.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _btnAC.dispose();
+    super.dispose();
   }
 
   void _onJobTap(int index) {
@@ -66,6 +86,7 @@ class _UserjobScreenState extends State<UserjobScreen> {
     return anyJob && oneUserType;
   }
 
+  // 기존 네비게이션 로직
   void _onNextTap() {
     if (_isSending) return;
 
@@ -83,20 +104,35 @@ class _UserjobScreenState extends State<UserjobScreen> {
     if (_selectedIndex == 0) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => RoomownerScreen(
-            userType: 'roomOwner',
-            jobKinds: selectedJobs,
+          builder: (_) => HobbyScreen(
+            // userType: 'roomOwner',
+            // jobKinds: selectedJobs,
           ),
         ),
       );
     } else {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => SearcherScreen(),
+          builder: (_) => const SearcherScreen(),
         ),
       );
     }
   }
+
+  // === ⬇️ 추가: 페이드 아웃 후 네비게이션 래퍼 ===
+  Future<void> _onNextTapWithFade() async {
+    if (_btnBusy || !_isNextEnabled()) return;
+    _btnBusy = true;
+    try {
+      await _btnAC.reverse(); // 버튼 사라짐 (300ms)
+      if (!mounted) return;
+      _onNextTap(); // 기존 네비게이션 실행
+      // push 후 이 화면은 뒤로 남아있으니, 되돌아올 때는 initState에서 다시 페이드 인됨
+    } finally {
+      _btnBusy = false;
+    }
+  }
+  // === ⬆️ 추가 ===
 
   @override
   Widget build(BuildContext context) {
@@ -231,23 +267,15 @@ class _UserjobScreenState extends State<UserjobScreen> {
 
                       const SizedBox(height: Sizes.size28),
 
+                      // ✅ "다음" 버튼 페이드 인/아웃
                       GestureDetector(
-                        onTap: isNextEnabled ? _onNextTap : null,
-                        child: FormButton(
-                          disabled: !_isNextEnabled(),
-                          text: "다음",
-                          // 아래껀 category 에서 formbutton 불러왔을때
-                          // enabled: _isUser == true || _jobSelections.isNotEmpty,
-                          // widget: _isSending
-                          //     ? Center(
-                          //         child: CircularProgressIndicator(
-                          //           color: Colors.white,
-                          //         ),
-                          //       )
-                          //     : Text(
-                          //         '다음',
-                          //         textAlign: TextAlign.center,
-                          //       ),
+                        onTap: isNextEnabled ? _onNextTapWithFade : null,
+                        child: FadeTransition(
+                          opacity: _btnFade,
+                          child: FormButton(
+                            disabled: !_isNextEnabled(),
+                            text: "다음",
+                          ),
                         ),
                       ),
                     ],
@@ -280,7 +308,6 @@ Widget _buildDescriptionCard(BuildContext context, int? index, User data) {
       "월세를 같이 부담하며 누군가의 \n룸메이트가 되려한다면 Searcher입니다.\n";
 
   final String desc = isOwner ? ownerDesc : searcherDesc;
-  final IconData icon = isOwner ? Icons.home_rounded : Icons.search_rounded;
 
   return Container(
     key: ValueKey(title),
@@ -301,7 +328,7 @@ Widget _buildDescriptionCard(BuildContext context, int? index, User data) {
             color: Theme.of(context).primaryColor,
             borderRadius: BorderRadius.circular(Sizes.size10),
           ),
-          child: Icon(icon, color: Colors.white),
+          child: const Icon(Icons.home_rounded, color: Colors.white),
         ),
         const SizedBox(width: 12),
         Expanded(

@@ -13,12 +13,6 @@ class LoginScreen extends StatelessWidget {
   static const _webClientId =
       '909707662887-ld8djjd1eqbdu7hcellh7689j3q1n9ik.apps.googleusercontent.com';
 
-  void _onSignupTap(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-    );
-  }
-
   Future<void> _signInWithGoogle(BuildContext context) async {
     try {
       final google = GoogleSignIn(
