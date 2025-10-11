@@ -1,12 +1,13 @@
 // 화면 깜빡임을 줄이기 위해 빌드를 너무 자주하게 하면 안된다.
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
 import 'package:roommate/features/authentication/userinfo/searcher_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/authentication/widgets/demand_button.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class UserjobScreen extends StatefulWidget {
   const UserjobScreen({super.key});
@@ -162,35 +163,37 @@ class _UserjobScreenState extends State<UserjobScreen>
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: Padding(
-                padding: const EdgeInsets.only(left: 20, right: 20),
+                padding: EdgeInsets.symmetric(
+                  horizontal: ResponsiveSizes.p(context, 20),
+                ),
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         '현재 하시고 계신 일에\n대해 알려주세요 !',
                         style: TextStyle(
-                          fontSize: Sizes.size28,
+                          fontSize: ResponsiveSizes.f(context, 28),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
+                      Gaps.v6(context),
+                      Text(
                         "나중에 더 찰떡궁합 룸메이트를 찾는데 사용되요.",
                         style: TextStyle(
-                          fontSize: Sizes.size14,
+                          fontSize: ResponsiveSizes.f(context, 14),
                           color: Colors.black87,
                           fontWeight: FontWeight.w300,
                         ),
                       ),
-                      const SizedBox(height: Sizes.size16),
+                      Gaps.v16(context),
                       const Divider(height: 1, color: Colors.black12),
-                      const SizedBox(height: Sizes.size16),
+                      Gaps.v16(context),
 
                       Center(
                         child: Wrap(
-                          spacing: Sizes.size10,
-                          runSpacing: Sizes.size10,
+                          spacing: ResponsiveSizes.p(context, 10),
+                          runSpacing: ResponsiveSizes.p(context, 10),
                           children: List.generate(4, (i) {
                             return CategoryButton(
                               text: textOptions[i],
@@ -201,27 +204,27 @@ class _UserjobScreenState extends State<UserjobScreen>
                         ),
                       ),
 
-                      const SizedBox(height: Sizes.size80),
+                      Gaps.v80(context),
 
-                      const Text(
+                      Text(
                         '현재 RoomMate를 \n이용하는 이유는 무엇인가요 ?',
                         style: TextStyle(
-                          fontSize: Sizes.size28,
+                          fontSize: ResponsiveSizes.f(context, 28),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
+                      Gaps.v6(context),
+                      Text(
                         "나중에도 변경가능해요 !",
                         style: TextStyle(
-                          fontSize: Sizes.size14,
+                          fontSize: ResponsiveSizes.f(context, 14),
                           color: Colors.black87,
                           fontWeight: FontWeight.w300,
                         ),
                       ),
-                      const SizedBox(height: Sizes.size16),
+                      Gaps.v16(context),
                       const Divider(height: 1, color: Colors.black12),
-                      const SizedBox(height: Sizes.size16),
+                      Gaps.v16(context),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -230,7 +233,7 @@ class _UserjobScreenState extends State<UserjobScreen>
                             text: "Room-owner",
                             myonTap: _onTapLeft,
                           ),
-                          const SizedBox(width: Sizes.size56),
+                          Gaps.h56(context),
                           DemandButton(
                             key: _rightKey,
                             text: "Searcher",
@@ -239,7 +242,7 @@ class _UserjobScreenState extends State<UserjobScreen>
                         ],
                       ),
 
-                      const SizedBox(height: Sizes.size24),
+                      Gaps.v24(context),
 
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 300),
@@ -265,7 +268,7 @@ class _UserjobScreenState extends State<UserjobScreen>
                         ),
                       ),
 
-                      const SizedBox(height: Sizes.size28),
+                      Gaps.v28(context),
 
                       // ✅ "다음" 버튼 페이드 인/아웃
                       GestureDetector(
@@ -292,8 +295,8 @@ class _UserjobScreenState extends State<UserjobScreen>
 
 Widget _buildDescriptionCard(BuildContext context, int? index, User data) {
   if (index == null) {
-    return const SizedBox(
-      height: Sizes.size96 + Sizes.size56 + Sizes.size1,
+    return SizedBox(
+      height: ResponsiveSizes.height(context, (96 + 56 + 1) / 800),
     );
   }
 
@@ -311,9 +314,9 @@ Widget _buildDescriptionCard(BuildContext context, int? index, User data) {
 
   return Container(
     key: ValueKey(title),
-    padding: const EdgeInsets.all(16),
+    padding: EdgeInsets.all(ResponsiveSizes.p(context, 16)),
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(Sizes.size18),
+      borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 18)),
       color: Colors.transparent,
       border: Border.all(color: Colors.black.withAlpha(15)),
     ),
@@ -321,32 +324,32 @@ Widget _buildDescriptionCard(BuildContext context, int? index, User data) {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 44,
-          height: 44,
+          width: ResponsiveSizes.p(context, 44),
+          height: ResponsiveSizes.p(context, 44),
           decoration: BoxDecoration(
             border: Border.all(color: Colors.black.withAlpha(15)),
             color: Theme.of(context).primaryColor,
-            borderRadius: BorderRadius.circular(Sizes.size10),
+            borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 10)),
           ),
           child: const Icon(Icons.home_rounded, color: Colors.white),
         ),
-        const SizedBox(width: 12),
+        Gaps.h12(context),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: Sizes.size16,
+                style: TextStyle(
+                  fontSize: ResponsiveSizes.f(context, 16),
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 6),
+              Gaps.v6(context),
               Text(
                 desc,
                 style: TextStyle(
-                  fontSize: Sizes.size12,
+                  fontSize: ResponsiveSizes.f(context, 12),
                   height: 1.6,
                   color: Colors.black.withAlpha(170),
                 ),

@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
+import 'package:roommate/constants/gaps.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class OwnerPreviewCard extends StatelessWidget {
   final RoomOwnerPost post;
@@ -90,8 +92,8 @@ class OwnerPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final cardW = size.width * 0.90; // 너비 90%
-    final cardH = size.height * 0.40; // 높이 40% (요구사항대로)
+    final cardW = ResponsiveSizes.width(context, 0.90); // 너비 90%
+    final cardH = ResponsiveSizes.height(context, 0.40); // 높이 40% (요구사항대로)
 
     final deposit = post.deposit ?? 0;
     final rent = post.rent ?? 0;
@@ -106,7 +108,7 @@ class OwnerPreviewCard extends StatelessWidget {
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: EdgeInsets.only(bottom: ResponsiveSizes.p(context, 12)),
           child: Dismissible(
             key: const ValueKey('owner_preview_card'),
             direction: DismissDirection.down, // 아래로 스와이프 닫기
@@ -119,28 +121,37 @@ class OwnerPreviewCard extends StatelessWidget {
                 child: Material(
                   color: Colors.white,
                   elevation: 10,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveSizes.p(context, 16),
+                  ),
                   shadowColor: Colors.black26,
                   clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [
                       // 상단 핸들 + 닫기
                       Container(
-                        padding: const EdgeInsets.fromLTRB(12, 10, 6, 8),
+                        padding: EdgeInsets.fromLTRB(
+                          ResponsiveSizes.p(context, 12),
+                          ResponsiveSizes.p(context, 10),
+                          ResponsiveSizes.p(context, 6),
+                          ResponsiveSizes.p(context, 8),
+                        ),
                         child: Row(
                           children: [
                             Expanded(
                               child: Column(
                                 children: [
                                   Container(
-                                    width: 36,
-                                    height: 4,
+                                    width: ResponsiveSizes.p(context, 36),
+                                    height: ResponsiveSizes.p(context, 4),
                                     decoration: BoxDecoration(
                                       color: Colors.black26,
-                                      borderRadius: BorderRadius.circular(2),
+                                      borderRadius: BorderRadius.circular(
+                                        ResponsiveSizes.p(context, 2),
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  Gaps.v8(context),
                                 ],
                               ),
                             ),
@@ -161,26 +172,34 @@ class OwnerPreviewCard extends StatelessWidget {
                         child: InkWell(
                           onTap: onOpen, // 전체 탭 → 상세로
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                            padding: EdgeInsets.fromLTRB(
+                              ResponsiveSizes.p(context, 16),
+                              0,
+                              ResponsiveSizes.p(context, 16),
+                              ResponsiveSizes.p(context, 12),
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // 1) 주소 (축약)
                                 Row(
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.place,
-                                      size: 18,
+                                      size: ResponsiveSizes.p(context, 18),
                                       color: Colors.black87,
                                     ),
-                                    const SizedBox(width: 6),
+                                    Gaps.h6(context),
                                     Expanded(
                                       child: Text(
                                         addrTop,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 14,
+                                        style: TextStyle(
+                                          fontSize: ResponsiveSizes.f(
+                                            context,
+                                            14,
+                                          ),
                                           fontWeight: FontWeight.w800,
                                           color: Colors.black87,
                                         ),
@@ -188,44 +207,51 @@ class OwnerPreviewCard extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 10),
+                                Gaps.v10(context),
 
                                 // 2) 금액 (관리비 포함)
                                 Text(
                                   '보증금 $deposit / 월세 $totalMonth (관리비 포함)',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 16,
+                                  style: TextStyle(
+                                    fontSize: ResponsiveSizes.f(context, 16),
                                     color: Colors.black87,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
+                                Gaps.v6(context),
 
                                 // 3) 성별 / 흡연
                                 Text(
                                   '${_genderText(author)} / ${_smokingText(author)}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 14,
+                                  style: TextStyle(
+                                    fontSize: ResponsiveSizes.f(context, 14),
                                     color: Colors.black54,
                                   ),
                                 ),
 
-                                const SizedBox(height: 12),
+                                Gaps.v12(context),
                                 const Divider(height: 1, color: Colors.black12),
 
                                 // 작성자 로딩 스피너
                                 Expanded(
                                   child: Center(
                                     child: loadingAuthor
-                                        ? const SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
+                                        ? SizedBox(
+                                            width: ResponsiveSizes.p(
+                                              context,
+                                              24,
                                             ),
+                                            height: ResponsiveSizes.p(
+                                              context,
+                                              24,
+                                            ),
+                                            child:
+                                                const CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                ),
                                           )
                                         : const SizedBox.shrink(),
                                   ),

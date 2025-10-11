@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:roommate/constants/gaps.dart';
-
-import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 const List<String> kSeoulGu = [
   '강남구',
@@ -166,20 +165,20 @@ class _SearcherScreenState extends State<SearcherScreen> {
       appBar: AppBar(title: const Text('희망 위치 선택')),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(Sizes.size16),
+          padding: EdgeInsets.all(ResponsiveSizes.p(context, 16)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                '거주를 희망하는 자치구와 동을\n최대 5개까지 선택하세요.',
+              Text(
+                '거주를 희망하는 자치구와 동을\n최대 3개까지 선택하세요.',
                 style: TextStyle(
-                  fontSize: Sizes.size24,
+                  fontSize: ResponsiveSizes.f(context, 24),
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: Sizes.size16),
+              Gaps.v16(context),
               const Divider(height: 1, color: Colors.black12),
-              const SizedBox(height: Sizes.size16),
+              Gaps.v16(context),
               Expanded(
                 child: Row(
                   children: [
@@ -188,7 +187,9 @@ class _SearcherScreenState extends State<SearcherScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.black38),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(
+                            ResponsiveSizes.p(context, 12),
+                          ),
                         ),
                         child: ListView.separated(
                           itemCount: _guList.length,
@@ -206,7 +207,7 @@ class _SearcherScreenState extends State<SearcherScreen> {
                                 title: Text(
                                   gu,
                                   style: TextStyle(
-                                    fontSize: Sizes.size14,
+                                    fontSize: ResponsiveSizes.f(context, 14),
                                     fontWeight: selected
                                         ? FontWeight.w600
                                         : FontWeight.w400,
@@ -224,21 +225,26 @@ class _SearcherScreenState extends State<SearcherScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    Gaps.h12(context),
                     Expanded(
                       flex: 5,
                       child: Container(
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.black38),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(
+                            ResponsiveSizes.p(context, 12),
+                          ),
                         ),
                         child: _selectedGu == null
                             ? const Center(child: Text('좌측에서 자치구를 선택하세요'))
                             : Column(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 10,
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: ResponsiveSizes.height(
+                                        context,
+                                        10 / 800,
+                                      ),
                                     ),
                                     decoration: const BoxDecoration(
                                       border: Border(
@@ -253,12 +259,15 @@ class _SearcherScreenState extends State<SearcherScreen> {
                                       children: [
                                         Text(
                                           _selectedGu!,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontWeight: FontWeight.w700,
-                                            fontSize: 16,
+                                            fontSize: ResponsiveSizes.f(
+                                              context,
+                                              16,
+                                            ),
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
+                                        Gaps.h8(context),
                                         if (_isLoadingDongs)
                                           const Text('(로딩 중...)')
                                         else
@@ -274,7 +283,9 @@ class _SearcherScreenState extends State<SearcherScreen> {
                                         : _errorMessage.isNotEmpty
                                         ? Center(
                                             child: Padding(
-                                              padding: const EdgeInsets.all(16),
+                                              padding: EdgeInsets.all(
+                                                ResponsiveSizes.p(context, 16),
+                                              ),
                                               child: Text(
                                                 _errorMessage,
                                                 textAlign: TextAlign.center,
@@ -282,8 +293,11 @@ class _SearcherScreenState extends State<SearcherScreen> {
                                             ),
                                           )
                                         : ListView.separated(
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 4,
+                                            padding: EdgeInsets.symmetric(
+                                              vertical: ResponsiveSizes.height(
+                                                context,
+                                                4 / 800,
+                                              ),
                                             ),
                                             itemCount: dongs.length,
                                             separatorBuilder: (_, __) =>
@@ -324,13 +338,15 @@ class _SearcherScreenState extends State<SearcherScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: Sizes.size16),
+              Gaps.v16(context),
               if (_fav.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.all(Sizes.size12),
+                  padding: EdgeInsets.all(ResponsiveSizes.p(context, 12)),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.black26),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      ResponsiveSizes.p(context, 12),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -339,10 +355,10 @@ class _SearcherScreenState extends State<SearcherScreen> {
                         '선택된 지역',
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
-                      Gaps.v8,
+                      Gaps.v8(context),
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: ResponsiveSizes.p(context, 8),
+                        runSpacing: ResponsiveSizes.p(context, 8),
                         children: _fav
                             .map(
                               (favItem) => Chip(
@@ -356,15 +372,17 @@ class _SearcherScreenState extends State<SearcherScreen> {
                     ],
                   ),
                 ),
-              Gaps.v16,
+              Gaps.v16(context),
               GestureDetector(
                 onTap: _isNextEnabled ? _onNextTap : null,
                 child: Container(
-                  height: 48,
+                  height: ResponsiveSizes.height(context, 48 / 800),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: _isNextEnabled ? primary : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(
+                      ResponsiveSizes.p(context, 8),
+                    ),
                   ),
                   child: Text(
                     '선택 완료',

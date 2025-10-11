@@ -8,9 +8,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/navigationbar/widgets/owner_preview_card.dart';
 import 'package:roommate/features/view/room_owner_post_view.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
+import 'package:roommate/constants/gaps.dart';
 
 const _NCP_KEY_ID = 'udl4f25p0c';
 const _NCP_KEY = 'dNKTbZDrKK0ksqtoUEAldGQJL86c96pFgWqrGnKG';
@@ -609,9 +610,11 @@ class _MapScreenState extends State<MapScreen> {
         children: [
           // 1) 지도
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: EdgeInsets.all(ResponsiveSizes.p(context, 8)),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(Sizes.size18),
+              borderRadius: BorderRadius.circular(
+                ResponsiveSizes.p(context, 18),
+              ),
 
               child: Stack(
                 children: [
@@ -694,13 +697,17 @@ class _MapScreenState extends State<MapScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 12),
+                Gaps.v12(context),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveSizes.p(context, 12),
+                  ),
                   child: Material(
                     color: Colors.white,
                     elevation: 4,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      ResponsiveSizes.p(context, 12),
+                    ),
                     shadowColor: Colors.black26,
                     child: TextField(
                       controller: _searchCtrl,
@@ -709,14 +716,14 @@ class _MapScreenState extends State<MapScreen> {
                       onSubmitted: _searchAndList,
                       decoration: InputDecoration(
                         hintText: '장소/주소 검색 :',
-                        hintStyle: const TextStyle(
+                        hintStyle: TextStyle(
                           color: Colors.black38,
-                          fontSize: 14,
+                          fontSize: ResponsiveSizes.f(context, 14),
                         ),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: ResponsiveSizes.p(context, 14),
+                          vertical: ResponsiveSizes.p(context, 12),
                         ),
                         prefixIcon: const Icon(
                           Icons.search,
@@ -724,10 +731,10 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                         suffixIcon: IconButton(
                           icon: _loading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
+                              ? SizedBox(
+                                  width: ResponsiveSizes.p(context, 20),
+                                  height: ResponsiveSizes.p(context, 20),
+                                  child: const CircularProgressIndicator(
                                     strokeWidth: 2,
                                   ),
                                 )
@@ -748,9 +755,9 @@ class _MapScreenState extends State<MapScreen> {
 
                 if (_showSuggestionList)
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveSizes.p(context, 12),
+                      vertical: ResponsiveSizes.p(context, 8),
                     ),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(maxHeight: maxSuggestHeight),
@@ -758,7 +765,9 @@ class _MapScreenState extends State<MapScreen> {
                         color: Colors.white,
                         elevation: 4,
                         shadowColor: Colors.black26,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          ResponsiveSizes.p(context, 12),
+                        ),
                         child: ListView.separated(
                           padding: EdgeInsets.zero,
                           shrinkWrap: true,
@@ -802,9 +811,9 @@ class _MapScreenState extends State<MapScreen> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: ResponsiveSizes.p(context, 12),
+                          vertical: ResponsiveSizes.p(context, 4),
                         ),
                         child: ConstrainedBox(
                           constraints: BoxConstraints(maxHeight: maxChipHeight),
@@ -812,16 +821,18 @@ class _MapScreenState extends State<MapScreen> {
                             color: Colors.transparent,
                             elevation: 2,
                             shadowColor: Colors.black12,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(
+                              ResponsiveSizes.p(context, 12),
+                            ),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 1,
-                                vertical: 1,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: ResponsiveSizes.p(context, 1),
+                                vertical: ResponsiveSizes.p(context, 1),
                               ),
                               child: SingleChildScrollView(
                                 child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
+                                  spacing: ResponsiveSizes.p(context, 8),
+                                  runSpacing: ResponsiveSizes.p(context, 8),
                                   children: _relatedRegions.take(12).map((
                                     region,
                                   ) {
@@ -875,13 +886,13 @@ class _MapScreenState extends State<MapScreen> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(ResponsiveSizes.p(context, 16)),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          blurRadius: 12,
-                          spreadRadius: 2,
+                          blurRadius: ResponsiveSizes.p(context, 12),
+                          spreadRadius: ResponsiveSizes.p(context, 2),
                           color: Colors.black.withOpacity(0.15),
                         ),
                       ],
@@ -893,28 +904,30 @@ class _MapScreenState extends State<MapScreen> {
                           child: InkWell(
                             onTap: _toggleSheet,
                             child: Padding(
-                              padding: const EdgeInsets.only(
-                                top: 8,
-                                left: 12,
-                                right: 8,
-                                bottom: 8,
+                              padding: EdgeInsets.only(
+                                top: ResponsiveSizes.p(context, 8),
+                                left: ResponsiveSizes.p(context, 12),
+                                right: ResponsiveSizes.p(context, 8),
+                                bottom: ResponsiveSizes.p(context, 8),
                               ),
                               child: Column(
                                 children: [
                                   Container(
-                                    width: 36,
-                                    height: 4,
+                                    width: ResponsiveSizes.p(context, 36),
+                                    height: ResponsiveSizes.p(context, 4),
                                     decoration: BoxDecoration(
                                       color: Colors.black26,
-                                      borderRadius: BorderRadius.circular(2),
+                                      borderRadius: BorderRadius.circular(
+                                        ResponsiveSizes.p(context, 2),
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  Gaps.v8(context),
                                   Row(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const SizedBox(width: 8),
+                                      Gaps.h8(context),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -922,20 +935,26 @@ class _MapScreenState extends State<MapScreen> {
                                           children: [
                                             Text(
                                               '검색 결과 ${_results.length}개',
-                                              style: const TextStyle(
-                                                fontSize: 14,
+                                              style: TextStyle(
+                                                fontSize: ResponsiveSizes.f(
+                                                  context,
+                                                  14,
+                                                ),
                                                 fontWeight: FontWeight.w600,
                                                 color: Colors.black87,
                                               ),
                                             ),
                                             if (_selectedPlace != null) ...[
-                                              const SizedBox(height: 4),
+                                              Gaps.v4(context),
                                               Text(
                                                 _selectedPlace!.title,
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontSize: 18,
+                                                style: TextStyle(
+                                                  fontSize: ResponsiveSizes.f(
+                                                    context,
+                                                    18,
+                                                  ),
                                                   color: Colors.black87,
                                                   fontWeight: FontWeight.w800,
                                                 ),
@@ -949,8 +968,11 @@ class _MapScreenState extends State<MapScreen> {
                                                   maxLines: 1,
                                                   overflow:
                                                       TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
+                                                  style: TextStyle(
+                                                    fontSize: ResponsiveSizes.f(
+                                                      context,
+                                                      12,
+                                                    ),
                                                     color: Colors.black54,
                                                   ),
                                                 ),
@@ -980,9 +1002,9 @@ class _MapScreenState extends State<MapScreen> {
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
                               if (index.isOdd) {
-                                return const Divider(
-                                  endIndent: 20,
-                                  indent: 20,
+                                return Divider(
+                                  endIndent: ResponsiveSizes.p(context, 20),
+                                  indent: ResponsiveSizes.p(context, 20),
                                   height: 0,
                                 );
                               }

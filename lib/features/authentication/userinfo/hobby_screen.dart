@@ -2,10 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
-import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
 import 'package:roommate/features/authentication/widgets/hobby_widget.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class HobbyScreen extends StatefulWidget {
   const HobbyScreen({super.key});
@@ -168,36 +169,36 @@ class HobbyScreenState extends State<HobbyScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.only(left: 20),
+                padding: EdgeInsets.only(left: ResponsiveSizes.p(context, 20)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       "${data.displayName ?? ''} 님의 관심사는 \n무엇인가요 ?",
-                      style: const TextStyle(
-                        fontSize: Sizes.size28,
+                      style: TextStyle(
+                        fontSize: ResponsiveSizes.f(context, 28),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    Gaps.v8(context),
+                    Text(
                       "룸메이트와 좋아하는 취미를 공유할 수도 있어요.",
                       style: TextStyle(
-                        fontSize: Sizes.size14,
+                        fontSize: ResponsiveSizes.f(context, 14),
                         color: Colors.black87,
                         fontWeight: FontWeight.w300,
                       ),
                     ),
-                    const SizedBox(height: Sizes.size16),
+                    Gaps.v8(context),
                   ],
                 ),
               ),
               const Divider(height: 1, color: Colors.black12),
-              const SizedBox(height: Sizes.size14),
+              Gaps.v14(context),
               Expanded(
                 child: SingleChildScrollView(
                   child: Padding(
-                    padding: const EdgeInsets.all(10),
+                    padding: EdgeInsets.all(ResponsiveSizes.p(context, 10)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -219,7 +220,7 @@ class HobbyScreenState extends State<HobbyScreen> {
                             setState(() => interestList = selected);
                           },
                         ),
-                        const SizedBox(height: Sizes.size10),
+                        Gaps.v10(context),
                         GestureDetector(
                           onTap: _isNextEnable() && !_isSending
                               ? _onNextTap

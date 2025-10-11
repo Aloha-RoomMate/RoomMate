@@ -1,8 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/class/chat_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
+import 'package:roommate/constants/gaps.dart';
 
 class ChatScreen extends StatefulWidget {
   final String chatRoomId; // 채팅방 아이디
@@ -62,10 +63,12 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: EdgeInsets.symmetric(
+          horizontal: ResponsiveSizes.p(context, 20),
+        ),
         child: Column(
           children: [
-            const SizedBox(height: Sizes.size16),
+            Gaps.v16(context),
             Expanded(
               child: StreamBuilder(
                 stream: _chatRepo.watchMessages(widget.chatRoomId),
@@ -117,7 +120,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   CircleAvatar(
-                                    radius: Sizes.size14,
+                                    radius: ResponsiveSizes.p(context, 14),
                                     backgroundImage:
                                         (senderPhoto != null &&
                                             senderPhoto.toString().isNotEmpty)
@@ -126,14 +129,20 @@ class _ChatScreenState extends State<ChatScreen> {
                                     child:
                                         (senderPhoto == null ||
                                             senderPhoto.toString().isEmpty)
-                                        ? const Icon(Icons.person, size: 16)
+                                        ? Icon(
+                                            Icons.person,
+                                            size: ResponsiveSizes.f(
+                                              context,
+                                              16,
+                                            ),
+                                          )
                                         : null,
                                   ),
-                                  const SizedBox(width: 6),
+                                  Gaps.h6(context),
                                   Text(
                                     senderName,
-                                    style: const TextStyle(
-                                      fontSize: Sizes.size12,
+                                    style: TextStyle(
+                                      fontSize: ResponsiveSizes.f(context, 12),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -142,14 +151,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
                             if (showHeader && isMe)
                               Padding(
-                                padding: const EdgeInsets.only(
-                                  bottom: 2,
-                                  right: 4,
+                                padding: EdgeInsets.only(
+                                  bottom: ResponsiveSizes.p(context, 2),
+                                  right: ResponsiveSizes.p(context, 4),
                                 ),
                                 child: Text(
                                   "나",
-                                  style: const TextStyle(
-                                    fontSize: Sizes.size12,
+                                  style: TextStyle(
+                                    fontSize: ResponsiveSizes.f(context, 12),
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -166,32 +175,38 @@ class _ChatScreenState extends State<ChatScreen> {
                                       ? "${createdAt.hour}:${createdAt.minute.toString().padLeft(2, '0')}"
                                       : "",
                                   style: TextStyle(
-                                    fontSize: Sizes.size10,
+                                    fontSize: ResponsiveSizes.f(context, 10),
                                     color: Colors.grey[600],
                                   ),
                                 );
 
                                 final bubble = Flexible(
                                   child: Container(
-                                    margin: const EdgeInsets.symmetric(
-                                      vertical: 2,
+                                    margin: EdgeInsets.symmetric(
+                                      vertical: ResponsiveSizes.p(context, 2),
                                     ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                      horizontal: 12,
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: ResponsiveSizes.p(context, 8),
+                                      horizontal: ResponsiveSizes.p(
+                                        context,
+                                        12,
+                                      ),
                                     ),
                                     decoration: BoxDecoration(
                                       color: isMe
                                           ? Colors.blue[200]
                                           : Colors.grey[300],
                                       borderRadius: BorderRadius.circular(
-                                        Sizes.size14,
+                                        ResponsiveSizes.p(context, 14),
                                       ),
                                     ),
                                     child: Text(
                                       data["text"] ?? "",
-                                      style: const TextStyle(
-                                        fontSize: Sizes.size16,
+                                      style: TextStyle(
+                                        fontSize: ResponsiveSizes.f(
+                                          context,
+                                          16,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -199,12 +214,12 @@ class _ChatScreenState extends State<ChatScreen> {
                                 return isMe
                                     ? <Widget>[
                                         timeWidget,
-                                        const SizedBox(width: 4),
+                                        Gaps.h4(context),
                                         bubble,
                                       ]
                                     : <Widget>[
                                         bubble,
-                                        const SizedBox(width: 4),
+                                        Gaps.h4(context),
                                         timeWidget,
                                       ];
                               }(),
@@ -223,26 +238,30 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.all(8.0),
+                      padding: EdgeInsets.all(ResponsiveSizes.p(context, 8)),
                       child: TextField(
                         controller: _msgCtrl,
                         decoration: InputDecoration(
                           hintText: "메시지를 입력하세요...",
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(Sizes.size18),
+                            borderRadius: BorderRadius.circular(
+                              ResponsiveSizes.p(context, 18),
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(Sizes.size18),
+                            borderRadius: BorderRadius.circular(
+                              ResponsiveSizes.p(context, 18),
+                            ),
                             borderSide: BorderSide(
                               color: Theme.of(context).primaryColor,
-                              width: Sizes.size2,
+                              width: ResponsiveSizes.p(context, 2),
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  Gaps.h8(context),
                   IconButton(
                     onPressed: _sendMessage,
                     icon: const Icon(Icons.send, color: Colors.blue),

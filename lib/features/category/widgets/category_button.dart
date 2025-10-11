@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class CategoryButton extends StatelessWidget {
   CategoryButton({
@@ -22,18 +22,18 @@ class CategoryButton extends StatelessWidget {
           milliseconds: 300,
         ),
         padding: EdgeInsets.symmetric(
-          vertical: Sizes.size4,
-          horizontal: Sizes.size14,
+          vertical: ResponsiveSizes.p(context, 4),
+          horizontal: ResponsiveSizes.p(context, 14),
         ),
         decoration: BoxDecoration(
           color: isSelected
               ? Theme.of(context).primaryColor
               : Colors.transparent,
-          border: BoxBorder.all(
+          border: Border.all(
             color: isSelected ? Colors.transparent : Colors.black38,
           ),
           borderRadius: BorderRadius.circular(
-            Sizes.size18,
+            ResponsiveSizes.p(context, 18),
           ),
         ),
         child: Text(

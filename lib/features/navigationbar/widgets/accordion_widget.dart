@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/constants/gaps.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class AccordionWidget extends StatefulWidget {
   final String title;
@@ -74,13 +75,13 @@ class _AccordionWidgetState extends State<AccordionWidget>
                 duration: const Duration(milliseconds: 150),
                 child: const Icon(Icons.expand_more_rounded),
               ),
-              const SizedBox(width: 6),
+              Gaps.h6(context),
               Padding(
-                padding: const EdgeInsets.all(3.0),
+                padding: EdgeInsets.all(ResponsiveSizes.p(context, 3)),
                 child: Text(
                   widget.title,
-                  style: const TextStyle(
-                    fontSize: Sizes.size18,
+                  style: TextStyle(
+                    fontSize: ResponsiveSizes.f(context, 18),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -89,7 +90,7 @@ class _AccordionWidgetState extends State<AccordionWidget>
           ),
         ),
 
-        const SizedBox(height: Sizes.size4),
+        Gaps.v4(context),
         ClipRect(
           child: SizeTransition(
             sizeFactor: _expandAnimation,
@@ -97,9 +98,7 @@ class _AccordionWidgetState extends State<AccordionWidget>
             child: widget.content,
           ),
         ),
-        SizedBox(
-          height: Sizes.size4,
-        ),
+        Gaps.v4(context),
         Divider(
           height: 0,
           color: Theme.of(context).primaryColor.withAlpha(100),

@@ -1,23 +1,20 @@
 // 샤라웃 투 https://github.com/youngsoonoh/youtube_profile/tree/example1 오용순
 import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
-
 import 'package:roommate/constants/gaps.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
 import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
 import 'package:roommate/features/navigationbar/widgets/room_owner_post_container.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class MypageScreen extends StatefulWidget {
   const MypageScreen({super.key, required this.isBlocked});
@@ -86,13 +83,20 @@ class _MypageScreenState extends State<MypageScreen> {
   Future<void> _showBottomSheet() async {
     await showModalBottomSheet<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(ResponsiveSizes.p(context, 25)),
+        ),
       ),
       builder: (ctx) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+            padding: EdgeInsets.fromLTRB(
+              ResponsiveSizes.p(context, 16),
+              ResponsiveSizes.p(context, 16),
+              ResponsiveSizes.p(context, 16),
+              ResponsiveSizes.p(context, 20),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -103,7 +107,7 @@ class _MypageScreenState extends State<MypageScreen> {
                   },
                   child: const Text('사진 찍기'),
                 ),
-                const SizedBox(height: Sizes.size3),
+                Gaps.v3(context),
                 ElevatedButton(
                   onPressed: () async {
                     Navigator.of(ctx).pop();
@@ -111,7 +115,7 @@ class _MypageScreenState extends State<MypageScreen> {
                   },
                   child: const Text('라이브러리에서 불러오기'),
                 ),
-                const SizedBox(height: Sizes.size3),
+                Gaps.v3(context),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(ctx).pop();
@@ -119,8 +123,8 @@ class _MypageScreenState extends State<MypageScreen> {
                   },
                   child: const Text('기본 프로필로 설정'),
                 ),
-                const Divider(
-                  height: 24,
+                Divider(
+                  height: ResponsiveSizes.p(context, 24),
                   thickness: 0,
                   color: Colors.transparent,
                 ),
@@ -168,7 +172,7 @@ class _MypageScreenState extends State<MypageScreen> {
           appBar: AppBar(
             scrolledUnderElevation: 0,
             backgroundColor: Colors.white,
-            toolbarHeight: Sizes.size40,
+            toolbarHeight: ResponsiveSizes.p(context, 40),
             title: const Text('마이페이지'),
             actions: [
               IconButton(
@@ -186,7 +190,7 @@ class _MypageScreenState extends State<MypageScreen> {
           ),
 
           body: Padding(
-            padding: const EdgeInsets.all(Sizes.size12),
+            padding: EdgeInsets.all(ResponsiveSizes.p(context, 12)),
             child: StreamBuilder<bool>(
               stream: _repo.watchUserPassStatus(),
               builder: (context, lockSnap) {
@@ -197,12 +201,12 @@ class _MypageScreenState extends State<MypageScreen> {
                     ListView(
                       padding: EdgeInsets.zero,
                       children: [
-                        const SizedBox(height: 12),
+                        Gaps.v12(context),
                         Center(
                           child: Column(
                             children: [
                               CircleAvatar(
-                                radius: 60,
+                                radius: ResponsiveSizes.p(context, 60),
                                 backgroundColor: Colors.grey.shade200,
                                 backgroundImage: _profileImage != null
                                     ? FileImage(_profileImage!)
@@ -210,15 +214,15 @@ class _MypageScreenState extends State<MypageScreen> {
                                 child: _profileImage == null
                                     ? Icon(
                                         Icons.person,
-                                        size: 48,
+                                        size: ResponsiveSizes.p(context, 48),
                                         color: Colors.grey.shade600,
                                       )
                                     : null,
                               ),
-                              const SizedBox(height: 2),
+                              Gaps.v2(context),
                               Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 100,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: ResponsiveSizes.p(context, 100),
                                 ),
                                 child: Column(
                                   children: [
@@ -238,7 +242,7 @@ class _MypageScreenState extends State<MypageScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        Gaps.v2(context),
                         Divider(
                           height: 1,
                           color: Theme.of(context).primaryColor.withAlpha(100),
@@ -452,7 +456,7 @@ class _MypageScreenState extends State<MypageScreen> {
                               ),
                             ),
 
-                            Gaps.v16,
+                            Gaps.v16(context),
 
                             // ✅ 내가 만든 쿠키~ : 상자 내부에서 전체 스크롤(페이지네이션)
                             _MyPostsSection(
@@ -461,7 +465,7 @@ class _MypageScreenState extends State<MypageScreen> {
                               currentUid: me.uid, // ← 안전
                             ),
 
-                            Gaps.v24,
+                            Gaps.v24(context),
                           ],
                         ),
                       ],
@@ -488,21 +492,23 @@ class _MypageScreenState extends State<MypageScreen> {
                               GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: _onNextTap,
-                                child: const Padding(
-                                  padding: EdgeInsets.all(16.0),
+                                child: Padding(
+                                  padding: EdgeInsets.all(
+                                    ResponsiveSizes.p(context, 16),
+                                  ),
                                   child: Icon(
                                     Icons.lock_open_rounded,
                                     color: Colors.black54,
-                                    size: 48,
+                                    size: ResponsiveSizes.p(context, 48),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              const Text(
+                              Gaps.v12(context),
+                              Text(
                                 "추가적인 유저 정보를 입력하면\n 사용하실수 있습니다.\n자물쇠를 눌러주세요.",
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: ResponsiveSizes.f(context, 18),
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -608,12 +614,12 @@ class LabeldRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: ResponsiveSizes.p(context, 12)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
-            width: labelWidth,
+            width: ResponsiveSizes.p(context, labelWidth),
             child: Text(
               label,
               style: Theme.of(
@@ -623,8 +629,14 @@ class LabeldRow extends StatelessWidget {
               maxLines: 2,
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(child: Wrap(spacing: 6, runSpacing: 6, children: chips)),
+          Gaps.h8(context),
+          Expanded(
+            child: Wrap(
+              spacing: ResponsiveSizes.p(context, 6),
+              runSpacing: ResponsiveSizes.p(context, 6),
+              children: chips,
+            ),
+          ),
         ],
       ),
     );
@@ -639,6 +651,7 @@ class _MyPostsSection extends StatefulWidget {
   final String currentUid;
 
   const _MyPostsSection({
+    super.key,
     required this.title,
     required this.repo,
     required this.currentUid,
@@ -723,14 +736,17 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
   Widget build(BuildContext context) {
     final boxColor = Theme.of(context).primaryColor.withValues(alpha: 0.06);
     final h = MediaQuery.of(context).size.height;
-    final boxHeight = (h * 0.60).clamp(360.0, 720.0); // 화면에 어울리는 높이
+    final boxHeight = (h * 0.60).clamp(
+      ResponsiveSizes.p(context, 360),
+      ResponsiveSizes.p(context, 720),
+    ); // 화면에 어울리는 높이
 
     final header = Row(
       children: [
         Text(
           widget.title,
-          style: const TextStyle(
-            fontSize: Sizes.size18,
+          style: TextStyle(
+            fontSize: ResponsiveSizes.f(context, 18),
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -750,19 +766,19 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: Sizes.size12,
-        vertical: Sizes.size12,
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveSizes.p(context, 12),
+        vertical: ResponsiveSizes.p(context, 12),
       ),
       decoration: BoxDecoration(
         color: boxColor,
-        borderRadius: BorderRadius.circular(Sizes.size18),
+        borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           header,
-          Gaps.v8,
+          Gaps.v8(context),
           SizedBox(
             height: boxHeight,
             child: _isLoading
@@ -774,9 +790,11 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
                     itemBuilder: (context, index) {
                       if (index == _posts.length) {
                         return _isLoadingMore
-                            ? const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16.0),
-                                child: Center(
+                            ? Padding(
+                                padding: EdgeInsets.symmetric(
+                                  vertical: ResponsiveSizes.p(context, 16),
+                                ),
+                                child: const Center(
                                   child: CircularProgressIndicator(),
                                 ),
                               )

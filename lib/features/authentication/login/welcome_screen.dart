@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/userinfo/userjob_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -113,7 +113,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         child: FadeTransition(
           opacity: _fade,
           child: Padding(
-            padding: const EdgeInsets.all(Sizes.size32),
+            padding: EdgeInsets.all(ResponsiveSizes.p(context, 32)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -123,10 +123,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   style: TextStyle(
                     color: Theme.of(context).primaryColor,
                     fontWeight: FontWeight.w800,
-                    fontSize: Sizes.size32,
+                    fontSize: ResponsiveSizes.f(context, 32),
                   ),
                 ),
-                Gaps.v60,
+                Gaps.v60(context),
                 // 기존 제스처 유지, 로딩 중엔 탭 차단 + 버튼 비활성화
                 GestureDetector(
                   onTap: _busy ? null : () => _onNextTap(context),
@@ -137,7 +137,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     text: "시작하기",
                   ),
                 ),
-                const SizedBox(height: 100),
+                SizedBox(height: ResponsiveSizes.height(context, 0.125)),
               ],
             ),
           ),

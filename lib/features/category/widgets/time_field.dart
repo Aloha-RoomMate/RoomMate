@@ -29,7 +29,7 @@ class TimeField extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        Gaps.v6,
+        Gaps.v6(context),
         IgnorePointer(
           ignoring: isJobLess,
           child: TextField(

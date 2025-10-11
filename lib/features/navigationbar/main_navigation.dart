@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
-import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/chat/chatlist_screen.dart';
 import 'package:roommate/features/navigationbar/screens/home_screen.dart';
@@ -171,9 +171,9 @@ class _MainNavigationState extends State<MainNavigation> {
     return AppBar(
       automaticallyImplyLeading: false,
       backgroundColor: Colors.white,
-      toolbarHeight: Sizes.size40,
+      toolbarHeight: ResponsiveSizes.p(context, 40),
       title: Text(title),
-      actionsPadding: const EdgeInsets.only(right: Sizes.size20),
+      actionsPadding: EdgeInsets.only(right: ResponsiveSizes.p(context, 20)),
       actions: actions,
     );
   }

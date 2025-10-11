@@ -110,7 +110,7 @@ class RoomOwnerPostContainer extends StatelessWidget {
                   ),
                 ),
               ),
-              Gaps.h16,
+              Gaps.h16(context),
               // 텍스트 정보
               Expanded(
                 child: Column(
@@ -126,7 +126,7 @@ class RoomOwnerPostContainer extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    Gaps.v6,
+                    Gaps.v6(context),
                     // 주소
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -135,7 +135,7 @@ class RoomOwnerPostContainer extends StatelessWidget {
                           FontAwesomeIcons.locationDot,
                           size: Sizes.size12,
                         ),
-                        Gaps.h6,
+                        Gaps.h6(context),
                         Expanded(
                           child: Text(
                             addressLabel,
@@ -145,7 +145,7 @@ class RoomOwnerPostContainer extends StatelessWidget {
                         ),
                       ],
                     ),
-                    Gaps.v6,
+                    Gaps.v6(context),
                     // 가격/입주일
                     Row(
                       children: [
@@ -153,7 +153,7 @@ class RoomOwnerPostContainer extends StatelessWidget {
                           FontAwesomeIcons.coins,
                           size: Sizes.size12,
                         ),
-                        Gaps.h6,
+                        Gaps.h6(context),
                         Expanded(
                           child: Text(
                             priceLine,
@@ -161,19 +161,19 @@ class RoomOwnerPostContainer extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Gaps.h8,
+                        Gaps.h8(context),
                         const FaIcon(
                           FontAwesomeIcons.calendar,
                           size: Sizes.size12,
                         ),
-                        Gaps.h6,
+                        Gaps.h6(context),
                         Text(moveIn.isEmpty ? '-' : moveIn),
                       ],
                     ),
                   ],
                 ),
               ),
-              Gaps.h8,
+              Gaps.h8(context),
               const FaIcon(FontAwesomeIcons.arrowRight, size: Sizes.size16),
             ],
           ),

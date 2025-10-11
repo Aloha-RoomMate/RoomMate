@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/login/welcome_screen.dart';
 import 'package:roommate/features/authentication/widgets/auth_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -57,17 +57,19 @@ class LoginScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Sizes.size40),
+          padding: EdgeInsets.symmetric(
+            horizontal: ResponsiveSizes.p(context, 40),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Gaps.v10,
+              Gaps.v10(context),
               Text(
                 'RoomMate',
                 style: TextStyle(
                   letterSpacing: 3,
-                  fontSize: Sizes.size32,
+                  fontSize: ResponsiveSizes.f(context, 32),
                   fontWeight: FontWeight.w900,
                   foreground: Paint()
                     ..shader = LinearGradient(
@@ -81,19 +83,19 @@ class LoginScreen extends StatelessWidget {
                     ).createShader(Rect.fromLTWH(0.0, 10.0, 1000, 00)),
                 ),
               ),
-              Gaps.v20,
-              const Text(
+              Gaps.v20(context),
+              Text(
                 '나와 맞는 룸메이트 찾기',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: ResponsiveSizes.f(context, 16),
                   fontWeight: FontWeight.w400,
                   color: Colors.black54,
                 ),
                 textAlign: TextAlign.center,
               ),
-              Gaps.v1,
-              Gaps.v96,
-              Gaps.v96,
+              Gaps.v1(context),
+              Gaps.v96(context),
+              Gaps.v96(context),
               InkWell(
                 onTap: () => _signInWithGoogle(context),
                 borderRadius: BorderRadius.circular(12),

@@ -5,9 +5,9 @@ import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
 import 'package:roommate/class/searcher_post.dart';
 import 'package:roommate/class/searcher_post_repository.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/navigationbar/widgets/room_owner_post_container.dart';
 import 'package:roommate/features/navigationbar/widgets/searcher_post_container.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class PostListView extends StatefulWidget {
   /// 'roomOwner' 또는 'Searcher'
@@ -161,7 +161,7 @@ class _PostListViewState extends State<PostListView> {
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               children: [
-                const SizedBox(height: 120),
+                SizedBox(height: ResponsiveSizes.height(context, 120 / 800)),
                 Center(child: Text('오류 발생: ${snap.error}')),
               ],
             ),
@@ -173,15 +173,19 @@ class _PostListViewState extends State<PostListView> {
           child: ListView.builder(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(vertical: Sizes.size8),
+            padding: EdgeInsets.symmetric(
+              vertical: ResponsiveSizes.p(context, 8),
+            ),
             itemCount: _items.length + (_hasMore ? 1 : 0),
             itemBuilder: (context, index) {
               if (index == _items.length) {
                 return _isLoadingMore
-                    ? const Center(
+                    ? Center(
                         child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16.0),
-                          child: CircularProgressIndicator(),
+                          padding: EdgeInsets.symmetric(
+                            vertical: ResponsiveSizes.p(context, 16),
+                          ),
+                          child: const CircularProgressIndicator(),
                         ),
                       )
                     : const SizedBox.shrink();
