@@ -27,7 +27,7 @@ class FormButton extends StatelessWidget {
             fontSize: ResponsiveSizes.f(context, 20),
             fontWeight: FontWeight.w400,
           ),
-          child: widget,
+          child: Center(child: widget),
         ),
       ),
     );

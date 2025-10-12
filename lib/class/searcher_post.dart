@@ -7,6 +7,7 @@ class SearcherPost {
   // 작성자/타입
   final String? authorId;
   final String? postType;
+  final String? authorGender;
 
   // 내용
   final String? title;
@@ -37,6 +38,7 @@ class SearcherPost {
     this.postId,
     this.authorId,
     this.postType = 'Searcher', // 기본값을 'Searcher'로 설정
+    this.authorGender,
     this.title,
     this.wantArea,
     this.wantRoom,
@@ -56,6 +58,7 @@ class SearcherPost {
     final map = <String, dynamic>{
       'authorId': authorId,
       'postType': postType,
+      'authorGender': authorGender,
       'title': title,
       'wantArea': wantArea,
       'wantRoom': wantRoom,
@@ -68,15 +71,12 @@ class SearcherPost {
       'maxContract': maxContract,
       'introduction': introduction,
       'imageUrls': imageUrls,
-      // createdAt은 보통 서버에서 타임스탬프를 찍으므로 toMap에서는 제외하는 경우가 많습니다.
-      // 필요하다면 'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null 추가
     };
     if (skipNulls) map.removeWhere((_, v) => v == null);
     return map;
   }
 
   factory SearcherPost.fromMap(String postId, Map<String, dynamic> map) {
-    // List<dynamic>을 안전하게 List<String>으로 변환하는 헬퍼 함수
     List<String>? toStringList(dynamic v) {
       if (v is List) return v.map((e) => e.toString()).toList();
       return null;
@@ -86,6 +86,7 @@ class SearcherPost {
       postId: postId,
       authorId: map['authorId'] as String?,
       postType: map['postType'] as String?,
+      authorGender: map['authorGender'] as String?,
       title: map['title'] as String? ?? '제목 없음',
       wantArea: toStringList(map['wantArea']),
       wantRoom: toStringList(map['wantRoom']),

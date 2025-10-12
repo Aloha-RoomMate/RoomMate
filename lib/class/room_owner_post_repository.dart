@@ -52,11 +52,16 @@ class RoomOwnerPostRepository {
     required String postType,
     DocumentSnapshot? lastItem,
     int limit = 20,
+    String? myGender,
   }) async {
     var q = _col
         .where('postType', isEqualTo: postType)
         .orderBy('createdAt', descending: true)
         .limit(limit);
+
+    if (myGender != null) {
+      q = q.where('authorGender', isEqualTo: myGender);
+    }
 
     if (lastItem != null) q = q.startAfterDocument(lastItem);
 
@@ -130,11 +135,12 @@ class RoomOwnerPostRepository {
   }
 
   /// 최신글 일부
-  Future<List<RoomOwnerPost>> fetchAllPosts({int limit = 20}) async {
-    final snap = await _col
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
-        .get();
+  Future<List<RoomOwnerPost>> fetchAllPosts({int limit = 20, String? myGender}) async {
+    var query = _col.orderBy('createdAt', descending: true).limit(limit);
+    if (myGender != null) {
+      query = query.where('authorGender', isEqualTo: myGender);
+    }
+    final snap = await query.get();
     return snap.docs.map(RoomOwnerPost.fromDoc).toList();
   }
 
@@ -152,14 +158,20 @@ class RoomOwnerPostRepository {
     required double maxLat,
     required double maxLng,
     int limit = 200,
+    String? myGender,
   }) async {
     // 1) 대략 범위(사전식)로 1차 컷
-    final snap = await _col
+    var query = _col
         .where('postType', isEqualTo: 'roomOwner')
         .where('addr', isGreaterThanOrEqualTo: GeoPoint(minLat, minLng))
         .where('addr', isLessThanOrEqualTo: GeoPoint(maxLat, maxLng))
-        .limit(limit)
-        .get();
+        .limit(limit);
+
+    if (myGender != null) {
+      query = query.where('authorGender', isEqualTo: myGender);
+    }
+
+    final snap = await query.get();
 
     // 2) 최종 사각형 필터
     var list = snap.docs.map(RoomOwnerPost.fromDoc).where((p) {
