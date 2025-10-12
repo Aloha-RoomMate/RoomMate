@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:roommate/features/navigationbar/widgets/post_list_view.dart';
+import 'package:roommate/features/view/post_list_view.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
