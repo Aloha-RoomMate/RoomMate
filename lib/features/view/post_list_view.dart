@@ -5,12 +5,12 @@ import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
 import 'package:roommate/class/searcher_post.dart';
 import 'package:roommate/class/searcher_post_repository.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/features/navigationbar/widgets/room_owner_post_container.dart';
 import 'package:roommate/features/navigationbar/widgets/searcher_post_container.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
 
 class PostListView extends StatefulWidget {
-  /// 'roomOwner' 또는 'Searcher'
   final String postType;
 
   const PostListView({super.key, required this.postType});
@@ -24,12 +24,14 @@ class _PostListViewState extends State<PostListView> {
 
   final RoomOwnerPostRepository _ownerRepo = RoomOwnerPostRepository();
   final SearcherPostRepository _searcherRepo = SearcherPostRepository();
+  final UserRepository _userRepository = UserRepository();
   final ScrollController _scrollController = ScrollController();
 
   final List<Object> _items = [];
   bool _isLoadingMore = false;
   bool _hasMore = true;
   DocumentSnapshot? _lastDocument;
+  String? _myGender;
 
   late final Future<void> _initialLoadFuture;
 
@@ -56,9 +58,13 @@ class _PostListViewState extends State<PostListView> {
   Future<void> _waitAuthThenFetch() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      await FirebaseAuth.instance.authStateChanges().firstWhere(
-        (u) => u != null,
-      );
+      await FirebaseAuth.instance.authStateChanges().firstWhere((u) => u != null);
+    }
+    final appUser = await _userRepository.fetchMe();
+    if (mounted) {
+      setState(() {
+        _myGender = appUser?.gender;
+      });
     }
     await _fetchInitial();
   }
@@ -68,7 +74,10 @@ class _PostListViewState extends State<PostListView> {
     setState(() => _isLoadingMore = true);
 
     if (_isRoomOwner) {
-      final res = await _ownerRepo.fetchPosts(postType: 'roomOwner');
+      final res = await _ownerRepo.fetchPosts(
+        postType: 'roomOwner',
+        myGender: _myGender,
+      );
       if (!mounted) return;
       setState(() {
         _items
@@ -79,7 +88,10 @@ class _PostListViewState extends State<PostListView> {
         _isLoadingMore = false;
       });
     } else {
-      final res = await _searcherRepo.fetchPosts(postType: 'Searcher');
+      final res = await _searcherRepo.fetchPosts(
+        postType: 'Searcher',
+        myGender: _myGender,
+      );
       if (!mounted) return;
       setState(() {
         _items
@@ -100,6 +112,7 @@ class _PostListViewState extends State<PostListView> {
       final res = await _ownerRepo.fetchPosts(
         postType: 'roomOwner',
         lastItem: _lastDocument,
+        myGender: _myGender,
       );
       if (!mounted) return;
       setState(() {
@@ -112,6 +125,7 @@ class _PostListViewState extends State<PostListView> {
       final res = await _searcherRepo.fetchPosts(
         postType: 'Searcher',
         lastItem: _lastDocument,
+        myGender: _myGender,
       );
       if (!mounted) return;
       setState(() {
@@ -162,9 +176,8 @@ class _PostListViewState extends State<PostListView> {
           );
         }
 
-        // ====== Responsive grid metrics ======
         const columns = 2;
-        const imageAspect = 0.93; // ← 0.90 에서 살짝 ↑ (height = width / aspect)
+        const imageAspect = 0.93;
 
         final outerPad = ResponsiveSizes.p(context, 12);
         final crossSpacing = ResponsiveSizes.p(context, 12);
@@ -176,10 +189,8 @@ class _PostListViewState extends State<PostListView> {
         final itemW =
             (screenW - (outerPad * 2) - crossSpacing * (columns - 1)) / columns;
 
-        // 이미지 높이 = width / aspect
         final imageH = itemW / imageAspect;
 
-        // ----- 텍스트 블록: RoomOwner 4줄 / Searcher 3줄 -----
         final fsBody = ResponsiveSizes.f(context, 13);
         final iconS = ResponsiveSizes.f(context, 12);
         final gapSmall = ResponsiveSizes.p(context, 8) * 0.72;
@@ -190,10 +201,9 @@ class _PostListViewState extends State<PostListView> {
         final textBlockH =
             padTB + (gapSmall * (rowCount - 1)) + (rowH * rowCount);
 
-        // 필요하면 아래 주석 해제해 2dp만 더 얹기
         final baseSlack = ResponsiveSizes.p(context, 12);
         final scaleSlack = (textScale > 1.0 ? (textScale - 1.0) * fsBody : 0);
-        final extraSlack4 = ResponsiveSizes.p(context, 4); // ← 추가 여유 4dp
+        final extraSlack4 = ResponsiveSizes.p(context, 4);
         final mainExtent =
             imageH + textBlockH + baseSlack + scaleSlack + extraSlack4;
 
