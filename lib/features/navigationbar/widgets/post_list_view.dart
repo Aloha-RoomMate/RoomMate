@@ -13,10 +13,7 @@ class PostListView extends StatefulWidget {
   /// 'roomOwner' 또는 'Searcher'
   final String postType;
 
-  const PostListView({
-    super.key,
-    required this.postType,
-  });
+  const PostListView({super.key, required this.postType});
 
   @override
   State<PostListView> createState() => _PostListViewState();
@@ -27,12 +24,9 @@ class _PostListViewState extends State<PostListView> {
 
   final RoomOwnerPostRepository _ownerRepo = RoomOwnerPostRepository();
   final SearcherPostRepository _searcherRepo = SearcherPostRepository();
-
   final ScrollController _scrollController = ScrollController();
 
-  /// 두 타입 모두 담기 위해 Object 사용
   final List<Object> _items = [];
-
   bool _isLoadingMore = false;
   bool _hasMore = true;
   DocumentSnapshot? _lastDocument;
@@ -50,6 +44,13 @@ class _PostListViewState extends State<PostListView> {
     super.initState();
     _initialLoadFuture = _waitAuthThenFetch();
     _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _waitAuthThenFetch() async {
@@ -72,7 +73,7 @@ class _PostListViewState extends State<PostListView> {
       setState(() {
         _items
           ..clear()
-          ..addAll(res.posts); // List<RoomOwnerPost>
+          ..addAll(res.posts);
         _lastDocument = res.lastDocument;
         _hasMore = res.posts.length == _pageSize;
         _isLoadingMore = false;
@@ -83,29 +84,11 @@ class _PostListViewState extends State<PostListView> {
       setState(() {
         _items
           ..clear()
-          ..addAll(res.posts); // List<SearcherPost>
+          ..addAll(res.posts);
         _lastDocument = res.lastDocument;
         _hasMore = res.posts.length == _pageSize;
         _isLoadingMore = false;
       });
-    }
-  }
-
-  Future<void> _refresh() async {
-    _lastDocument = null;
-    _hasMore = true;
-    _isLoadingMore = false;
-    _items.clear();
-    if (mounted) setState(() {});
-    await _fetchInitial();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 200 &&
-        !_isLoadingMore &&
-        _hasMore) {
-      _fetchMore();
     }
   }
 
@@ -140,11 +123,22 @@ class _PostListViewState extends State<PostListView> {
     }
   }
 
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
+  Future<void> _refresh() async {
+    _lastDocument = null;
+    _hasMore = true;
+    _isLoadingMore = false;
+    _items.clear();
+    if (mounted) setState(() {});
+    await _fetchInitial();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 300 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _fetchMore();
+    }
   }
 
   @override
@@ -168,38 +162,73 @@ class _PostListViewState extends State<PostListView> {
           );
         }
 
+        // ====== Responsive grid metrics ======
+        const columns = 2;
+        const imageAspect = 0.93; // ← 0.90 에서 살짝 ↑ (height = width / aspect)
+
+        final outerPad = ResponsiveSizes.p(context, 12);
+        final crossSpacing = ResponsiveSizes.p(context, 12);
+        final mainSpacing = ResponsiveSizes.p(context, 12);
+
+        final screenW = MediaQuery.of(context).size.width;
+        final textScale = MediaQuery.textScaleFactorOf(context);
+
+        final itemW =
+            (screenW - (outerPad * 2) - crossSpacing * (columns - 1)) / columns;
+
+        // 이미지 높이 = width / aspect
+        final imageH = itemW / imageAspect;
+
+        // ----- 텍스트 블록: RoomOwner 4줄 / Searcher 3줄 -----
+        final fsBody = ResponsiveSizes.f(context, 13);
+        final iconS = ResponsiveSizes.f(context, 12);
+        final gapSmall = ResponsiveSizes.p(context, 8) * 0.72;
+        final padTB = ResponsiveSizes.p(context, 10) * 2;
+
+        final rowH = (fsBody > iconS ? fsBody : iconS) * 1.30;
+        final rowCount = _isRoomOwner ? 4 : 3;
+        final textBlockH =
+            padTB + (gapSmall * (rowCount - 1)) + (rowH * rowCount);
+
+        // 필요하면 아래 주석 해제해 2dp만 더 얹기
+        final baseSlack = ResponsiveSizes.p(context, 12);
+        final scaleSlack = (textScale > 1.0 ? (textScale - 1.0) * fsBody : 0);
+        final extraSlack4 = ResponsiveSizes.p(context, 4); // ← 추가 여유 4dp
+        final mainExtent =
+            imageH + textBlockH + baseSlack + scaleSlack + extraSlack4;
+
         return RefreshIndicator(
           onRefresh: _refresh,
-          child: ListView.builder(
+          child: GridView.builder(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.symmetric(
-              vertical: ResponsiveSizes.p(context, 8),
+            padding: EdgeInsets.all(outerPad),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              crossAxisSpacing: crossSpacing,
+              mainAxisSpacing: mainSpacing,
+              mainAxisExtent: mainExtent,
             ),
             itemCount: _items.length + (_hasMore ? 1 : 0),
             itemBuilder: (context, index) {
               if (index == _items.length) {
                 return _isLoadingMore
-                    ? Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            vertical: ResponsiveSizes.p(context, 16),
-                          ),
-                          child: const CircularProgressIndicator(),
-                        ),
-                      )
+                    ? const Center(child: CircularProgressIndicator())
                     : const SizedBox.shrink();
               }
-
               final item = _items[index];
-
-              if (item is RoomOwnerPost) {
-                return RoomOwnerPostContainer(post: item);
-              } else if (item is SearcherPost) {
-                return SearcherPostContainer(post: item);
-              } else {
-                return const SizedBox.shrink();
+              if (_isRoomOwner && item is RoomOwnerPost) {
+                return RoomOwnerPostContainer(
+                  post: item,
+                  imageAspect: imageAspect,
+                );
+              } else if (!_isRoomOwner && item is SearcherPost) {
+                return SearcherPostContainer(
+                  post: item,
+                  imageAspect: imageAspect,
+                );
               }
+              return const SizedBox.shrink();
             },
           ),
         );
