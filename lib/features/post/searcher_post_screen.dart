@@ -8,6 +8,7 @@ import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/features/authentication/userinfo/searcher_screen.dart'; // ✅ SearcherScreen import
 import 'package:roommate/features/category/widgets/category_button.dart';
+import 'package:roommate/features/navigationbar/main_navigation.dart';
 import 'package:roommate/features/post/widgets/form_button.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
 
@@ -195,9 +196,13 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('게시글이 성공적으로 등록되었습니다!')));
-        Navigator.of(context).pop();
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const MainNavigation()),
+          (Route<dynamic> route) => false,
+        );
       }
     } catch (e) {
+      print(">> uid: ${_currentUser!.uid}");
       debugPrint("게시글 생성 오류: $e");
       if (mounted) {
         ScaffoldMessenger.of(

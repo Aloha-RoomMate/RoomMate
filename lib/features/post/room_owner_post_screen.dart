@@ -11,6 +11,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:roommate/features/navigationbar/main_navigation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:roommate/class/app_user.dart';
@@ -488,7 +489,10 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('수정되었습니다.')),
         );
-        Navigator.pop(context);
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const MainNavigation()),
+          (Route<dynamic> route) => false,
+        );
         return;
       }
 
@@ -545,7 +549,10 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('게시글 저장 완료~')),
       );
-      Navigator.of(context).pop();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
+        (Route<dynamic> route) => false,
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
