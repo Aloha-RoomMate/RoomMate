@@ -1,6 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
+import 'package:roommate/features/authentication/userinfo/userjob_screen.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart'; // 메인 화면 위젯 import
 
 class AuthGate extends StatelessWidget {
@@ -8,21 +11,36 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // FirebaseAuth의 인증 상태 변경을 실시간으로 감지하는 StreamBuilder
-    return StreamBuilder(
+    return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // 아직 상태를 확인 중이면 로딩 인디케이터를 보여줍니다.
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // snapshot.hasData는 로그인된 사용자가 있다는 뜻입니다.
         if (snapshot.hasData) {
-          // 로그인 상태이면 MainNavigation 화면을 보여줍니다.
-          return const MainNavigation();
+          return FutureBuilder<AppUser?>(
+            future: UserRepository().fetchMe(),
+            builder: (context, userSnapshot) {
+              if (userSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final appUser = userSnapshot.data;
+              // 필수 목록 다 했나 확인
+              final isRegistered =
+                  appUser?.userType?.jobKinds.isNotEmpty == true &&
+                  appUser?.gender != null &&
+                  appUser?.userType != null;
+
+              if (isRegistered) {
+                return const MainNavigation();
+              } else {
+                return const LoginScreen();
+              }
+            },
+          );
         } else {
-          // 로그아웃 상태이면 LoginScreen을 보여줍니다.
           return const LoginScreen();
         }
       },
