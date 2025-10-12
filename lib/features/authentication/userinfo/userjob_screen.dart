@@ -19,11 +19,13 @@ class UserjobScreen extends StatefulWidget {
 class _UserjobScreenState extends State<UserjobScreen>
     with SingleTickerProviderStateMixin {
   final List<bool> _jobSelections = List<bool>.filled(4, false);
+  final List<bool> _genderSelections = List<bool>.filled(2, false);
 
   int? _selectedIndex;
   Key _leftKey = UniqueKey();
   Key _rightKey = UniqueKey();
   final bool _isSending = false;
+
 
   late Future<User?> _userFuture; // ✅ 캐싱용 Future
 
@@ -57,6 +59,10 @@ class _UserjobScreenState extends State<UserjobScreen>
     setState(() => _jobSelections[index] = !_jobSelections[index]);
   }
 
+  void _onGenderTap(int index) {
+    setState(() => _genderSelections[index] = !_genderSelections[index]);
+  }
+
   void _onTapLeft() {
     setState(() {
       if (_selectedIndex == 0) {
@@ -83,16 +89,19 @@ class _UserjobScreenState extends State<UserjobScreen>
 
   bool _isNextEnabled() {
     final anyJob = _jobSelections.contains(true);
+    final anyGender = _jobSelections.contains(true);
     final oneUserType = _selectedIndex != null;
-    return anyJob && oneUserType;
+    return anyJob && oneUserType && anyGender;
   }
 
   // 기존 네비게이션 로직
   void _onNextTap() {
     if (_isSending) return;
 
-    final textOptions = ['회사/학교', '재택', '프리랜서', '대학생'];
+    final textOptions = ['회사', '재택', '프리랜서', '대학생'];
+    final genderOptions = ['남성', '여성'];
     final selectedJobsList = <String>[];
+    final selectedGenderList = <String>[];
 
     for (int i = 0; i < _jobSelections.length; i++) {
       if (_jobSelections[i]) {
@@ -100,7 +109,11 @@ class _UserjobScreenState extends State<UserjobScreen>
       }
     }
 
-    final selectedJobs = selectedJobsList.join('');
+    for (int i = 0; i < _genderSelections.length; i++) {
+      if (_genderSelections[i]) {
+        selectedGenderList.add(genderOptions[i]);
+      }
+    }
 
     if (_selectedIndex == 0) {
       Navigator.of(context).push(
@@ -137,7 +150,8 @@ class _UserjobScreenState extends State<UserjobScreen>
 
   @override
   Widget build(BuildContext context) {
-    final textOptions = ['회사/학교', '재택', '프리랜서', '대학생'];
+    final textOptions = ['회사', '재택', '프리랜서', '대학생'];
+    final genderOptions = ['남성', '여성'];
     final selectedJobs = <String>[];
     final bool isNextEnabled = _isNextEnabled();
     for (int i = 0; i < _jobSelections.length; i++) {
@@ -165,6 +179,7 @@ class _UserjobScreenState extends State<UserjobScreen>
               child: Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: ResponsiveSizes.p(context, 20),
+                  vertical: ResponsiveSizes.p(context, 10),
                 ),
                 child: SingleChildScrollView(
                   child: Column(
@@ -179,7 +194,7 @@ class _UserjobScreenState extends State<UserjobScreen>
                       ),
                       Gaps.v6(context),
                       Text(
-                        "나중에 더 찰떡궁합 룸메이트를 찾는데 사용되요.",
+                        "나중에 더 찰떡궁합 룸메이트를 찾는데 사용되어요.",
                         style: TextStyle(
                           fontSize: ResponsiveSizes.f(context, 14),
                           color: Colors.black87,
@@ -189,7 +204,6 @@ class _UserjobScreenState extends State<UserjobScreen>
                       Gaps.v16(context),
                       const Divider(height: 1, color: Colors.black12),
                       Gaps.v16(context),
-
                       Center(
                         child: Wrap(
                           spacing: ResponsiveSizes.p(context, 10),
@@ -203,9 +217,32 @@ class _UserjobScreenState extends State<UserjobScreen>
                           }),
                         ),
                       ),
-
                       Gaps.v80(context),
-
+                      Text(
+                        '성별을 선택해주세요!',
+                        style: TextStyle(
+                          fontSize: ResponsiveSizes.f(context, 28),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Gaps.v16(context),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: ResponsiveSizes.p(context, 12),
+                        ),
+                        child: Wrap(
+                          spacing: ResponsiveSizes.p(context, 10),
+                          runSpacing: ResponsiveSizes.p(context, 10),
+                          children: List.generate(2, (i) {
+                            return CategoryButton(
+                              text: genderOptions[i],
+                              myonTap: () => _onGenderTap(i),
+                              isSelected: _genderSelections[i],
+                            );
+                          }),
+                        ),
+                      ),
+                      Gaps.v80(context),
                       Text(
                         '현재 RoomMate를 \n이용하는 이유는 무엇인가요 ?',
                         style: TextStyle(
@@ -215,7 +252,7 @@ class _UserjobScreenState extends State<UserjobScreen>
                       ),
                       Gaps.v6(context),
                       Text(
-                        "나중에도 변경가능해요 !",
+                        "나중에도 변경가능해요!",
                         style: TextStyle(
                           fontSize: ResponsiveSizes.f(context, 14),
                           color: Colors.black87,
