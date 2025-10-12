@@ -10,6 +10,7 @@ import 'package:proj4dart/proj4dart.dart' as proj4;
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/features/navigationbar/widgets/owner_preview_card.dart';
 import 'package:roommate/features/view/room_owner_post_view.dart';
 import 'package:roommate/class/chat_repository.dart';
@@ -70,8 +71,10 @@ class _MapScreenState extends State<MapScreen> {
   static const double _sheetMax = 0.65;
 
   final RoomOwnerPostRepository _postRepo = RoomOwnerPostRepository();
+  final UserRepository _userRepository = UserRepository();
   final Map<String, NMarker> _ownerMarkers = {};
   Timer? _viewportDebounce;
+  String? _myGender;
 
   @override
   void initState() {
@@ -83,6 +86,16 @@ class _MapScreenState extends State<MapScreen> {
           '+x_0=400000 +y_0=600000 +ellps=bessel +units=m +no_defs '
           '+towgs84=-115.80,474.99,674.11,1.16,-2.31,-1.63,6.43',
     );
+    _fetchUserGender();
+  }
+
+  Future<void> _fetchUserGender() async {
+    final appUser = await _userRepository.fetchMe();
+    if (mounted) {
+      setState(() {
+        _myGender = appUser?.gender;
+      });
+    }
   }
 
   @override
@@ -93,7 +106,6 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 
-  // ─ helpers
   NLatLng _tm128ToLatLng(num mapx, num mapy) {
     final tm = proj4.Point(x: mapx.toDouble(), y: mapy.toDouble());
     final wgs = _katec.transform(_wgs84, tm);
@@ -126,7 +138,6 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  // ─ 검색/지오코딩
   Future<List<Map<String, dynamic>>> _searchLocalList(
     String keyword, {
     int display = 20,
@@ -426,6 +437,7 @@ class _MapScreenState extends State<MapScreen> {
       maxLat: bounds.maxLat,
       maxLng: bounds.maxLng,
       limit: 250,
+      myGender: _myGender,
     );
 
     for (final p in posts) {
@@ -496,7 +508,7 @@ class _MapScreenState extends State<MapScreen> {
     if (_controller == null || _lockOverlayOps || _isAnimatingCamera) return;
 
     if (_ownerCache.isEmpty) {
-      final all = await _postRepo.fetchAllPosts(limit: 1000);
+      final all = await _postRepo.fetchAllPosts(limit: 1000, myGender: _myGender);
       for (final p in all) {
         final id = p.postId ?? '';
         if (id.isEmpty) continue;
@@ -605,7 +617,6 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // ─ UI
   @override
   Widget build(BuildContext context) {
     final filteredSuggestions = () {
@@ -624,7 +635,6 @@ class _MapScreenState extends State<MapScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1) 지도
           Padding(
             padding: EdgeInsets.all(ResponsiveSizes.p(context, 8)),
             child: ClipRRect(
@@ -691,7 +701,6 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
 
-          // 2) 상단 검색 + 추천
           SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -872,7 +881,6 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
 
-          // 3) 검색결과 시트 (기존 3단 스냅 유지)
           if (_results.isNotEmpty)
             DraggableScrollableSheet(
               controller: _sheetCtrl,
@@ -1085,7 +1093,6 @@ class _MapScreenState extends State<MapScreen> {
               },
             ),
 
-          // 4) 오너 미리보기 (2단계 스냅 시트)
           if (_showOwnerPreview && _selectedOwnerPost != null)
             OwnerPreviewCard(
               post: _selectedOwnerPost!,

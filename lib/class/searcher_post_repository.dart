@@ -57,17 +57,24 @@ class SearcherPostRepository {
     required String postType,
     DocumentSnapshot? lastItem,
     int limit = 20,
+    String? myGender,
   }) async {
-    var query = _col
+    var q = _col
         .where('postType', isEqualTo: postType)
         .orderBy('createdAt', descending: true)
         .limit(limit);
 
-    if (lastItem != null) {
-      query = query.startAfterDocument(lastItem);
+    if (myGender != null) {
+      q = q.where('authorGender', isEqualTo: myGender);
     }
-    final snap = await query.get();
+
+    if (lastItem != null) {
+      q = q.startAfterDocument(lastItem);
+    }
+
+    final snap = await q.get();
     final posts = snap.docs.map(SearcherPost.fromDoc).toList();
+
     return PaginatedSearcherPostsResult(
       posts: posts,
       lastDocument: snap.docs.isNotEmpty ? snap.docs.last : null,

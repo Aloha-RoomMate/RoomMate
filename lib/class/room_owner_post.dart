@@ -7,6 +7,7 @@ class RoomOwnerPost {
   // 작성자/타입
   final String? authorId;
   final String? postType;
+  final String? authorGender;
 
   // 내용
   final String? title;
@@ -44,6 +45,7 @@ class RoomOwnerPost {
     this.postType,
     this.title,
     this.addr,
+    this.authorGender,
     this.addressLabel,
     this.deposit,
     this.rent,
@@ -65,6 +67,7 @@ class RoomOwnerPost {
       'authorId': authorId,
       'postType': postType,
       'title': title,
+      'authorGender': authorGender,
       'addr': addr, // GeoPoint
       'addressLabel': addressLabel, // 사람이 읽는 주소(뷰에서 사용)
       'deposit': deposit,
@@ -96,6 +99,7 @@ class RoomOwnerPost {
       authorId: map['authorId'] as String? ?? '',
       postType: map['postType'] as String?,
       title: map['title'] as String? ?? '제목 없음',
+      authorGender: map['authorGender'] as String?,
       addr: map['addr'] as GeoPoint?,
       addressLabel: map['addressLabel'] as String?,
       deposit: (map['deposit'] as num?)?.toInt(),

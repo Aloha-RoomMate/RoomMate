@@ -172,6 +172,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
     try {
       final newPost = SearcherPost(
         authorId: _currentUser!.uid,
+        authorGender: _currentUser!.gender,
         title: _titleCtrl.text,
         wantArea: _selectedWantAreas.toList(), // ✅ 선택된 희망 위치 저장
         wantRoom: _selectedRoomTypes.toList(),
