@@ -178,6 +178,7 @@ class _MainNavigationState extends State<MainNavigation> {
     }
 
     return AppBar(
+      scrolledUnderElevation: 0,
       automaticallyImplyLeading: false,
       backgroundColor: Colors.white,
       toolbarHeight: ResponsiveSizes.p(context, 40),

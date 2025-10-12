@@ -13,8 +13,12 @@ import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
 import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
-import 'package:roommate/features/navigationbar/widgets/room_owner_post_container.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
+
+// ⬇️ 상세 보기로 진입하기 위해 추가
+import 'package:roommate/features/view/room_owner_post_view.dart';
+// ⬇️ 썸네일 서명 URL 생성
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MypageScreen extends StatefulWidget {
   const MypageScreen({super.key, required this.isBlocked});
@@ -161,7 +165,7 @@ class _MypageScreenState extends State<MypageScreen> {
         }
         final me = snapshot.data!;
 
-        // ✅ 더 읽기 좋은 변수명으로 변경 (userPass → 상위 필드 폴백)
+        // ✅ 더 읽기 좋은 변수명
         final userDailyRhythm = me.dailyRhythm ?? me.dailyRhythm;
         final colivingPreference = me.coliving ?? me.coliving;
         final userTypeInfo = me.userType ?? me.userType;
@@ -458,11 +462,11 @@ class _MypageScreenState extends State<MypageScreen> {
 
                             Gaps.v16(context),
 
-                            // ✅ 내가 만든 쿠키~ : 상자 내부에서 전체 스크롤(페이지네이션)
+                            // ✅ 내가 쓴 글: 3열 그리드 (무한 스크롤 유지)
                             _MyPostsSection(
                               title: "내가 쓴 글",
                               repo: _postRepo,
-                              currentUid: me.uid, // ← 안전
+                              currentUid: me.uid,
                             ),
 
                             Gaps.v24(context),
@@ -643,7 +647,7 @@ class LabeldRow extends StatelessWidget {
   }
 }
 
-// -------------------- 내가 만든 쿠키~ (상자 내부 무한 스크롤) --------------------
+// -------------------- 내가 쓴 글 (3열 그리드 + 무한 스크롤) --------------------
 
 class _MyPostsSection extends StatefulWidget {
   final String title;
@@ -735,11 +739,12 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
   @override
   Widget build(BuildContext context) {
     final boxColor = Theme.of(context).primaryColor.withValues(alpha: 0.06);
+    final radius = ResponsiveSizes.p(context, 18);
     final h = MediaQuery.of(context).size.height;
     final boxHeight = (h * 0.60).clamp(
       ResponsiveSizes.p(context, 360),
       ResponsiveSizes.p(context, 720),
-    ); // 화면에 어울리는 높이
+    );
 
     final header = Row(
       children: [
@@ -764,6 +769,32 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
       ],
     );
 
+    final grid = _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : RepaintBoundary(
+            // ✅ 스크롤 중 불필요한 리페인트 줄이기
+            child: GridView.builder(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3, // ← 3열
+                mainAxisSpacing: ResponsiveSizes.p(context, 8),
+                crossAxisSpacing: ResponsiveSizes.p(context, 8),
+                childAspectRatio: 0.78, // 이미지를 크게, 아래 텍스트 살짝
+              ),
+              itemCount: _posts.length + (_hasMore ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index >= _posts.length) {
+                  // 로딩 셀
+                  return const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  );
+                }
+                return _MiniPostTile(post: _posts[index]);
+              },
+            ),
+          );
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(
@@ -771,40 +802,177 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
         vertical: ResponsiveSizes.p(context, 12),
       ),
       decoration: BoxDecoration(
-        color: boxColor,
-        borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 18)),
+        border: BoxBorder.all(
+          color: Theme.of(context).primaryColor.withAlpha(100),
+        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(radius),
       ),
+      // ✅ 자식(그리드) 클리핑으로 잔상/넘침 방지
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           header,
           Gaps.v8(context),
-          SizedBox(
-            height: boxHeight,
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: _posts.length + (_hasMore ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == _posts.length) {
-                        return _isLoadingMore
-                            ? Padding(
-                                padding: EdgeInsets.symmetric(
-                                  vertical: ResponsiveSizes.p(context, 16),
-                                ),
-                                child: const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              )
-                            : const SizedBox.shrink();
-                      }
-                      return RoomOwnerPostContainer(post: _posts[index]);
-                    },
-                  ),
-          ),
+          SizedBox(height: boxHeight, child: grid),
         ],
+      ),
+    );
+  }
+}
+
+/// 3열 그리드용 미니 타일 (썸네일 + 간단 정보)
+class _MiniPostTile extends StatelessWidget {
+  _MiniPostTile({required this.post});
+
+  final RoomOwnerPost post;
+
+  static const String _bucket = 'RoomMate-image';
+  static const int _urlTtl = 1800; // 30분
+  final _supa = Supabase.instance.client;
+
+  Future<String?> _firstSignedUrl() async {
+    final paths = post.imageUrls ?? const <String>[];
+    if (paths.isEmpty) return null;
+    try {
+      final url = await _supa.storage
+          .from(_bucket)
+          .createSignedUrl(paths.first, _urlTtl);
+      if (url.isEmpty) return null;
+      return url;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _price1() {
+    final d = post.deposit ?? 0;
+    return '보증금 $d만';
+  }
+
+  String _price2() {
+    final r = post.rent ?? 0;
+    final m = post.manageFee ?? 0;
+    return m > 0 ? '월세 $r만 + 관 $m만' : '월세 $r만';
+  }
+
+  String _addrShort() {
+    final a = (post.addressLabel ?? '').trim();
+    if (a.isEmpty) return '위치 비공개';
+    return a.split('(').first.trim();
+  }
+
+  void _openDetail(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => RoomOwnerPostView(post: post)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = ResponsiveSizes.p(context, 12);
+
+    return Card(
+      elevation: 3, // ✅ Material 그림자(스크롤 잔상 방지에 유리)
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      clipBehavior: Clip.antiAlias, // ✅ 라운드 영역 밖으로 그림 그리지 않음
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: () => _openDetail(context),
+        child: Column(
+          children: [
+            // 썸네일(위쪽 라운드)
+            Expanded(
+              child: FutureBuilder<String?>(
+                future: _firstSignedUrl(),
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    );
+                  }
+                  final url = snap.data;
+                  if (url == null || url.isEmpty) {
+                    return Image.asset(
+                      'assets/house.jpg',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    );
+                  }
+                  return Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    errorBuilder: (_, __, ___) => Image.asset(
+                      'assets/house.jpg',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    ),
+                    loadingBuilder: (c, w, p) => p == null
+                        ? w
+                        : const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                  );
+                },
+              ),
+            ),
+
+            // ⬇️ 텍스트 영역만 흰색 + 아래 라운드
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white, // ✅ 사진 아래 영역만 흰색
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(radius),
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  ResponsiveSizes.p(context, 8),
+                  ResponsiveSizes.p(context, 8),
+                  ResponsiveSizes.p(context, 8),
+                  ResponsiveSizes.p(context, 10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 주소 (최대 1줄)
+                    Text(
+                      _addrShort(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    SizedBox(height: ResponsiveSizes.p(context, 4)),
+                    Text(
+                      _price1(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.grey.shade800,
+                        fontSize: 12,
+                      ),
+                    ),
+                    SizedBox(height: ResponsiveSizes.p(context, 2)),
+                    Text(
+                      _price2(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
