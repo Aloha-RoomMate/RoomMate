@@ -34,12 +34,13 @@ const genderOptions = [
 
 class UserTypeOption {
   final String label;
-  const UserTypeOption(this.label);
+  final int index;
+  const UserTypeOption(this.label, this.index);
 }
 
 const userTypeOptions = [
-  UserTypeOption('Room-owner'),
-  UserTypeOption('Searcher'),
+  UserTypeOption('Room-owner', 0),
+  UserTypeOption('Searcher', 1),
 ];
 
 class UserjobScreen extends StatefulWidget {
@@ -52,9 +53,16 @@ class UserjobScreen extends StatefulWidget {
 class _UserjobScreenState extends State<UserjobScreen> {
   final Set<String> _selectedJobs = {};
   String? _selectedGender;
-  String? _selectedUserType;
+  int? _selectedIndex;
   final UserRepository _userRepository = UserRepository();
   bool _isSending = false;
+  User? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _user = FirebaseAuth.instance.currentUser;
+  }
 
   void _onJobTap(String job) {
     setState(() {
@@ -72,16 +80,16 @@ class _UserjobScreenState extends State<UserjobScreen> {
     });
   }
 
-  void _onUserTypeTap(String userType) {
+  void _onUserTypeTap(int index) {
     setState(() {
-      _selectedUserType = userType;
+      _selectedIndex = index;
     });
   }
 
   bool _isNextEnabled() {
     return _selectedJobs.isNotEmpty &&
         _selectedGender != null &&
-        _selectedUserType != null;
+        _selectedIndex != null;
   }
 
   Future<void> _onNextTap() async {
@@ -101,9 +109,11 @@ class _UserjobScreenState extends State<UserjobScreen> {
         gender: _selectedGender,
       );
 
+      final userType = _selectedIndex == 0 ? 'roomOwner' : 'searcher';
+
       await _userRepository.setUserTypeData(
         uid: user.uid,
-        type: _selectedUserType!,
+        type: userType,
         jobKinds: _selectedJobs.join(', '),
         address: '', // Address is not collected in this screen
       );
@@ -114,19 +124,11 @@ class _UserjobScreenState extends State<UserjobScreen> {
             content: Text('저장 성공'),
           ),
         );
-        if (_selectedUserType == 'Room-owner') {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => HobbyScreen(),
-            ),
-          );
-        } else {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const SearcherScreen(),
-            ),
-          );
-        }
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => HobbyScreen(),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -240,13 +242,45 @@ class _UserjobScreenState extends State<UserjobScreen> {
                   Gaps.v16(context),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: userTypeOptions.map((userType) {
-                      return DemandButton(
-                        text: userType.label,
-                        myonTap: () => _onUserTypeTap(userType.label),
-                        isSelected: _selectedUserType == userType.label,
+                    children: [
+                      DemandButton(
+                        text: userTypeOptions[0].label,
+                        myonTap: () => _onUserTypeTap(userTypeOptions[0].index),
+                        isSelected: _selectedIndex == userTypeOptions[0].index,
+                      ),
+                      Gaps.h56(context),
+                      DemandButton(
+                        text: userTypeOptions[1].label,
+                        myonTap: () => _onUserTypeTap(userTypeOptions[1].index),
+                        isSelected: _selectedIndex == userTypeOptions[1].index,
+                      ),
+                    ],
+                  ),
+                  Gaps.v24(context),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      final offsetTween = Tween<Offset>(
+                        begin: const Offset(0, 0.3),
+                        end: Offset.zero,
                       );
-                    }).toList(),
+                      return SlideTransition(
+                        position: offsetTween.animate(animation),
+                        child: FadeTransition(
+                          opacity: animation,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: _user != null
+                        ? _buildDescriptionCard(
+                            context,
+                            _selectedIndex,
+                            _user!,
+                          )
+                        : const SizedBox(),
                   ),
                   Gaps.v28(context),
                   GestureDetector(
@@ -254,11 +288,9 @@ class _UserjobScreenState extends State<UserjobScreen> {
                     child: FormButton(
                       enabled: _isNextEnabled(),
                       widget: _isSending
-                          ? Center(
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
+                          ? const CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
                               ),
                             )
                           : const Text(
@@ -272,6 +304,77 @@ class _UserjobScreenState extends State<UserjobScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDescriptionCard(BuildContext context, int? index, User data) {
+    if (index == null) {
+      return SizedBox(
+        height: ResponsiveSizes.height(context, (96 + 56 + 1) / 800),
+      );
+    }
+
+    final bool isOwner = index == 0;
+    final String title = isOwner ? "Room-owner" : "Co-searcher";
+
+    final String ownerDesc =
+        "${data.displayName ?? ''}님이 현재 방을 가지고 있고,\n"
+        "월세를 같이 부담할 룸메이트를 찾고계시다면 \nRoom-owner입니다 !\n";
+    final String searcherDesc =
+        "${data.displayName ?? ''}님이 현재 방을 가지고 있지 않지만,\n"
+        "월세를 같이 부담하며 누군가의 \n룸메이트가 되려한다면 Searcher입니다.\n";
+
+    final String desc = isOwner ? ownerDesc : searcherDesc;
+
+    return Container(
+      key: ValueKey(title),
+      padding: EdgeInsets.all(ResponsiveSizes.p(context, 16)),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 18)),
+        color: Colors.transparent,
+        border: Border.all(color: Colors.black.withAlpha(15)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: ResponsiveSizes.p(context, 44),
+            height: ResponsiveSizes.p(context, 44),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.black.withAlpha(15)),
+              color: Theme.of(context).primaryColor,
+              borderRadius: BorderRadius.circular(
+                ResponsiveSizes.p(context, 10),
+              ),
+            ),
+            child: const Icon(Icons.home_rounded, color: Colors.white),
+          ),
+          Gaps.h12(context),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: ResponsiveSizes.f(context, 16),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Gaps.v6(context),
+                Text(
+                  desc,
+                  style: TextStyle(
+                    fontSize: ResponsiveSizes.f(context, 12),
+                    height: 1.6,
+                    color: Colors.black.withAlpha(170),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
