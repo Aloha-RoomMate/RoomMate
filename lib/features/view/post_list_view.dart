@@ -58,7 +58,9 @@ class _PostListViewState extends State<PostListView> {
   Future<void> _waitAuthThenFetch() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      await FirebaseAuth.instance.authStateChanges().firstWhere((u) => u != null);
+      await FirebaseAuth.instance.authStateChanges().firstWhere(
+        (u) => u != null,
+      );
     }
     final appUser = await _userRepository.fetchMe();
     if (mounted) {
@@ -189,7 +191,7 @@ class _PostListViewState extends State<PostListView> {
         final itemW =
             (screenW - (outerPad * 2) - crossSpacing * (columns - 1)) / columns;
 
-        final imageH = itemW / imageAspect;
+        final imageH = _isRoomOwner ? itemW / imageAspect : 0;
 
         final fsBody = ResponsiveSizes.f(context, 13);
         final iconS = ResponsiveSizes.f(context, 12);
@@ -197,13 +199,13 @@ class _PostListViewState extends State<PostListView> {
         final padTB = ResponsiveSizes.p(context, 10) * 2;
 
         final rowH = (fsBody > iconS ? fsBody : iconS) * 1.30;
-        final rowCount = _isRoomOwner ? 4 : 3;
+        final rowCount = 4;
         final textBlockH =
             padTB + (gapSmall * (rowCount - 1)) + (rowH * rowCount);
 
-        final baseSlack = ResponsiveSizes.p(context, 12);
+        final baseSlack = ResponsiveSizes.p(context, 100);
         final scaleSlack = (textScale > 1.0 ? (textScale - 1.0) * fsBody : 0);
-        final extraSlack4 = ResponsiveSizes.p(context, 4);
+        final extraSlack4 = ResponsiveSizes.p(context, 8);
         final mainExtent =
             imageH + textBlockH + baseSlack + scaleSlack + extraSlack4;
 
@@ -235,7 +237,6 @@ class _PostListViewState extends State<PostListView> {
               } else if (!_isRoomOwner && item is SearcherPost) {
                 return SearcherPostContainer(
                   post: item,
-                  imageAspect: imageAspect,
                 );
               }
               return const SizedBox.shrink();
