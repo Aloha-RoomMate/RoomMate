@@ -262,7 +262,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   LabeldRow(
-                                    label: "출근일 :",
+                                    label: "출근일",
                                     chips: [
                                       for (final day
                                           in (userDailyRhythm?.workDays ??
@@ -300,7 +300,8 @@ class _MypageScreenState extends State<MypageScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   LabeldRow(
-                                    label: "공용공간 사용 선호도 :",
+                                    labelWidth: 140,
+                                    label: "공용공간 사용 선호도",
                                     chips: [
                                       if ((colivingPreference?.coSpace ?? '')
                                           .isNotEmpty)
@@ -311,7 +312,8 @@ class _MypageScreenState extends State<MypageScreen> {
                                     ],
                                   ),
                                   LabeldRow(
-                                    label: "화장실 청결 민감도 : ",
+                                    labelWidth: 140,
+                                    label: "화장실 청결 민감도",
                                     chips: [
                                       if ((colivingPreference?.bathroom ?? '')
                                           .isNotEmpty)
@@ -322,7 +324,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                     ],
                                   ),
                                   LabeldRow(
-                                    label: "MBTI : ",
+                                    label: "MBTI",
                                     chips: [
                                       if ((colivingPreference?.mbti ?? '')
                                           .isNotEmpty)
@@ -333,7 +335,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                     ],
                                   ),
                                   LabeldRow(
-                                    label: "반려동물 : ",
+                                    label: "반려동물",
                                     chips:
                                         (colivingPreference?.pet ??
                                                 const <String>[])
@@ -346,7 +348,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                             .toList(),
                                   ),
                                   LabeldRow(
-                                    label: "흡연 : ",
+                                    label: "흡연",
                                     chips: [
                                       if (colivingPreference?.smoking != null)
                                         ChipButton(
@@ -368,7 +370,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   LabeldRow(
-                                    label: "유저타입 :",
+                                    label: "유저타입",
                                     chips: [
                                       ChipButton(
                                         text:
@@ -379,34 +381,6 @@ class _MypageScreenState extends State<MypageScreen> {
                                       ),
                                     ],
                                   ),
-                                  if (userTypeInfo?.type == "roomOwner")
-                                    LabeldRow(
-                                      label: "주소",
-                                      chips: [
-                                        ChipButton(
-                                          text:
-                                              (userTypeInfo?.address ?? '주소 없음')
-                                                  .split('(')
-                                                  .first
-                                                  .trim(),
-                                          isSelected: true,
-                                        ),
-                                      ],
-                                    )
-                                  else
-                                    LabeldRow(
-                                      label: "선호 지역 : ",
-                                      chips:
-                                          (userTypeInfo?.searchAreas ??
-                                                  const <String>[])
-                                              .map(
-                                                (areaName) => ChipButton(
-                                                  text: areaName,
-                                                  isSelected: true,
-                                                ),
-                                              )
-                                              .toList(),
-                                    ),
                                 ],
                               ),
                             ),
@@ -418,7 +392,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   LabeldRow(
-                                    label: "최애 음식 :",
+                                    label: "최애 음식",
                                     chips:
                                         (userHobby?.foodLike ??
                                                 const <String>[])
@@ -431,7 +405,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                             .toList(),
                                   ),
                                   LabeldRow(
-                                    label: "요즘 관심사 :",
+                                    label: "요즘 관심사",
                                     chips:
                                         (userHobby?.interestLike ??
                                                 const <String>[])
@@ -444,7 +418,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                             .toList(),
                                   ),
                                   LabeldRow(
-                                    label: "운동 :",
+                                    label: "운동",
                                     chips:
                                         (userHobby?.sportLike ??
                                                 const <String>[])
