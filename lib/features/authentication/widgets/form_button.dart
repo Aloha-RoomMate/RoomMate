@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
 
 class FormButton extends StatelessWidget {
-  const FormButton({super.key, required this.disabled, required this.text});
+  const FormButton({super.key, required this.enabled, required this.widget});
 
-  final bool disabled;
-  final String text;
+  final bool enabled;
+  final Widget widget;
 
   @override
   Widget build(BuildContext context) {
@@ -14,20 +14,20 @@ class FormButton extends StatelessWidget {
       child: AnimatedContainer(
         padding: EdgeInsets.symmetric(vertical: ResponsiveSizes.p(context, 16)),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 18)),
-          color: disabled
-              ? Colors.grey.shade300
-              : Theme.of(context).primaryColor,
+          borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 6)),
+          color: enabled
+              ? Theme.of(context).primaryColor
+              : Colors.grey.shade300,
         ),
         duration: Duration(milliseconds: 300),
         child: AnimatedDefaultTextStyle(
           duration: Duration(milliseconds: 300),
           style: TextStyle(
-            color: disabled ? Colors.grey[400] : Colors.white,
+            color: enabled ? Colors.white : Colors.grey[400],
             fontSize: ResponsiveSizes.f(context, 20),
             fontWeight: FontWeight.w400,
           ),
-          child: Text(text, textAlign: TextAlign.center),
+          child: widget,
         ),
       ),
     );
