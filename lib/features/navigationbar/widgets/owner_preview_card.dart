@@ -1,9 +1,9 @@
-// owner_preview_card.dart
 import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class OwnerPreviewCard extends StatelessWidget {
   final RoomOwnerPost post;
@@ -11,6 +11,7 @@ class OwnerPreviewCard extends StatelessWidget {
   final bool loadingAuthor;
   final VoidCallback onOpen;
   final VoidCallback onClose;
+  final VoidCallback? onChat;
 
   const OwnerPreviewCard({
     super.key,
@@ -19,71 +20,29 @@ class OwnerPreviewCard extends StatelessWidget {
     required this.loadingAuthor,
     required this.onOpen,
     required this.onClose,
+    this.onChat,
   });
 
-  String _genderText(AppUser? u) {
-    // 현재 AppUser에 성별 필드 없음 → 안전 처리
-    return '성별 정보 없음';
-  }
-
+  String _genderText(AppUser? u) => '성별 정보 없음';
   String _smokingText(AppUser? u) {
     final s = u?.coliving?.smoking;
     if (s == null) return '흡연 정보 없음';
     return s ? '흡연' : '비흡연';
   }
 
-  // ✅ "xx길 xx" 또는 "xx로 xx" 등으로 축약
-  String _roadShort(String? full) {
-    final s = (full ?? '').trim();
-    if (s.isEmpty) return '주소 정보 없음';
-
-    final tokens = s.split(RegExp(r'\s+'));
-    final isRoad = RegExp(r'(로|길|대로|가)$'); // 도로명 토큰
-    final isNumber = RegExp(r'^\d+(-\d+)?$'); // 12 or 12-3
-
-    for (int i = 0; i < tokens.length; i++) {
-      final t = tokens[i];
-      if (isRoad.hasMatch(t)) {
-        // 다음 토큰 중 숫자 찾기
-        if (i + 1 < tokens.length && isNumber.hasMatch(tokens[i + 1])) {
-          return '$t ${tokens[i + 1]}';
-        }
-        for (int j = i + 1; j < tokens.length; j++) {
-          if (isNumber.hasMatch(tokens[j])) return '$t ${tokens[j]}';
-        }
-        return t; // 숫자 못 찾으면 도로명만
-      }
-    }
-
-    // 도로명 못 찾으면 동 기준 혹은 앞의 2토큰
-    final dongIdx = tokens.indexWhere((e) => e.endsWith('동'));
-    if (dongIdx != -1) return tokens[dongIdx];
-    if (tokens.length >= 2) return '${tokens[0]} ${tokens[1]}';
-    return tokens.first;
-  }
-
   String _dongOnly(String? full) {
     final s = (full ?? '').trim();
     if (s.isEmpty) return '주소 정보 없음';
-
     final tokens = s.split(RegExp(r'\s+'));
-
-    // 항상 String을 반환(없으면 '')
     String pick(String suffix) =>
         tokens.firstWhere((e) => e.endsWith(suffix), orElse: () => '');
-
-    // 우선순위: 동 > 읍 > 면 > 리 > 구
-    final d = pick('동');
-    final eup = pick('읍');
-    final myeon = pick('면');
-    final ri = pick('리');
-    final gu = pick('구');
-
-    final cand = [d, eup, myeon, ri, gu].firstWhere(
-      (e) => e.isNotEmpty,
-      orElse: () => '',
-    );
-
+    final cand = [
+      pick('동'),
+      pick('읍'),
+      pick('면'),
+      pick('리'),
+      pick('구'),
+    ].firstWhere((e) => e.isNotEmpty, orElse: () => '');
     if (cand.isNotEmpty) return cand;
     if (tokens.length >= 2) return '${tokens[0]} ${tokens[1]}';
     return tokens.first;
@@ -91,195 +50,333 @@ class OwnerPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final cardW = ResponsiveSizes.width(context, 0.90); // 너비 90%
-    final cardH = ResponsiveSizes.height(context, 0.40); // 높이 40% (요구사항대로)
+    final radius = ResponsiveSizes.p(context, 16);
+    final pad = ResponsiveSizes.p(context, 14);
 
     final deposit = post.deposit ?? 0;
     final rent = post.rent ?? 0;
     final manage = post.manageFee ?? 0;
-    final totalMonth = rent + manage;
-
     final dong = _dongOnly(post.addressLabel);
-    final addrTop = '$dong 부근';
+
+    // 이미지 비율: 9:16(세로형) — 요청대로 “위로 길쭉”
+    final photoH = ResponsiveSizes.p(context, 220);
+    final photoW = photoH * 9 / 16;
+    final photos = (post.imageUrls ?? const <String>[]);
 
     return SafeArea(
       top: false,
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Padding(
-          padding: EdgeInsets.only(bottom: ResponsiveSizes.p(context, 12)),
-          child: Dismissible(
-            key: const ValueKey('owner_preview_card'),
-            direction: DismissDirection.down, // 아래로 스와이프 닫기
-            onDismissed: (_) => onClose(),
-            child: Material(
-              color: Colors.transparent,
-              child: SizedBox(
-                width: cardW,
-                height: cardH,
-                child: Material(
-                  color: Colors.white,
-                  elevation: 10,
-                  borderRadius: BorderRadius.circular(
-                    ResponsiveSizes.p(context, 16),
+      child: Stack(
+        children: [
+          // 바깥 영역 탭 -> 닫기 (옵션)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: onClose,
+              behavior: HitTestBehavior.translucent,
+            ),
+          ),
+          // 2단계 스냅 가능한 하단 패널
+          DraggableScrollableSheet(
+            initialChildSize: 0.42,
+            minChildSize: 0.36,
+            maxChildSize: 0.86,
+            snap: true,
+            snapSizes: const [0.36, 0.86],
+            builder: (context, scrollController) {
+              return Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: ResponsiveSizes.p(context, 10),
+                    left: ResponsiveSizes.p(context, 10),
+                    right: ResponsiveSizes.p(context, 10),
                   ),
-                  shadowColor: Colors.black26,
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      // 상단 핸들 + 닫기
-                      Container(
-                        padding: EdgeInsets.fromLTRB(
-                          ResponsiveSizes.p(context, 12),
-                          ResponsiveSizes.p(context, 10),
-                          ResponsiveSizes.p(context, 6),
-                          ResponsiveSizes.p(context, 8),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: ResponsiveSizes.p(context, 36),
-                                    height: ResponsiveSizes.p(context, 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black26,
-                                      borderRadius: BorderRadius.circular(
-                                        ResponsiveSizes.p(context, 2),
-                                      ),
-                                    ),
-                                  ),
-                                  Gaps.v8(context),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: onClose,
-                              icon: const Icon(
-                                Icons.close,
-                                color: Colors.black45,
-                              ),
-                              tooltip: '닫기',
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // 내용
-                      Expanded(
-                        child: InkWell(
-                          onTap: onOpen, // 전체 탭 → 상세로
+                  child: Material(
+                    color: Colors.white,
+                    elevation: 10,
+                    shadowColor: Colors.black26,
+                    borderRadius: BorderRadius.circular(radius),
+                    clipBehavior: Clip.antiAlias,
+                    child: CustomScrollView(
+                      controller: scrollController,
+                      slivers: [
+                        // 핸들 + 닫기
+                        SliverToBoxAdapter(
                           child: Padding(
                             padding: EdgeInsets.fromLTRB(
-                              ResponsiveSizes.p(context, 16),
-                              0,
-                              ResponsiveSizes.p(context, 16),
-                              ResponsiveSizes.p(context, 12),
+                              pad,
+                              pad * 0.7,
+                              pad,
+                              pad * 0.5,
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Row(
                               children: [
-                                // 1) 주소 (축약)
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.place,
-                                      size: ResponsiveSizes.p(context, 18),
-                                      color: Colors.black87,
-                                    ),
-                                    Gaps.h6(context),
-                                    Expanded(
-                                      child: Text(
-                                        addrTop,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: ResponsiveSizes.f(
-                                            context,
-                                            14,
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      Container(
+                                        width: ResponsiveSizes.p(context, 36),
+                                        height: ResponsiveSizes.p(context, 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black26,
+                                          borderRadius: BorderRadius.circular(
+                                            ResponsiveSizes.p(context, 2),
                                           ),
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.black87,
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                Gaps.v10(context),
-
-                                // 2) 금액 (관리비 포함)
-                                Text(
-                                  '보증금 $deposit / 월세 $totalMonth (관리비 포함)',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: ResponsiveSizes.f(context, 16),
-                                    color: Colors.black87,
+                                      Gaps.v8(context),
+                                    ],
                                   ),
                                 ),
-                                Gaps.v6(context),
-
-                                // 3) 성별 / 흡연
-                                Text(
-                                  '${_genderText(author)} / ${_smokingText(author)}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: ResponsiveSizes.f(context, 14),
-                                    color: Colors.black54,
-                                  ),
-                                ),
-
-                                Gaps.v12(context),
-                                const Divider(height: 1, color: Colors.black12),
-
-                                // 작성자 로딩 스피너
-                                Expanded(
-                                  child: Center(
-                                    child: loadingAuthor
-                                        ? SizedBox(
-                                            width: ResponsiveSizes.p(
-                                              context,
-                                              24,
-                                            ),
-                                            height: ResponsiveSizes.p(
-                                              context,
-                                              24,
-                                            ),
-                                            child:
-                                                const CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                ),
-                                          )
-                                        : const SizedBox.shrink(),
-                                  ),
-                                ),
-
-                                Align(
-                                  alignment: Alignment.bottomRight,
-                                  child: Text(
-                                    '자세히 보기',
-                                    style: TextStyle(
-                                      color: Theme.of(context).primaryColor,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                IconButton(
+                                  onPressed: onClose,
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: Colors.black45,
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                      ),
-                    ],
+
+                        // ── 섹션 1: 제목 + 사진(가로로 나란히, 9:16)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: pad),
+                            child: Text(
+                              dong,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: ResponsiveSizes.f(context, 18),
+                                fontWeight: FontWeight.w800,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SliverToBoxAdapter(child: Gaps.v10(context)),
+                        SliverToBoxAdapter(
+                          child: SizedBox(
+                            height: photoH,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              padding: EdgeInsets.symmetric(horizontal: pad),
+                              itemCount: (photos.isEmpty ? 1 : photos.length),
+                              separatorBuilder: (_, __) => SizedBox(
+                                width: ResponsiveSizes.p(context, 8),
+                              ),
+                              itemBuilder: (_, i) {
+                                final path = photos.isEmpty ? null : photos[i];
+                                return SizedBox(
+                                  width: photoW,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: AspectRatio(
+                                      aspectRatio: 9 / 16,
+                                      child: path == null
+                                          ? Image.asset(
+                                              'assets/house.jpg',
+                                              fit: BoxFit.cover,
+                                            )
+                                          : _SupabaseOrNetImage(path: path),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+
+                        // 구분선 (계단 느낌)
+                        SliverToBoxAdapter(child: Gaps.v12(context)),
+                        const SliverToBoxAdapter(
+                          child: Divider(height: 1, color: Colors.black12),
+                        ),
+                        SliverToBoxAdapter(child: Gaps.v12(context)),
+
+                        // ── 섹션 2: 정보 + 액션
+                        SliverPadding(
+                          padding: EdgeInsets.symmetric(horizontal: pad),
+                          sliver: SliverList(
+                            delegate: SliverChildListDelegate(
+                              [
+                                _InfoRow(
+                                  icon: Icons.home_outlined,
+                                  text: (post.addressLabel ?? '위치 비공개'),
+                                ),
+                                Gaps.v8(context),
+                                _InfoRow(
+                                  icon: Icons.payments_outlined,
+                                  text: '보증금 $deposit 만원',
+                                ),
+                                Gaps.v8(context),
+                                _InfoRow(
+                                  icon: Icons.receipt_long_outlined,
+                                  text: (manage > 0)
+                                      ? '월세 $rent만 + 관리비 $manage만'
+                                      : '월세 $rent만 (관리비 없음)',
+                                ),
+                                Gaps.v8(context),
+                                _InfoRow(
+                                  icon: Icons.person_outline,
+                                  text:
+                                      '${_genderText(author)} · ${_smokingText(author)}',
+                                ),
+                                if (loadingAuthor) ...[
+                                  Gaps.v12(context),
+                                  Center(
+                                    child: SizedBox(
+                                      width: ResponsiveSizes.p(context, 20),
+                                      height: ResponsiveSizes.p(context, 20),
+                                      child: const CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                Gaps.v16(context),
+                                Text(
+                                  '바로 대화해볼까요?',
+                                  style: TextStyle(
+                                    fontSize: ResponsiveSizes.f(context, 16),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Gaps.v8(context),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: onOpen,
+                                        style: OutlinedButton.styleFrom(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: ResponsiveSizes.p(
+                                              context,
+                                              12,
+                                            ),
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                        ),
+                                        child: const Text('상세보기'),
+                                      ),
+                                    ),
+                                    Gaps.h8(context),
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed: onChat ?? onOpen,
+                                        icon: const Icon(
+                                          Icons.chat_bubble_outline,
+                                        ),
+                                        label: const Text('채팅하기'),
+                                        style: ElevatedButton.styleFrom(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: ResponsiveSizes.p(
+                                              context,
+                                              12,
+                                            ),
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Gaps.v12(context), // 바닥 여백
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: ResponsiveSizes.p(context, 18), color: Colors.black87),
+        Gaps.h8(context),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.black87),
           ),
         ),
-      ),
+      ],
+    );
+  }
+}
+
+/// Supabase 스토리지 경로면 서명 URL을 만들어서 보여주고,
+/// 절대 URL(http…)이면 그대로 보여준다.
+class _SupabaseOrNetImage extends StatelessWidget {
+  const _SupabaseOrNetImage({required this.path});
+
+  final String path;
+  static const _bucket = 'RoomMate-image';
+  static const _ttlSec = 1800;
+
+  bool get _isAbsolute => path.startsWith('http');
+
+  Future<String> _signed() async {
+    final cli = Supabase.instance.client;
+    final url = await cli.storage.from(_bucket).createSignedUrl(path, _ttlSec);
+    return url;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isAbsolute) {
+      return Image.network(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            Image.asset('assets/house.jpg', fit: BoxFit.cover),
+      );
+    }
+    return FutureBuilder<String>(
+      future: _signed(),
+      builder: (c, s) {
+        if (s.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+        final url = s.data;
+        if (url == null || url.isEmpty) {
+          return Image.asset('assets/house.jpg', fit: BoxFit.cover);
+        }
+        return Image.network(
+          url,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) {
+            return Image.asset('assets/house.jpg', fit: BoxFit.cover);
+          },
+        );
+      },
     );
   }
 }

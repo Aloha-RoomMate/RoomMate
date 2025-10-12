@@ -1,24 +1,27 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:proj4dart/proj4dart.dart' as proj4;
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
 import 'package:roommate/features/navigationbar/widgets/owner_preview_card.dart';
 import 'package:roommate/features/view/room_owner_post_view.dart';
+import 'package:roommate/class/chat_repository.dart';
+import 'package:roommate/features/chat/chat_screen.dart';
+
 import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/constants/gaps.dart';
 
 const _NCP_KEY_ID = 'udl4f25p0c';
 const _NCP_KEY = 'dNKTbZDrKK0ksqtoUEAldGQJL86c96pFgWqrGnKG';
-
 const _DEV_CLIENT_ID = 'GtXY6mLUVHuqtjYd9TQo';
 const _DEV_CLIENT_SECRET = 'RxLgj3LSvg';
-
 const Duration _httpTimeout = Duration(seconds: 7);
 
 class MapScreen extends StatefulWidget {
@@ -28,22 +31,20 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  final Map<String, AppUser?> _userCache = {}; // authorId -> AppUser 캐시
-  AppUser? _selectedAuthor; // 선택된 글의 작성자
-  bool _loadingAuthor = false; // 작성자 로딩 표시
-  RoomOwnerPost? _selectedOwnerPost; // 미리보기 대상 포스트
-  bool _showOwnerPreview = false; // 미리보기 박스 표시 여부
-  String _baseQuery = '';
+  final Map<String, AppUser?> _userCache = {};
+  AppUser? _selectedAuthor;
+  bool _loadingAuthor = false;
 
-  // 🔒 오버레이/카메라 동시작업 충돌 방지용 락
+  RoomOwnerPost? _selectedOwnerPost;
+  bool _showOwnerPreview = false;
+
+  String _baseQuery = '';
   bool _lockOverlayOps = false;
   bool _isAnimatingCamera = false;
 
-  // 줌 상수
   static const double Z_ALL = 11.0;
 
-  // 방주인 게시글 캐시 (데이터 보관용)
-  final Map<String, RoomOwnerPost> _ownerCache = {}; // docId -> post
+  final Map<String, RoomOwnerPost> _ownerCache = {};
   final _searchCtrl = TextEditingController(text: '');
   final _searchFocus = FocusNode();
 
@@ -55,13 +56,9 @@ class _MapScreenState extends State<MapScreen> {
   late final proj4.Projection _katec;
 
   final List<String> _recentSearches = [];
-
   List<PlaceInfo> _results = [];
-
   PlaceInfo? _selectedPlace;
-
   final List<NMarker> _markers = [];
-
   final Set<String> _relatedRegions = {};
 
   final DraggableScrollableController _sheetCtrl =
@@ -72,9 +69,8 @@ class _MapScreenState extends State<MapScreen> {
   static const double _sheetMid = 0.35;
   static const double _sheetMax = 0.65;
 
-  // RoomOwner 마커 관리 상태
   final RoomOwnerPostRepository _postRepo = RoomOwnerPostRepository();
-  final Map<String, NMarker> _ownerMarkers = {}; // docId -> marker
+  final Map<String, NMarker> _ownerMarkers = {};
   Timer? _viewportDebounce;
 
   @override
@@ -97,6 +93,7 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 
+  // ─ helpers
   NLatLng _tm128ToLatLng(num mapx, num mapy) {
     final tm = proj4.Point(x: mapx.toDouble(), y: mapy.toDouble());
     final wgs = _katec.transform(_wgs84, tm);
@@ -129,6 +126,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // ─ 검색/지오코딩
   Future<List<Map<String, dynamic>>> _searchLocalList(
     String keyword, {
     int display = 20,
@@ -139,7 +137,6 @@ class _MapScreenState extends State<MapScreen> {
       'start': '1',
       'sort': 'random',
     });
-
     final res = await _safeGet(
       uri,
       headers: {
@@ -148,11 +145,7 @@ class _MapScreenState extends State<MapScreen> {
         'Accept': 'application/json',
       },
     );
-    if (res == null || res.statusCode != 200) {
-      debugPrint('[LOCAL] FAIL ${res?.statusCode} body=${res?.body}');
-      return [];
-    }
-
+    if (res == null || res.statusCode != 200) return [];
     final items = (json.decode(res.body)['items'] as List?) ?? [];
     return items.cast<Map<String, dynamic>>();
   }
@@ -316,20 +309,15 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _refreshMarkers(List<PlaceInfo> places) async {
     if (_controller == null) return;
 
-    // 기존 검색 마커 제거
     for (final m in _markers) {
       try {
-        if (m.isAdded) {
-          await _controller!.deleteOverlay(m.info);
-        }
+        if (m.isAdded) await _controller!.deleteOverlay(m.info);
       } catch (_) {}
     }
     _markers.clear();
 
-    // 새 검색 마커 생성
     for (var i = 0; i < places.length; i++) {
       final p = places[i];
-
       final marker = NMarker(
         id: 'pin_${i}_${p.pos.latitude}_${p.pos.longitude}',
         position: p.pos,
@@ -388,9 +376,7 @@ class _MapScreenState extends State<MapScreen> {
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOutCubic,
       );
-    } catch (e) {
-      debugPrint('[SHEET] animateTo failed: $e');
-    }
+    } catch (_) {}
   }
 
   void _toggleSheet() {
@@ -398,7 +384,7 @@ class _MapScreenState extends State<MapScreen> {
       final s = _sheetCtrl.size;
       final target = (s <= _sheetMin + 0.02) ? _sheetMid : _sheetMin;
       _animateSheet(target);
-    } catch (e) {
+    } catch (_) {
       _animateSheet(_sheetMid);
     }
   }
@@ -453,9 +439,8 @@ class _MapScreenState extends State<MapScreen> {
     for (final entry in _ownerMarkers.entries.toList()) {
       if (!neededIds.contains(entry.key)) {
         try {
-          if (entry.value.isAdded) {
+          if (entry.value.isAdded)
             await _controller!.deleteOverlay(entry.value.info);
-          }
         } catch (_) {}
         _ownerMarkers.remove(entry.key);
       }
@@ -471,6 +456,7 @@ class _MapScreenState extends State<MapScreen> {
         id: 'owner_$id',
         position: NLatLng(gp.latitude, gp.longitude),
       );
+
       marker.setOnTapListener((_) async {
         if (_controller == null) return;
         _lockOverlayOps = true;
@@ -483,7 +469,6 @@ class _MapScreenState extends State<MapScreen> {
           _selectedAuthor = null;
         });
 
-        // 작성자 정보 로드 (있으면 캐시)
         final uid = p.authorId;
         if (uid != null && uid.isNotEmpty) {
           _ensureAuthorLoaded(uid);
@@ -501,6 +486,7 @@ class _MapScreenState extends State<MapScreen> {
         await Future<void>.delayed(const Duration(milliseconds: 50));
         _lockOverlayOps = false;
       });
+
       await _controller!.addOverlay(marker);
       _ownerMarkers[id] = marker;
     }
@@ -529,6 +515,7 @@ class _MapScreenState extends State<MapScreen> {
         id: 'owner_$id',
         position: NLatLng(gp.latitude, gp.longitude),
       );
+
       marker.setOnTapListener((_) async {
         if (_controller == null) return;
         _lockOverlayOps = true;
@@ -558,6 +545,7 @@ class _MapScreenState extends State<MapScreen> {
         await Future<void>.delayed(const Duration(milliseconds: 50));
         _lockOverlayOps = false;
       });
+
       await _controller!.addOverlay(marker);
       _ownerMarkers[id] = marker;
     }
@@ -575,7 +563,6 @@ class _MapScreenState extends State<MapScreen> {
           .collection('users')
           .doc(uid)
           .get();
-
       final user = AppUser.fromDoc(doc);
       _userCache[uid] = user;
       if (!mounted) return;
@@ -590,6 +577,35 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  Future<void> _startChatWithOwner() async {
+    final post = _selectedOwnerPost;
+    final partnerUid = post?.authorId ?? '';
+    if (partnerUid.isEmpty) return;
+
+    final me = FirebaseAuth.instance.currentUser;
+    if (me == null) return;
+
+    final chatRepo = ChatRepository();
+    final chatRoomId = await chatRepo.createChatRoom(me.uid, partnerUid);
+
+    if (!mounted) return;
+    final partnerName = _selectedAuthor?.displayName ?? '사용자';
+    final partnerPhoto = _selectedAuthor?.photoURL;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          chatRoomId: chatRoomId,
+          partnerUid: partnerUid,
+          partnerName: partnerName,
+          partnerPhotoURL: partnerPhoto,
+          quickPhrases: const ['안녕하세요!', '방 보러 가도 될까요?', '위치가 어디인가요?'],
+        ),
+      ),
+    );
+  }
+
+  // ─ UI
   @override
   Widget build(BuildContext context) {
     final filteredSuggestions = () {
@@ -615,84 +631,67 @@ class _MapScreenState extends State<MapScreen> {
               borderRadius: BorderRadius.circular(
                 ResponsiveSizes.p(context, 18),
               ),
+              child: NaverMap(
+                onMapReady: (c) {
+                  _controller = c;
+                  _refreshOwnerMarkersForViewport();
+                },
+                onCameraChange: (reason, animated) {
+                  if (reason == NCameraUpdateReason.location ||
+                      reason == NCameraUpdateReason.control) {
+                    _zoomTo14OnNextIdle = true;
+                  }
+                },
+                onCameraIdle: () async {
+                  final ctrl0 = _controller;
+                  if (_zoomTo14OnNextIdle && ctrl0 != null) {
+                    _zoomTo14OnNextIdle = false;
+                    try {
+                      final pos = await ctrl0.getCameraPosition();
+                      final cu =
+                          NCameraUpdate.scrollAndZoomTo(
+                            target: pos.target,
+                            zoom: 14,
+                          )..setAnimation(
+                            duration: const Duration(milliseconds: 250),
+                          );
+                      if (mounted) await ctrl0.updateCamera(cu);
+                    } catch (_) {}
+                  }
 
-              child: Stack(
-                children: [
-                  NaverMap(
-                    onMapReady: (c) {
-                      _controller = c;
-                      _refreshOwnerMarkersForViewport();
-                    },
-                    onCameraChange: (reason, animated) {
-                      if (reason == NCameraUpdateReason.location ||
-                          reason == NCameraUpdateReason.control) {
-                        _zoomTo14OnNextIdle = true;
-                      }
-                    },
-                    onCameraIdle: () async {
-                      // 줌 14 보정
-                      final ctrl0 = _controller; // ← 로컬 캡처
-                      if (_zoomTo14OnNextIdle && ctrl0 != null) {
-                        _zoomTo14OnNextIdle = false;
-                        try {
-                          final pos = await ctrl0.getCameraPosition();
-                          final cu =
-                              NCameraUpdate.scrollAndZoomTo(
-                                target: pos.target,
-                                zoom: 14,
-                              )..setAnimation(
-                                duration: const Duration(milliseconds: 250),
-                              );
-                          if (mounted) {
-                            await ctrl0.updateCamera(cu);
-                          }
-                        } catch (_) {
-                          // ignore: map이 아직 준비 안 됐거나 이미 dispose된 케이스
-                        }
-                      }
+                  if (_lockOverlayOps || _isAnimatingCamera) return;
 
+                  _viewportDebounce?.cancel();
+                  _viewportDebounce = Timer(
+                    const Duration(milliseconds: 250),
+                    () async {
+                      if (!mounted) return;
                       if (_lockOverlayOps || _isAnimatingCamera) return;
-
-                      _viewportDebounce?.cancel();
-
-                      // 🔒 타이머 안에서 다시 로컬 캡처 + 널가드 + mounted 체크
-                      _viewportDebounce = Timer(
-                        const Duration(milliseconds: 250),
-                        () async {
-                          if (!mounted) return;
-                          if (_lockOverlayOps || _isAnimatingCamera) return;
-
-                          final ctrl = _controller; // ← 다시 캡처
-                          if (ctrl == null) return;
-
-                          try {
-                            final cam = await ctrl.getCameraPosition(); // ← 안전
-                            if (cam.zoom < Z_ALL) {
-                              await _showAllOwnerMarkersFromCache();
-                            } else {
-                              await _refreshOwnerMarkersForViewport();
-                            }
-                          } catch (_) {
-                            // ignore
-                          }
-                        },
-                      );
+                      final ctrl = _controller;
+                      if (ctrl == null) return;
+                      try {
+                        final cam = await ctrl.getCameraPosition();
+                        if (cam.zoom < Z_ALL) {
+                          await _showAllOwnerMarkersFromCache();
+                        } else {
+                          await _refreshOwnerMarkersForViewport();
+                        }
+                      } catch (_) {}
                     },
-
-                    options: const NaverMapViewOptions(
-                      initialCameraPosition: NCameraPosition(
-                        target: NLatLng(37.5665, 126.9780),
-                        zoom: 13.5,
-                      ),
-                      locationButtonEnable: true,
-                    ),
+                  );
+                },
+                options: const NaverMapViewOptions(
+                  initialCameraPosition: NCameraPosition(
+                    target: NLatLng(37.5665, 126.9780),
+                    zoom: 13.5,
                   ),
-                ],
+                  locationButtonEnable: true,
+                ),
               ),
             ),
           ),
 
-          // 2) 상단 검색 UI
+          // 2) 상단 검색 + 추천
           SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -816,7 +815,9 @@ class _MapScreenState extends State<MapScreen> {
                           vertical: ResponsiveSizes.p(context, 4),
                         ),
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(maxHeight: maxChipHeight),
+                          constraints: BoxConstraints(
+                            maxHeight: (h * 0.20).clamp(80.0, 140.0),
+                          ),
                           child: Material(
                             color: Colors.transparent,
                             elevation: 2,
@@ -871,7 +872,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
 
-          // 3) 하단 검색 결과 시트
+          // 3) 검색결과 시트 (기존 3단 스냅 유지)
           if (_results.isNotEmpty)
             DraggableScrollableSheet(
               controller: _sheetCtrl,
@@ -998,92 +999,84 @@ class _MapScreenState extends State<MapScreen> {
                         const SliverToBoxAdapter(
                           child: Divider(height: 1, color: Colors.black12),
                         ),
-                        SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              if (index.isOdd) {
-                                return Divider(
-                                  endIndent: ResponsiveSizes.p(context, 20),
-                                  indent: ResponsiveSizes.p(context, 20),
-                                  height: 0,
-                                );
-                              }
-                              final itemIndex = index ~/ 2;
-                              final p = _results[itemIndex];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: Colors.black87,
-                                  child: Text('${itemIndex + 1}'),
-                                ),
-                                title: Text(
-                                  p.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (p.displayAddress.isNotEmpty)
-                                      Text(
-                                        p.displayAddress,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                    if ((p.tel ?? '').isNotEmpty)
-                                      Text(
-                                        p.tel!,
-                                        style: const TextStyle(
-                                          color: Colors.black54,
-                                        ),
-                                      ),
-                                    if ((p.category ?? '').isNotEmpty)
-                                      Text(
-                                        p.category!,
-                                        style: const TextStyle(
-                                          color: Colors.black54,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                onTap: () async {
-                                  // 안전하게 카메라 이동
-                                  _lockOverlayOps = true;
-                                  _isAnimatingCamera = true;
-                                  await Future<void>.delayed(
-                                    const Duration(milliseconds: 16),
-                                  );
-                                  final cu =
-                                      (NCameraUpdate.scrollAndZoomTo(
-                                        target: p.pos,
-                                        zoom: 16,
-                                      )..setAnimation(
-                                        duration: const Duration(
-                                          milliseconds: 350,
-                                        ),
-                                      ));
-                                  try {
-                                    await _controller?.updateCamera(cu);
-                                  } catch (_) {}
-                                  _isAnimatingCamera = false;
-                                  await Future<void>.delayed(
-                                    const Duration(milliseconds: 50),
-                                  );
-                                  _lockOverlayOps = false;
-                                },
-                              );
-                            },
-                            childCount: _results.isNotEmpty
-                                ? (_results.length * 2 - 1)
-                                : 0,
+                        SliverList.separated(
+                          itemCount: _results.length,
+                          separatorBuilder: (_, __) => Divider(
+                            endIndent: ResponsiveSizes.p(context, 20),
+                            indent: ResponsiveSizes.p(context, 20),
+                            height: 0,
                           ),
+                          itemBuilder: (context, i) {
+                            final p = _results[i];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.black87,
+                                child: Text('${i + 1}'),
+                              ),
+                              title: Text(
+                                p.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (p.displayAddress.isNotEmpty)
+                                    Text(
+                                      p.displayAddress,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  if ((p.tel ?? '').isNotEmpty)
+                                    Text(
+                                      p.tel!,
+                                      style: const TextStyle(
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                  if ((p.category ?? '').isNotEmpty)
+                                    Text(
+                                      p.category!,
+                                      style: const TextStyle(
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              onTap: () async {
+                                _lockOverlayOps = true;
+                                _isAnimatingCamera = true;
+                                await Future<void>.delayed(
+                                  const Duration(milliseconds: 16),
+                                );
+                                final cu =
+                                    (NCameraUpdate.scrollAndZoomTo(
+                                      target: p.pos,
+                                      zoom: 16,
+                                    )..setAnimation(
+                                      duration: const Duration(
+                                        milliseconds: 350,
+                                      ),
+                                    ));
+                                try {
+                                  await _controller?.updateCamera(cu);
+                                } catch (_) {}
+                                _isAnimatingCamera = false;
+                                await Future<void>.delayed(
+                                  const Duration(milliseconds: 50),
+                                );
+                                _lockOverlayOps = false;
+                              },
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -1092,7 +1085,7 @@ class _MapScreenState extends State<MapScreen> {
               },
             ),
 
-          // 4) 미리보기 카드 (맨 위)
+          // 4) 오너 미리보기 (2단계 스냅 시트)
           if (_showOwnerPreview && _selectedOwnerPost != null)
             OwnerPreviewCard(
               post: _selectedOwnerPost!,
@@ -1101,13 +1094,14 @@ class _MapScreenState extends State<MapScreen> {
               onClose: () => setState(() => _showOwnerPreview = false),
               onOpen: () {
                 final post = _selectedOwnerPost;
-                if (post == null) return; // 안전 가드
+                if (post == null) return;
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => RoomOwnerPostView(post: post),
                   ),
                 );
               },
+              onChat: _startChatWithOwner,
             ),
         ],
       ),
