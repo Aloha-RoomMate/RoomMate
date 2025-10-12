@@ -120,13 +120,11 @@ class HobbyScreenState extends State<HobbyScreen> {
     if (!_isNextEnable()) return;
 
     try {
-      setState(() {
-        _isSending = true;
-      });
+      setState(() => _isSending = true);
 
       final hobby = Hobby(
         foodLike: foodList.toList(),
-        interestLike: interestList.toList(),
+        interestLike: interestList.toList(), // ✅ key 일치
         sportLike: sportsList.toList(),
       );
 
@@ -134,17 +132,13 @@ class HobbyScreenState extends State<HobbyScreen> {
 
       if (!mounted) return;
       Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => MainNavigation()),
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
       );
     } catch (e, st) {
       print("error: $e");
       print("stack: $st");
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSending = false;
-        });
-      }
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
@@ -176,7 +170,7 @@ class HobbyScreenState extends State<HobbyScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "${data.displayName} 님의 관심사는 \n무엇인가요 ?",
+                      "${data.displayName ?? ''} 님의 관심사는 \n무엇인가요 ?",
                       style: const TextStyle(
                         fontSize: Sizes.size28,
                         fontWeight: FontWeight.w700,
@@ -207,30 +201,22 @@ class HobbyScreenState extends State<HobbyScreen> {
                         HobbyWidgetStateful(
                           section: sportSection,
                           onSelectionChanged: (selected) {
-                            setState(() {
-                              sportsList = selected;
-                            });
+                            setState(() => sportsList = selected);
                           },
                         ),
                         HobbyWidgetStateful(
                           section: foodSection,
                           onSelectionChanged: (selected) {
-                            setState(() {
-                              foodList = selected;
-                            });
+                            setState(() => foodList = selected);
                           },
                         ),
                         HobbyWidgetStateful(
                           section: interestSection,
                           onSelectionChanged: (selected) {
-                            setState(() {
-                              interestList = selected;
-                            });
+                            setState(() => interestList = selected);
                           },
                         ),
-
                         const SizedBox(height: Sizes.size10),
-
                         GestureDetector(
                           onTap: _isNextEnable() && !_isSending
                               ? _onNextTap

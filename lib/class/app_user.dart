@@ -1,4 +1,3 @@
-// lib/models/app_user.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 
@@ -14,8 +13,8 @@ class AppUser {
   final DiseaseInfo? disease;
   final String? introduction;
   final UserType? userType;
-  final Hobby? hobby;
-  final UserPass? userPass;
+  final Hobby? hobby; // ← 읽을 때 UserLike도 폴백
+  final UserPass? userPass; // ← pass: bool 만
 
   const AppUser({
     required this.uid,
@@ -33,8 +32,6 @@ class AppUser {
     this.userPass,
   });
 
-  // named와 null 허용 "두 기능 모두"가 있기 때문에
-  // 외부에서 하나의 매개변수만 넘겨줘도 문제가 안 생김.
   AppUser copyWith({
     String? uid,
     String? email,
@@ -42,7 +39,7 @@ class AppUser {
     String? photoURL,
     DateTime? createdAt,
     DateTime? updatedAt,
-    String? userType,
+    UserType? userType, // ✅ 타입 수정
     DailyRhythm? dailyRhythm,
     Coliving? coliving,
     DiseaseInfo? disease,
@@ -51,7 +48,6 @@ class AppUser {
     Hobby? hobby,
   }) {
     return AppUser(
-      // 새로운 값이 오면 그걸로 교체, 아니면 기존의 값.
       uid: uid ?? this.uid,
       email: email ?? this.email,
       displayName: displayName ?? this.displayName,
@@ -63,17 +59,15 @@ class AppUser {
       disease: disease ?? this.disease,
       introduction: introduction ?? this.introduction,
       hobby: hobby ?? this.hobby,
+      userType: userType ?? this.userType,
       userPass: userPass ?? this.userPass,
     );
   }
 
   factory AppUser.fromAuth(auth.User u) {
-    // Auth 성공 시 User 객체 받음.
-    final dn = (u.displayName ?? '').trim(); // null -> ''로
-
+    final dn = (u.displayName ?? '').trim();
     final name = dn.isNotEmpty ? dn : (u.email?.split('@').first ?? '룸메이트');
     return AppUser(
-      // 최초의 AppUser 객체 생성
       uid: u.uid,
       email: u.email,
       displayName: name,
@@ -91,24 +85,25 @@ class AppUser {
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
 
       dailyRhythm: DailyRhythm.fromMap(
-        map['dailyRhythm'] as Map<String, dynamic>?, // null safety
+        map['dailyRhythm'] as Map<String, dynamic>?,
       ),
-      userType: UserType.fromMap(
-        map['userType'] as Map<String, dynamic>?,
-      ),
-      coliving: Coliving.fromMap(
-        map['coliving'] as Map<String, dynamic>?,
-      ),
+      userType: UserType.fromMap(map['userType'] as Map<String, dynamic>?),
+      coliving: Coliving.fromMap(map['coliving'] as Map<String, dynamic>?),
       disease: DiseaseInfo.fromMap(map['disease'] as Map<String, dynamic>?),
+
       introduction: (map['introduction'] is String)
           ? map['introduction'] as String
           : ((map['introduction'] is Map<String, dynamic>)
                 ? (map['introduction'] as Map<String, dynamic>)['introduction']
                       as String?
                 : null),
+
+      // ✅ 저장은 UserLike 로만 하지만, 읽기 시 hobby 또는 UserLike 모두 허용
       hobby: Hobby.fromMap(
-        map['hobby'] as Map<String, dynamic>?,
+        (map['hobby'] as Map<String, dynamic>?) ??
+            (map['UserLike'] as Map<String, dynamic>?),
       ),
+
       userPass: UserPass.fromMap(map['userPass'] as Map<String, dynamic>?),
     );
   }
@@ -127,71 +122,37 @@ class AppUser {
       if (coliving != null) 'coliving': coliving!.toMap(),
       if (disease != null) 'disease': disease!.toMap(),
       if (introduction != null) 'introduction': introduction,
-      if (userPass != null) 'userPass': userPass!.toMap(),
-      if (hobby != null) 'hobby': hobby!.toMap(),
+      if (userPass != null) 'userPass': userPass!.toMap(), // pass만 직렬화
+      // 취미는 upsertFromAuth에서는 보통 null이라 생략됨. 실제 저장은 setHobby 사용.
     };
     if (skipNulls) map.removeWhere((_, v) => v == null);
-    // key와 관계 없이 value가 null이면 제거한다.
-
     return map;
   }
 }
 
 class UserPass {
-  final DailyRhythm? dailyRhythm;
-  final Coliving? coliving;
-  final DiseaseInfo? disease;
-  final Introduction? introduction;
   final bool pass;
-
-  const UserPass({
-    this.dailyRhythm,
-    this.coliving,
-    this.disease,
-    this.introduction,
-    required this.pass,
-  });
+  const UserPass({required this.pass});
 
   factory UserPass.fromMap(Map<String, dynamic>? map) {
     if (map == null) return const UserPass(pass: false);
-    return UserPass(
-      dailyRhythm: DailyRhythm.fromMap(
-        map['dailyRhythm'] as Map<String, dynamic>?,
-      ),
-      coliving: Coliving.fromMap(map['coliving'] as Map<String, dynamic>?),
-      disease: DiseaseInfo.fromMap(map['disease'] as Map<String, dynamic>?),
-      introduction: Introduction.fromMap(
-        map['introduction'] as Map<String, dynamic>?,
-      ),
-      pass: map['pass'] == true,
-    );
+    return UserPass(pass: map['pass'] == true);
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      if (dailyRhythm != null) 'dailyRhythm': dailyRhythm!.toMap(),
-      if (coliving != null) 'coliving': coliving!.toMap(),
-      if (disease != null) 'disease': disease!.toMap(),
-      if (introduction != null) 'introduction': introduction!.toMap(),
-      'pass': pass,
-    };
-  }
+  Map<String, dynamic> toMap() => {'pass': pass};
 }
 
-/// 하루 리듬(온보딩) 서브모델
+/// 하루 리듬(온보딩)
 class DailyRhythm {
   final List<String> workDays;
   final bool isJobLess;
-
   final int? weekAwakeMins;
   final int? weekSleepMins;
 
   const DailyRhythm({
     required this.workDays,
-
     required this.isJobLess,
     this.weekAwakeMins,
-
     this.weekSleepMins,
   });
 
@@ -208,7 +169,6 @@ class DailyRhythm {
     if (map == null) return null;
     final week = (map['week'] as Map<String, dynamic>?) ?? const {};
     return DailyRhythm(
-      // <String>으로 하면 dynamic인 map value들로부터 보호 가능
       workDays: List<String>.from(map['workDays'] ?? const []),
       isJobLess: map['isJobLess'] == true,
       weekAwakeMins: week['awakeMins'] as int?,
@@ -219,7 +179,7 @@ class DailyRhythm {
 
 class UserType {
   final String type; // 'roomOwner' or 'searcher'
-  final String jobKinds;
+  final String jobKinds; // 문자열 고정
   final String? address;
   final List<String>? searchAreas;
 
@@ -232,10 +192,14 @@ class UserType {
 
   factory UserType.fromMap(Map<String, dynamic>? map) {
     if (map == null) return const UserType(type: 'searcher', jobKinds: "");
+    final raw = map['jobKinds'];
+    final jobKinds = (raw is List)
+        ? raw.whereType<String>().join(', ')
+        : (raw as String? ?? "");
     return UserType(
-      type: map['type'] ?? 'searcher',
-      jobKinds: map['jobKinds'] ?? [],
-      address: map['address'],
+      type: (map['type'] as String?) ?? 'searcher',
+      jobKinds: jobKinds,
+      address: map['address'] as String?,
       searchAreas: (map['searchAreas'] as List?)?.cast<String>(),
     );
   }
@@ -270,31 +234,33 @@ class Coliving {
     'interaction': interaction,
     'bathroom': bathroom,
     'smoking': smoking,
-    "pet": pet,
+    'pet': pet,
     'mbti': mbti,
   };
 
   static Coliving? fromMap(Map<String, dynamic>? map) {
-    if (map == null) return null; // 없으면
+    if (map == null) return null;
     return Coliving(
-      coSpace: map['coSpace'],
-      interaction: map['interaction'],
-      bathroom: map['bathroom'],
-      smoking: map['smoking'],
+      coSpace: map['coSpace'] as String? ?? "",
+      interaction: map['interaction'] as String? ?? "",
+      bathroom: map['bathroom'] as String? ?? "",
+      smoking: map['smoking'] == true,
       pet: List<String>.from(map['pet'] ?? const []),
-      mbti: map['mbti'],
+      mbti: map['mbti'] as String? ?? "",
     );
   }
 }
 
 class DiseaseInfo {
   final bool? isHealthy; // true면 diseases는 무시
-  final String? diseases; // 콤마 없는 free-text
+  final String? diseases; // free-text
   const DiseaseInfo({this.isHealthy, this.diseases});
+
   Map<String, dynamic> toMap() => {
     if (isHealthy != null) 'isHealthy': isHealthy,
     if (diseases != null) 'diseases': diseases,
   };
+
   static DiseaseInfo? fromMap(Map<String, dynamic>? m) {
     if (m == null) return null;
     return DiseaseInfo(
@@ -319,9 +285,9 @@ class Introduction {
 }
 
 class Hobby {
-  final List foodLike;
-  final List interestLike;
-  final List sportLike;
+  final List<String> foodLike;
+  final List<String> interestLike; // 오타(interstLike)도 읽기 허용
+  final List<String> sportLike;
 
   const Hobby({
     required this.foodLike,
@@ -331,39 +297,19 @@ class Hobby {
 
   Map<String, dynamic> toMap() => {
     'foodLike': foodLike,
-    'interstLike': interestLike,
+    'interstLike': interestLike, // ← 저장은 레거시 키 그대로(UserLike에서 사용)
     'sportLike': sportLike,
   };
+
   static Hobby? fromMap(Map<String, dynamic>? map) {
-    if (map == null) return null; // 없으면
+    if (map == null) return null;
+    final interest = map.containsKey('interestLike')
+        ? map['interestLike']
+        : map['interstLike'];
     return Hobby(
       foodLike: List<String>.from(map['foodLike'] ?? const []),
-      interestLike: List<String>.from(map['interstLike'] ?? const []),
+      interestLike: List<String>.from(interest ?? const []),
       sportLike: List<String>.from(map['sportLike'] ?? const []),
     );
   }
 }
-
-/// 이구조임당
-// users (컬렉션)
-//   └─ {uid} (문서)
-//        ├─ email: string
-//        ├─ displayName: string
-//        ├─ photoURL: string
-//        ├─ createdAt: Timestamp
-//        ├─ updatedAt: Timestamp
-//        └─ dailyRhythm: {               ← 서브컬렉션이 아니고 문서안의 필드
-//             workDays: [ ... ],
-//             alarms: [ ... ],
-//             isJobLess: bool,
-//             week: {
-//               awakeMins: int?,
-//               goWorkMins: int?,
-//               backHomeMins: int?,
-//               sleepMins: int?
-//             },
-//             weekend: {
-//               awakeMins: int?,
-//               sleepMins: int?
-//             }
-//           }
