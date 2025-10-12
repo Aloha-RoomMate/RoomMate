@@ -6,6 +6,7 @@ class AppUser {
   final String? email;
   final String displayName;
   final String? photoURL;
+  final String? gender;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DailyRhythm? dailyRhythm;
@@ -27,6 +28,7 @@ class AppUser {
     this.coliving,
     this.disease,
     this.introduction,
+    this.gender,
     this.userType,
     this.hobby,
     this.userPass,
@@ -37,6 +39,7 @@ class AppUser {
     String? email,
     String? displayName,
     String? photoURL,
+    String? gender,
     DateTime? createdAt,
     DateTime? updatedAt,
     UserType? userType, // ✅ 타입 수정
@@ -52,6 +55,7 @@ class AppUser {
       email: email ?? this.email,
       displayName: displayName ?? this.displayName,
       photoURL: photoURL ?? this.photoURL,
+      gender: gender ?? this.gender,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       dailyRhythm: dailyRhythm ?? this.dailyRhythm,
@@ -90,7 +94,7 @@ class AppUser {
       userType: UserType.fromMap(map['userType'] as Map<String, dynamic>?),
       coliving: Coliving.fromMap(map['coliving'] as Map<String, dynamic>?),
       disease: DiseaseInfo.fromMap(map['disease'] as Map<String, dynamic>?),
-
+      gender: map['gender'] as String?,
       introduction: (map['introduction'] is String)
           ? map['introduction'] as String
           : ((map['introduction'] is Map<String, dynamic>)
@@ -117,6 +121,7 @@ class AppUser {
       'email': email,
       'displayName': displayName,
       'photoURL': photoURL,
+      'gender': gender,
       if (dailyRhythm != null) 'dailyRhythm': dailyRhythm!.toMap(),
       if (userType != null) 'userType': userType!.toMap(),
       if (coliving != null) 'coliving': coliving!.toMap(),
