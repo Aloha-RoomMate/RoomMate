@@ -147,7 +147,7 @@ class _SearcherScreenState extends State<SearcherScreen> {
     });
   }
 
-  // ✅ 3. _onNextTap 함수를 수정하여 선택된 지역 리스트를 반환합니다.
+  // ✅ _onNextTap 함수를 수정하여 선택된 지역 리스트를 반환합니다.
   void _onNextTap() {
     if (!_isNextEnabled) return;
     // 이전 화면으로 선택된 지역 리스트를 가지고 돌아갑니다.
@@ -170,7 +170,7 @@ class _SearcherScreenState extends State<SearcherScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                '거주를 희망하는 자치구와 동을\n최대 3개까지 선택하세요.',
+                '거주를 희망하는 자치구와 동을\n최대 5개까지 선택하세요.',
                 style: TextStyle(
                   fontSize: ResponsiveSizes.f(context, 24),
                   fontWeight: FontWeight.w700,

@@ -1,6 +1,7 @@
-// 화면 깜빡임을 줄이기 위해 빌드를 너무 자주하게 하면 안된다.
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
 import 'package:roommate/features/authentication/userinfo/searcher_screen.dart';
@@ -9,6 +10,38 @@ import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/authentication/widgets/demand_button.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
 
+class JobOption {
+  final String label;
+  const JobOption(this.label);
+}
+
+const jobOptions = [
+  JobOption('회사'),
+  JobOption('재택'),
+  JobOption('프리랜서'),
+  JobOption('대학생'),
+];
+
+class GenderOption {
+  final String label;
+  const GenderOption(this.label);
+}
+
+const genderOptions = [
+  GenderOption('남성'),
+  GenderOption('여성'),
+];
+
+class UserTypeOption {
+  final String label;
+  const UserTypeOption(this.label);
+}
+
+const userTypeOptions = [
+  UserTypeOption('Room-owner'),
+  UserTypeOption('Searcher'),
+];
+
 class UserjobScreen extends StatefulWidget {
   const UserjobScreen({super.key});
 
@@ -16,385 +49,230 @@ class UserjobScreen extends StatefulWidget {
   State<UserjobScreen> createState() => _UserjobScreenState();
 }
 
-class _UserjobScreenState extends State<UserjobScreen>
-    with SingleTickerProviderStateMixin {
-  final List<bool> _jobSelections = List<bool>.filled(4, false);
-  final List<bool> _genderSelections = List<bool>.filled(2, false);
+class _UserjobScreenState extends State<UserjobScreen> {
+  final Set<String> _selectedJobs = {};
+  String? _selectedGender;
+  String? _selectedUserType;
+  final UserRepository _userRepository = UserRepository();
+  bool _isSending = false;
 
-  int? _selectedIndex;
-  Key _leftKey = UniqueKey();
-  Key _rightKey = UniqueKey();
-  final bool _isSending = false;
-
-
-  late Future<User?> _userFuture; // ✅ 캐싱용 Future
-
-  // === ⬇️ 추가: "다음" 버튼용 페이드 컨트롤러 ===
-  static const _fadeDur = Duration(milliseconds: 300);
-  late final AnimationController _btnAC;
-  late final Animation<double> _btnFade;
-  bool _btnBusy = false;
-  // === ⬆️ 추가 ===
-
-  @override
-  void initState() {
-    super.initState();
-    _userFuture = Future.value(FirebaseAuth.instance.currentUser);
-
-    // 버튼 최초 진입 페이드 인
-    _btnAC = AnimationController(vsync: this, duration: _fadeDur);
-    _btnFade = CurvedAnimation(parent: _btnAC, curve: Curves.easeInOut);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _btnAC.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _btnAC.dispose();
-    super.dispose();
-  }
-
-  void _onJobTap(int index) {
-    setState(() => _jobSelections[index] = !_jobSelections[index]);
-  }
-
-  void _onGenderTap(int index) {
-    setState(() => _genderSelections[index] = !_genderSelections[index]);
-  }
-
-  void _onTapLeft() {
+  void _onJobTap(String job) {
     setState(() {
-      if (_selectedIndex == 0) {
-        _selectedIndex = null;
-        _leftKey = UniqueKey();
+      if (_selectedJobs.contains(job)) {
+        _selectedJobs.remove(job);
       } else {
-        _selectedIndex = 0;
-        _rightKey = UniqueKey();
+        _selectedJobs.add(job);
       }
     });
   }
 
-  void _onTapRight() {
+  void _onGenderTap(String gender) {
     setState(() {
-      if (_selectedIndex == 1) {
-        _selectedIndex = null;
-        _rightKey = UniqueKey();
-      } else {
-        _selectedIndex = 1;
-        _leftKey = UniqueKey();
-      }
+      _selectedGender = gender;
+    });
+  }
+
+  void _onUserTypeTap(String userType) {
+    setState(() {
+      _selectedUserType = userType;
     });
   }
 
   bool _isNextEnabled() {
-    final anyJob = _jobSelections.contains(true);
-    final anyGender = _jobSelections.contains(true);
-    final oneUserType = _selectedIndex != null;
-    return anyJob && oneUserType && anyGender;
+    return _selectedJobs.isNotEmpty &&
+        _selectedGender != null &&
+        _selectedUserType != null;
   }
 
-  // 기존 네비게이션 로직
-  void _onNextTap() {
-    if (_isSending) return;
+  Future<void> _onNextTap() async {
+    if (!_isNextEnabled() || _isSending) return;
 
-    final textOptions = ['회사', '재택', '프리랜서', '대학생'];
-    final genderOptions = ['남성', '여성'];
-    final selectedJobsList = <String>[];
-    final selectedGenderList = <String>[];
+    setState(() {
+      _isSending = true;
+    });
 
-    for (int i = 0; i < _jobSelections.length; i++) {
-      if (_jobSelections[i]) {
-        selectedJobsList.add(textOptions[i]);
-      }
-    }
-
-    for (int i = 0; i < _genderSelections.length; i++) {
-      if (_genderSelections[i]) {
-        selectedGenderList.add(genderOptions[i]);
-      }
-    }
-
-    if (_selectedIndex == 0) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => HobbyScreen(
-            // userType: 'roomOwner',
-            // jobKinds: selectedJobs,
-          ),
-        ),
-      );
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const SearcherScreen(),
-        ),
-      );
-    }
-  }
-
-  // === ⬇️ 추가: 페이드 아웃 후 네비게이션 래퍼 ===
-  Future<void> _onNextTapWithFade() async {
-    if (_btnBusy || !_isNextEnabled()) return;
-    _btnBusy = true;
     try {
-      await _btnAC.reverse(); // 버튼 사라짐 (300ms)
-      if (!mounted) return;
-      _onNextTap(); // 기존 네비게이션 실행
-      // push 후 이 화면은 뒤로 남아있으니, 되돌아올 때는 initState에서 다시 페이드 인됨
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception("User not logged in");
+      }
+
+      await _userRepository.updateProfile(
+        gender: _selectedGender,
+      );
+
+      await _userRepository.setUserTypeData(
+        uid: user.uid,
+        type: _selectedUserType!,
+        jobKinds: _selectedJobs.join(', '),
+        address: '', // Address is not collected in this screen
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('저장 성공'),
+          ),
+        );
+        if (_selectedUserType == 'Room-owner') {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => HobbyScreen(),
+            ),
+          );
+        } else {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const SearcherScreen(),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('데이터 저장 중 에러 발생'),
+          ),
+        );
+      }
     } finally {
-      _btnBusy = false;
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
     }
   }
-  // === ⬆️ 추가 ===
 
   @override
   Widget build(BuildContext context) {
-    final textOptions = ['회사', '재택', '프리랜서', '대학생'];
-    final genderOptions = ['남성', '여성'];
-    final selectedJobs = <String>[];
-    final bool isNextEnabled = _isNextEnabled();
-    for (int i = 0; i < _jobSelections.length; i++) {
-      if (_jobSelections[i]) {
-        selectedJobs.add(textOptions[i]);
-      }
-    }
-
-    return FutureBuilder<User?>(
-      future: _userFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (!snapshot.hasData || snapshot.data == null) {
-          return const Center(child: Text("데이터가 없습니다."));
-        }
-        final data = snapshot.data!;
-
-        return Scaffold(
-          appBar: AppBar(title: const Text('')),
-          body: SafeArea(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: ResponsiveSizes.p(context, 20),
-                  vertical: ResponsiveSizes.p(context, 10),
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '현재 하시고 계신 일에\n대해 알려주세요 !',
-                        style: TextStyle(
-                          fontSize: ResponsiveSizes.f(context, 28),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Gaps.v6(context),
-                      Text(
-                        "나중에 더 찰떡궁합 룸메이트를 찾는데 사용되어요.",
-                        style: TextStyle(
-                          fontSize: ResponsiveSizes.f(context, 14),
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w300,
-                        ),
-                      ),
-                      Gaps.v16(context),
-                      const Divider(height: 1, color: Colors.black12),
-                      Gaps.v16(context),
-                      Center(
-                        child: Wrap(
-                          spacing: ResponsiveSizes.p(context, 10),
-                          runSpacing: ResponsiveSizes.p(context, 10),
-                          children: List.generate(4, (i) {
-                            return CategoryButton(
-                              text: textOptions[i],
-                              myonTap: () => _onJobTap(i),
-                              isSelected: _jobSelections[i],
-                            );
-                          }),
-                        ),
-                      ),
-                      Gaps.v80(context),
-                      Text(
-                        '성별을 선택해주세요!',
-                        style: TextStyle(
-                          fontSize: ResponsiveSizes.f(context, 28),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Gaps.v16(context),
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: ResponsiveSizes.p(context, 12),
-                        ),
-                        child: Wrap(
-                          spacing: ResponsiveSizes.p(context, 10),
-                          runSpacing: ResponsiveSizes.p(context, 10),
-                          children: List.generate(2, (i) {
-                            return CategoryButton(
-                              text: genderOptions[i],
-                              myonTap: () => _onGenderTap(i),
-                              isSelected: _genderSelections[i],
-                            );
-                          }),
-                        ),
-                      ),
-                      Gaps.v80(context),
-                      Text(
-                        '현재 RoomMate를 \n이용하는 이유는 무엇인가요 ?',
-                        style: TextStyle(
-                          fontSize: ResponsiveSizes.f(context, 28),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Gaps.v6(context),
-                      Text(
-                        "나중에도 변경가능해요!",
-                        style: TextStyle(
-                          fontSize: ResponsiveSizes.f(context, 14),
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w300,
-                        ),
-                      ),
-                      Gaps.v16(context),
-                      const Divider(height: 1, color: Colors.black12),
-                      Gaps.v16(context),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          DemandButton(
-                            key: _leftKey,
-                            text: "Room-owner",
-                            myonTap: _onTapLeft,
-                          ),
-                          Gaps.h56(context),
-                          DemandButton(
-                            key: _rightKey,
-                            text: "Searcher",
-                            myonTap: _onTapRight,
-                          ),
-                        ],
-                      ),
-
-                      Gaps.v24(context),
-
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        transitionBuilder: (child, animation) {
-                          final offsetTween = Tween<Offset>(
-                            begin: const Offset(0, 0.3),
-                            end: Offset.zero,
-                          );
-                          return SlideTransition(
-                            position: offsetTween.animate(animation),
-                            child: FadeTransition(
-                              opacity: animation,
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: _buildDescriptionCard(
-                          context,
-                          _selectedIndex,
-                          data,
-                        ),
-                      ),
-
-                      Gaps.v28(context),
-
-                      // ✅ "다음" 버튼 페이드 인/아웃
-                      GestureDetector(
-                        onTap: isNextEnabled ? _onNextTapWithFade : null,
-                        child: FadeTransition(
-                          opacity: _btnFade,
-                          child: FormButton(
-                            disabled: !_isNextEnabled(),
-                            text: "다음",
-                          ),
-                        ),
-                      ),
-                    ],
+    return Scaffold(
+      appBar: AppBar(title: const Text('')),
+      body: SafeArea(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: ResponsiveSizes.p(context, 20),
+              vertical: ResponsiveSizes.p(context, 10),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '현재 하시고 계신 일에\n대해 알려주세요 !',
+                    style: TextStyle(
+                      fontSize: ResponsiveSizes.f(context, 28),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
+                  Gaps.v6(context),
+                  Text(
+                    "나중에 더 찰떡궁합 룸메이트를 찾는데 사용되어요.",
+                    style: TextStyle(
+                      fontSize: ResponsiveSizes.f(context, 14),
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                  Gaps.v16(context),
+                  const Divider(height: 1, color: Colors.black12),
+                  Gaps.v16(context),
+                  Center(
+                    child: Wrap(
+                      spacing: ResponsiveSizes.p(context, 10),
+                      runSpacing: ResponsiveSizes.p(context, 10),
+                      children: jobOptions.map((job) {
+                        return CategoryButton(
+                          text: job.label,
+                          myonTap: () => _onJobTap(job.label),
+                          isSelected: _selectedJobs.contains(job.label),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  Gaps.v80(context),
+                  Text(
+                    '성별을 선택해주세요!',
+                    style: TextStyle(
+                      fontSize: ResponsiveSizes.f(context, 28),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Gaps.v16(context),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveSizes.p(context, 12),
+                    ),
+                    child: Wrap(
+                      spacing: ResponsiveSizes.p(context, 10),
+                      runSpacing: ResponsiveSizes.p(context, 10),
+                      children: genderOptions.map((gender) {
+                        return CategoryButton(
+                          text: gender.label,
+                          myonTap: () => _onGenderTap(gender.label),
+                          isSelected: _selectedGender == gender.label,
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  Gaps.v80(context),
+                  Text(
+                    '현재 RoomMate를 \n이용하는 이유는 무엇인가요 ?',
+                    style: TextStyle(
+                      fontSize: ResponsiveSizes.f(context, 28),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Gaps.v6(context),
+                  Text(
+                    "나중에도 변경가능해요!",
+                    style: TextStyle(
+                      fontSize: ResponsiveSizes.f(context, 14),
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                  Gaps.v16(context),
+                  const Divider(height: 1, color: Colors.black12),
+                  Gaps.v16(context),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: userTypeOptions.map((userType) {
+                      return DemandButton(
+                        text: userType.label,
+                        myonTap: () => _onUserTypeTap(userType.label),
+                        isSelected: _selectedUserType == userType.label,
+                      );
+                    }).toList(),
+                  ),
+                  Gaps.v28(context),
+                  GestureDetector(
+                    onTap: _onNextTap,
+                    child: FormButton(
+                      enabled: _isNextEnabled(),
+                      widget: _isSending
+                          ? Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const Text(
+                              '다음',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
-}
-
-Widget _buildDescriptionCard(BuildContext context, int? index, User data) {
-  if (index == null) {
-    return SizedBox(
-      height: ResponsiveSizes.height(context, (96 + 56 + 1) / 800),
-    );
-  }
-
-  final bool isOwner = index == 0;
-  final String title = isOwner ? "Room-owner" : "Co-searcher";
-
-  final String ownerDesc =
-      "${data.displayName ?? ''}님이 현재 방을 가지고 있고,\n"
-      "월세를 같이 부담할 룸메이트를 찾고계시다면 \nRoom-owner입니다 !\n";
-  final String searcherDesc =
-      "${data.displayName ?? ''}님이 현재 방을 가지고 있지 않지만,\n"
-      "월세를 같이 부담하며 누군가의 \n룸메이트가 되려한다면 Searcher입니다.\n";
-
-  final String desc = isOwner ? ownerDesc : searcherDesc;
-
-  return Container(
-    key: ValueKey(title),
-    padding: EdgeInsets.all(ResponsiveSizes.p(context, 16)),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 18)),
-      color: Colors.transparent,
-      border: Border.all(color: Colors.black.withAlpha(15)),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: ResponsiveSizes.p(context, 44),
-          height: ResponsiveSizes.p(context, 44),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.black.withAlpha(15)),
-            color: Theme.of(context).primaryColor,
-            borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 10)),
-          ),
-          child: const Icon(Icons.home_rounded, color: Colors.white),
-        ),
-        Gaps.h12(context),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: ResponsiveSizes.f(context, 16),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Gaps.v6(context),
-              Text(
-                desc,
-                style: TextStyle(
-                  fontSize: ResponsiveSizes.f(context, 12),
-                  height: 1.6,
-                  color: Colors.black.withAlpha(170),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
 }

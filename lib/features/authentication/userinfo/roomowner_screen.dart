@@ -230,8 +230,8 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
             child: GestureDetector(
               onTap: _onNextTap,
               child: FormButton(
-                disabled: !_isNextEnabled,
-                text: "다음",
+                enabled: _isNextEnabled,
+                widget: Text("다음"),
               ),
             ),
           ),

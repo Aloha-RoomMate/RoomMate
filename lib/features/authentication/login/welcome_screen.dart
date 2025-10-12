@@ -131,10 +131,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 GestureDetector(
                   onTap: _busy ? null : () => _onNextTap(context),
                   child: FormButton(
-                    // 프로젝트에 쓰는 시그니처에 맞춰 값 전달
-                    // (당신의 FormButton이 disabled/ text를 받는 형태)
-                    disabled: _busy,
-                    text: "시작하기",
+                    enabled: !_busy,
+                    widget: Text("시작하기"),
                   ),
                 ),
                 SizedBox(height: ResponsiveSizes.height(context, 0.125)),

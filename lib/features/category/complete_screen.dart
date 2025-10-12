@@ -30,7 +30,7 @@ class _CompleteScreenState extends State<CompleteScreen> {
             Text("이제 더 많은 정보에 접근 가능해요."),
             GestureDetector(
               onTap: () => _onNextTap(),
-              child: const FormButton(disabled: false, text: "시작하기"),
+              child: const FormButton(enabled: true, widget: Text("시작하기")),
             ),
             const SizedBox(height: 100),
           ],

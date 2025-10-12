@@ -226,8 +226,17 @@ class HobbyScreenState extends State<HobbyScreen> {
                               ? _onNextTap
                               : null,
                           child: FormButton(
-                            disabled: !_isNextEnable() || _isSending,
-                            text: _isSending ? "" : "다음",
+                            enabled: _isNextEnable(),
+                            widget: _isSending
+                                ? Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    '다음',
+                                    textAlign: TextAlign.center,
+                                  ),
                           ),
                         ),
                       ],
