@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
-import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/chat/chatlist_screen.dart';
 import 'package:roommate/features/navigationbar/screens/home_screen.dart';
@@ -57,6 +57,16 @@ class _MainNavigationState extends State<MainNavigation> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  Widget _scaledIcon(IconData data, int itemIndex) {
+    final isSelected = _selectedIndex == itemIndex;
+    return AnimatedScale(
+      scale: isSelected ? 1.18 : 1.0, // 살짝 확대
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      child: FaIcon(data),
+    );
   }
 
   Future<void> _signOut(BuildContext context) async {
@@ -131,8 +141,7 @@ class _MainNavigationState extends State<MainNavigation> {
       _showNeedInfoDialog(
         title: '프로필 정보가 부족합니다',
         message:
-            '마이페이지에서 추가로 정보를 입력하세요.\n'
-            '생활패턴/공동생활/건강정보/자기소개가 충분해야 게시글 작성이 가능합니다.',
+            '마이페이지에서 추가로 정보를 입력하세요.\n생활패턴/공동생활/건강정보/자기소개가 충분해야 게시글 작성이 가능합니다.',
       );
       return;
     }
@@ -169,11 +178,77 @@ class _MainNavigationState extends State<MainNavigation> {
     }
 
     return AppBar(
+      scrolledUnderElevation: 0,
+      automaticallyImplyLeading: false,
       backgroundColor: Colors.white,
-      toolbarHeight: Sizes.size40,
+      toolbarHeight: ResponsiveSizes.p(context, 40),
       title: Text(title),
-      actionsPadding: const EdgeInsets.only(right: Sizes.size20),
+      actionsPadding: EdgeInsets.only(right: ResponsiveSizes.p(context, 20)),
       actions: actions,
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    final navItems = <BottomNavigationBarItem>[
+      BottomNavigationBarItem(
+        icon: _scaledIcon(FontAwesomeIcons.house, 0),
+        label: '홈',
+      ),
+      BottomNavigationBarItem(
+        icon: _scaledIcon(FontAwesomeIcons.message, 1),
+        label: '채팅',
+      ),
+      BottomNavigationBarItem(
+        icon: _scaledIcon(FontAwesomeIcons.map, 2),
+        label: '지도',
+      ),
+      BottomNavigationBarItem(
+        icon: _scaledIcon(FontAwesomeIcons.user, 3),
+        label: '마이페이지',
+      ),
+    ];
+
+    const double verticalInset = 8.0; // 위/아래 안 닿도록
+    const double dividerWidth = 1.0;
+
+    return Stack(
+      children: [
+        BottomNavigationBar(
+          onTap: _onNavTab,
+          currentIndex: _selectedIndex,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white, // 흰색 배경
+          elevation: 0,
+          unselectedItemColor: Colors.grey,
+          selectedItemColor: Theme.of(context).primaryColor,
+          items: navItems,
+        ),
+        // 세로 구분선 오버레이
+        Positioned.fill(
+          child: IgnorePointer(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final count = navItems.length;
+                final itemW = constraints.maxWidth / count;
+                return Stack(
+                  children: List.generate(count - 1, (i) {
+                    final leftX = itemW * (i + 1) - (dividerWidth / 2);
+                    return Positioned(
+                      left: leftX,
+                      top: verticalInset,
+                      bottom: verticalInset,
+                      child: Container(
+                        width: dividerWidth,
+                        color: Theme.of(context).dividerColor.withOpacity(0.35),
+                      ),
+                    );
+                  }),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -193,30 +268,7 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       appBar: _buildAppBar(),
       body: body,
-      bottomNavigationBar: BottomNavigationBar(
-        onTap: _onNavTab,
-        currentIndex: _selectedIndex,
-        unselectedItemColor: Colors.grey,
-        selectedItemColor: Theme.of(context).primaryColor,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: FaIcon(FontAwesomeIcons.house),
-            label: '홈',
-          ),
-          BottomNavigationBarItem(
-            icon: FaIcon(FontAwesomeIcons.message),
-            label: '채팅',
-          ),
-          BottomNavigationBarItem(
-            icon: FaIcon(FontAwesomeIcons.map),
-            label: '지도',
-          ),
-          BottomNavigationBarItem(
-            icon: FaIcon(FontAwesomeIcons.user),
-            label: '마이페이지',
-          ),
-        ],
-      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 }

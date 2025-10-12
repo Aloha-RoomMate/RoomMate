@@ -31,7 +31,7 @@ class SelectionChip extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        Gaps.v6,
+        Gaps.v6(context),
         Wrap(
           spacing: Sizes.size10,
           runSpacing: Sizes.size10,

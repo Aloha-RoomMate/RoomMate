@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class AuthButton extends StatelessWidget {
   final String text;
@@ -13,9 +13,12 @@ class AuthButton extends StatelessWidget {
     return FractionallySizedBox(
       widthFactor: 1,
       child: Container(
-        padding: const EdgeInsets.all(Sizes.size16),
+        padding: EdgeInsets.all(ResponsiveSizes.p(context, 16)),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.transparent, width: Sizes.size1),
+          border: Border.all(
+            color: Colors.transparent,
+            width: ResponsiveSizes.p(context, 1),
+          ),
 
           gradient: LinearGradient(
             colors: [
@@ -27,12 +30,15 @@ class AuthButton extends StatelessWidget {
             end: Alignment.bottomRight,
           ),
 
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 20)),
           boxShadow: [
             BoxShadow(
               color: Colors.black38,
-              blurRadius: 8,
-              offset: Offset(2, 8),
+              blurRadius: ResponsiveSizes.p(context, 8),
+              offset: Offset(
+                ResponsiveSizes.p(context, 2),
+                ResponsiveSizes.p(context, 8),
+              ),
             ),
           ],
         ),
@@ -43,10 +49,10 @@ class AuthButton extends StatelessWidget {
             Text(
               text,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
-                fontSize: Sizes.size16,
+                fontSize: ResponsiveSizes.f(context, 16),
               ),
             ),
           ],

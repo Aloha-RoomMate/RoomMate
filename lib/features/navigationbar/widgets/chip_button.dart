@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:roommate/constants/sizes.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class ChipButton extends StatelessWidget {
   const ChipButton({
@@ -15,11 +15,11 @@ class ChipButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(
-        vertical: Sizes.size4,
-        horizontal: Sizes.size14,
+        vertical: ResponsiveSizes.p(context, 4),
+        horizontal: ResponsiveSizes.p(context, 14),
       ),
       decoration: BoxDecoration(
-        border: BoxBorder.all(
+        border: Border.all(
           color: isSelected ? Colors.transparent : Colors.black38,
         ),
         color: isSelected
@@ -27,13 +27,13 @@ class ChipButton extends StatelessWidget {
             // : Colors.grey.shade200,
             : Colors.transparent,
         borderRadius: BorderRadius.circular(
-          Sizes.size18,
+          ResponsiveSizes.p(context, 18),
         ),
       ),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: Sizes.size12,
+          fontSize: ResponsiveSizes.f(context, 12),
           color: isSelected ? Colors.white : Colors.black87,
         ),
       ),

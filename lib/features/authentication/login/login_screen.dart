@@ -1,23 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:roommate/constants/gaps.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/login/welcome_screen.dart';
 import 'package:roommate/features/authentication/widgets/auth_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   static const _webClientId =
       '909707662887-ld8djjd1eqbdu7hcellh7689j3q1n9ik.apps.googleusercontent.com';
-
-  void _onSignupTap(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-    );
-  }
 
   Future<void> _signInWithGoogle(BuildContext context) async {
     try {
@@ -57,47 +51,25 @@ class LoginScreen extends StatelessWidget {
     }
   }
 
-  // ✅ 에뮬레이터 테스트 계정 로그인
-  Future<void> _signInWithTestAccount(
-    BuildContext context,
-    String email,
-    String password,
-  ) async {
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (!context.mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-      );
-    } on FirebaseAuthException catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('테스트 로그인 실패: ${e.code}')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Sizes.size40),
+          padding: EdgeInsets.symmetric(
+            horizontal: ResponsiveSizes.p(context, 40),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Gaps.v10,
+              Gaps.v10(context),
               Text(
                 'RoomMate',
                 style: TextStyle(
                   letterSpacing: 3,
-                  fontSize: Sizes.size32,
+                  fontSize: ResponsiveSizes.f(context, 32),
                   fontWeight: FontWeight.w900,
                   foreground: Paint()
                     ..shader = LinearGradient(
@@ -111,19 +83,19 @@ class LoginScreen extends StatelessWidget {
                     ).createShader(Rect.fromLTWH(0.0, 10.0, 1000, 00)),
                 ),
               ),
-              Gaps.v20,
-              const Text(
+              Gaps.v20(context),
+              Text(
                 '나와 맞는 룸메이트 찾기',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: ResponsiveSizes.f(context, 16),
                   fontWeight: FontWeight.w400,
                   color: Colors.black54,
                 ),
                 textAlign: TextAlign.center,
               ),
-              Gaps.v1,
-              Gaps.v96,
-              Gaps.v96,
+              Gaps.v1(context),
+              Gaps.v96(context),
+              Gaps.v96(context),
               InkWell(
                 onTap: () => _signInWithGoogle(context),
                 borderRadius: BorderRadius.circular(12),
@@ -134,33 +106,6 @@ class LoginScreen extends StatelessWidget {
               ),
 
               // ✅ 아주 작은 테스트 계정 로그인 버튼 두 개
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  TextButton(
-                    onPressed: () => _signInWithTestAccount(
-                      context,
-                      "test1@test.com",
-                      "123456",
-                    ),
-                    child: const Text(
-                      "테스트1",
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => _signInWithTestAccount(
-                      context,
-                      "test2@test.com",
-                      "123456",
-                    ),
-                    child: const Text(
-                      "테스트2",
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),

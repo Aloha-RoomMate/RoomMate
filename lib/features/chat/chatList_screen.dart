@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:roommate/features/chat/chat_screen.dart';
 import 'package:roommate/features/recommend/userlist_screen.dart';
 import 'package:roommate/class/chat_repository.dart'; // ✅ 배지 0 초기화를 위해 사용(선택)
+import 'package:roommate/constants/responsive_sizes.dart';
+import 'package:roommate/constants/gaps.dart';
 
 class ChatListScreen extends StatelessWidget {
   const ChatListScreen({super.key});
@@ -55,20 +57,30 @@ class ChatListScreen extends StatelessWidget {
               if (match != null) consoleUrl = match.group(1);
 
               return Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 24), // 넉넉한 패딩
+                padding: EdgeInsets.fromLTRB(
+                  ResponsiveSizes.p(context, 20),
+                  ResponsiveSizes.p(context, 24),
+                  ResponsiveSizes.p(context, 20),
+                  ResponsiveSizes.p(context, 24),
+                ), // 넉넉한 패딩
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(Icons.error_outline, size: 40),
-                    const SizedBox(height: 12),
+                    Gaps.v12(context),
                     Text(
                       '채팅 목록을 불러오는 중 오류가 발생했어요.',
                       style: Theme.of(context).textTheme.titleMedium,
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
-                    SelectableText(err, style: const TextStyle(fontSize: 12)),
-                    const SizedBox(height: 16),
+                    Gaps.v8(context),
+                    SelectableText(
+                      err,
+                      style: TextStyle(
+                        fontSize: ResponsiveSizes.f(context, 12),
+                      ),
+                    ),
+                    Gaps.v16(context),
                     if (isIndexError) ...[
                       const Text(
                         '해결 방법: Firestore 복합 인덱스를 생성하세요.\n'
@@ -76,15 +88,17 @@ class ChatListScreen extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                       if (consoleUrl != null) ...[
-                        const SizedBox(height: 8),
+                        Gaps.v8(context),
                         SelectableText(
                           consoleUrl,
-                          style: const TextStyle(fontSize: 12),
+                          style: TextStyle(
+                            fontSize: ResponsiveSizes.f(context, 12),
+                          ),
                         ),
                       ],
                     ],
                     if (isPermError) ...[
-                      const SizedBox(height: 8),
+                      Gaps.v8(context),
                       const Text(
                         '해결 방법: Firestore 규칙에서 chats 읽기를 참여자로 제한하세요.\n'
                         '예) allow read: if request.auth != null && '
@@ -114,7 +128,12 @@ class ChatListScreen extends StatelessWidget {
 
             // 4) 정상 렌더링 — 카드 제거, 리스트 + 얇은 가로줄(맨 위/사이/맨 아래), 넉넉한 바깥 패딩
             return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24), // 바깥 패딩 넉넉히
+              padding: EdgeInsets.fromLTRB(
+                ResponsiveSizes.p(context, 20),
+                ResponsiveSizes.p(context, 16),
+                ResponsiveSizes.p(context, 20),
+                ResponsiveSizes.p(context, 24),
+              ), // 바깥 패딩 넉넉히
               child: ListView.builder(
                 itemCount: docs.length * 2 + 1,
                 // 패턴: [0]TopDivider, [1]Tile0, [2]Divider, [3]Tile1, ..., [2N]BottomDivider
@@ -173,7 +192,6 @@ class ChatListScreen extends StatelessWidget {
                       if (userSnap.hasError) {
                         return const ListTile(
                           dense: true,
-                          title: Text("상대 정보 로딩 실패"),
                           contentPadding: EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 10,
@@ -203,9 +221,9 @@ class ChatListScreen extends StatelessWidget {
                       return ListTile(
                         dense: true, // 라인 느낌을 살리기 위해 컴팩트하게
                         visualDensity: VisualDensity.compact,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 10,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: ResponsiveSizes.p(context, 8),
+                          vertical: ResponsiveSizes.p(context, 10),
                         ),
                         leading: _RoundedSquareAvatar(
                           size: 44,
@@ -234,27 +252,29 @@ class ChatListScreen extends StatelessWidget {
                               _formatTime(updatedAt),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
-                            if (myUnread > 0) const SizedBox(height: 6),
+                            if (myUnread > 0) Gaps.v6(context),
                             if (myUnread > 0)
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: ResponsiveSizes.p(context, 8),
+                                  vertical: ResponsiveSizes.p(context, 2),
                                 ),
                                 decoration: BoxDecoration(
                                   color: Theme.of(context).colorScheme.primary,
-                                  borderRadius: BorderRadius.circular(999),
+                                  borderRadius: BorderRadius.circular(
+                                    ResponsiveSizes.p(context, 999),
+                                  ),
                                 ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 22,
-                                  minHeight: 20,
+                                constraints: BoxConstraints(
+                                  minWidth: ResponsiveSizes.p(context, 22),
+                                  minHeight: ResponsiveSizes.p(context, 20),
                                 ),
                                 alignment: Alignment.center,
                                 child: Text(
                                   myUnread > 99 ? '99+' : '$myUnread',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 11,
+                                    fontSize: ResponsiveSizes.f(context, 11),
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
@@ -338,7 +358,7 @@ class _RoundedSquareAvatar extends StatelessWidget {
     Widget child;
     if (photoUrl != null && photoUrl!.isNotEmpty) {
       child = ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
+        borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, radius)),
         child: Image.network(
           photoUrl!,
           width: size,
@@ -346,42 +366,42 @@ class _RoundedSquareAvatar extends StatelessWidget {
           fit: BoxFit.cover,
           loadingBuilder: (ctx, w, progress) {
             if (progress == null) return w;
-            return _loading(bg);
+            return _loading(context, bg);
           },
-          errorBuilder: (_, __, ___) => _fallback(bg, fg),
+          errorBuilder: (_, __, ___) => _fallback(context, bg, fg),
         ),
       );
     } else {
-      child = _fallback(bg, fg);
+      child = _fallback(context, bg, fg);
     }
 
     return SizedBox(width: size, height: size, child: child);
   }
 
-  Widget _loading(Color bg) {
+  Widget _loading(BuildContext context, Color bg) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(radius),
+        borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, radius)),
       ),
       alignment: Alignment.center,
-      child: const SizedBox(
-        width: 16,
-        height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
+      child: SizedBox(
+        width: ResponsiveSizes.p(context, 16),
+        height: ResponsiveSizes.p(context, 16),
+        child: const CircularProgressIndicator(strokeWidth: 2),
       ),
     );
   }
 
-  Widget _fallback(Color bg, Color fg) {
+  Widget _fallback(BuildContext context, Color bg, Color fg) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(radius),
+        borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, radius)),
       ),
       alignment: Alignment.center,
       child: Text(

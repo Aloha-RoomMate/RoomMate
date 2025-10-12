@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/disease_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 /// 공용 공간 사용
 class CoSpaceOption {
@@ -251,32 +251,32 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
         title: Text(
           '공동 생활 성향에 대해 알려주세요!',
           style: TextStyle(
-            fontSize: Sizes.size16 + Sizes.size3,
+            fontSize: ResponsiveSizes.f(context, 19),
           ),
         ),
       ),
       body: Padding(
         padding: EdgeInsets.only(
-          left: Sizes.size24,
-          right: Sizes.size24,
-          bottom: Sizes.size24,
+          left: ResponsiveSizes.p(context, 24),
+          right: ResponsiveSizes.p(context, 24),
+          bottom: ResponsiveSizes.p(context, 24),
         ),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Gaps.v24,
+              Gaps.v24(context),
               Text(
                 '공용 공간 사용 선호도를 알려주세요!',
                 style: TextStyle(
-                  fontSize: Sizes.size16,
+                  fontSize: ResponsiveSizes.f(context, 16),
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Gaps.v6,
+              Gaps.v6(context),
               Wrap(
-                spacing: Sizes.size8,
-                runSpacing: Sizes.size8,
+                spacing: ResponsiveSizes.p(context, 8),
+                runSpacing: ResponsiveSizes.p(context, 8),
                 children: [
                   for (final option in keyCoSpace)
                     CategoryButton(
@@ -286,18 +286,18 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     ),
                 ],
               ),
-              Gaps.v24,
+              Gaps.v24(context),
               Text(
                 '룸메이트와의 선호 교류 타입을 알려주세요!',
                 style: TextStyle(
-                  fontSize: Sizes.size16,
+                  fontSize: ResponsiveSizes.f(context, 16),
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Gaps.v6,
+              Gaps.v6(context),
               Wrap(
-                spacing: Sizes.size8,
-                runSpacing: Sizes.size8,
+                spacing: ResponsiveSizes.p(context, 8),
+                runSpacing: ResponsiveSizes.p(context, 8),
                 children: [
                   for (final option in keyInteraction)
                     CategoryButton(
@@ -307,18 +307,18 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     ),
                 ],
               ),
-              Gaps.v24,
+              Gaps.v24(context),
               Text(
                 '정리정돈 성향을 알려주세요!',
                 style: TextStyle(
-                  fontSize: Sizes.size16,
+                  fontSize: ResponsiveSizes.f(context, 16),
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Gaps.v6,
+              Gaps.v6(context),
               Wrap(
-                spacing: Sizes.size8,
-                runSpacing: Sizes.size8,
+                spacing: ResponsiveSizes.p(context, 8),
+                runSpacing: ResponsiveSizes.p(context, 8),
                 children: [
                   for (final option in keyCleanOption)
                     CategoryButton(
@@ -328,18 +328,18 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     ),
                 ],
               ),
-              Gaps.v24,
+              Gaps.v24(context),
               Text(
                 '화장실 청결 민감도를 알려주세요!',
                 style: TextStyle(
-                  fontSize: Sizes.size16,
+                  fontSize: ResponsiveSizes.f(context, 16),
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Gaps.v6,
+              Gaps.v6(context),
               Wrap(
-                spacing: Sizes.size8,
-                runSpacing: Sizes.size8,
+                spacing: ResponsiveSizes.p(context, 8),
+                runSpacing: ResponsiveSizes.p(context, 8),
                 children: [
                   for (final option in keyBathroomClean)
                     CategoryButton(
@@ -349,17 +349,17 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     ),
                 ],
               ),
-              Gaps.v24,
+              Gaps.v24(context),
               Row(
                 children: [
                   Text(
                     '흡연 여부를 알려주세요!',
                     style: TextStyle(
-                      fontSize: Sizes.size16,
+                      fontSize: ResponsiveSizes.f(context, 16),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Gaps.h10,
+                  Gaps.h10(context),
                   CupertinoSwitch(
                     value: _isSmoking,
                     onChanged: _onSmokingTap,
@@ -367,18 +367,18 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                   // Dart가 알아서 바뀐 newValue 넘겨줌.
                 ],
               ),
-              Gaps.v24,
+              Gaps.v24(context),
               Text(
                 '반려동물 여부를 알려주세요!',
                 style: TextStyle(
-                  fontSize: Sizes.size16,
+                  fontSize: ResponsiveSizes.f(context, 16),
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Gaps.v6,
+              Gaps.v6(context),
               Wrap(
-                spacing: Sizes.size8,
-                runSpacing: Sizes.size8,
+                spacing: ResponsiveSizes.p(context, 8),
+                runSpacing: ResponsiveSizes.p(context, 8),
                 children: [
                   for (final option in keyPet)
                     CategoryButton(
@@ -388,18 +388,18 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     ),
                 ],
               ),
-              Gaps.v24,
+              Gaps.v24(context),
               Text(
                 'MBTI를 알려주세요!',
                 style: TextStyle(
-                  fontSize: Sizes.size16,
+                  fontSize: ResponsiveSizes.f(context, 16),
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Gaps.v6,
+              Gaps.v6(context),
               Wrap(
-                spacing: Sizes.size8,
-                runSpacing: Sizes.size8,
+                spacing: ResponsiveSizes.p(context, 8),
+                runSpacing: ResponsiveSizes.p(context, 8),
                 children: [
                   for (final option in keyMbti)
                     CategoryButton(
@@ -409,7 +409,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     ),
                 ],
               ),
-              Gaps.v24,
+              Gaps.v24(context),
               GestureDetector(
                 onTap: _onNextTap,
                 child: FormButton(

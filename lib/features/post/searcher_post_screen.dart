@@ -6,10 +6,10 @@ import 'package:roommate/class/searcher_post.dart';
 import 'package:roommate/class/searcher_post_repository.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/userinfo/searcher_screen.dart'; // ✅ SearcherScreen import
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/post/widgets/form_button.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class SearcherPostScreen extends StatefulWidget {
   const SearcherPostScreen({super.key});
@@ -215,22 +215,27 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
       child: Scaffold(
         appBar: AppBar(
           elevation: 1,
-          title: const Text('게시글 작성', style: TextStyle(fontSize: Sizes.size20)),
+          title: Text(
+            '게시글 작성',
+            style: TextStyle(fontSize: ResponsiveSizes.f(context, 20)),
+          ),
         ),
         body: Padding(
-          padding: const EdgeInsets.all(Sizes.size24),
+          padding: EdgeInsets.all(
+            ResponsiveSizes.p(context, 24),
+          ),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   '제목을 입력해주세요!',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
+                    fontSize: ResponsiveSizes.f(context, 16),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Gaps.v6,
+                Gaps.v6(context),
                 TextField(
                   controller: _titleCtrl,
                   decoration: const InputDecoration(
@@ -238,15 +243,15 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
-                Gaps.v24,
-                const Text(
+                Gaps.v24(context),
+                Text(
                   '희망 위치',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
+                    fontSize: ResponsiveSizes.f(context, 16),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Gaps.v6,
+                Gaps.v6(context),
                 // ✅ 2. TextField를 CategoryButton 형태로 대체
                 Wrap(
                   children: [
@@ -259,18 +264,18 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                     ),
                   ],
                 ),
-                Gaps.v24,
-                const Text(
+                Gaps.v24(context),
+                Text(
                   '희망 방 종류/구조',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
+                    fontSize: ResponsiveSizes.f(context, 16),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Gaps.v10,
+                Gaps.v10(context),
                 Wrap(
-                  spacing: Sizes.size8,
-                  runSpacing: Sizes.size8,
+                  spacing: ResponsiveSizes.p(context, 8),
+                  runSpacing: ResponsiveSizes.p(context, 8),
                   children: [
                     for (final option in _roomTypeOptions)
                       CategoryButton(
@@ -280,15 +285,15 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                       ),
                   ],
                 ),
-                Gaps.v24,
-                const Text(
+                Gaps.v24(context),
+                Text(
                   '수용 가능 보증금/월세(관리비 포함)',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
+                    fontSize: ResponsiveSizes.f(context, 16),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Gaps.v6,
+                Gaps.v6(context),
                 Row(
                   children: [
                     Expanded(
@@ -301,7 +306,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                         ),
                       ),
                     ),
-                    Gaps.h8,
+                    Gaps.h8(context),
                     Expanded(
                       child: TextField(
                         controller: _minRentCtrl,
@@ -312,7 +317,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                         ),
                       ),
                     ),
-                    Gaps.h8,
+                    Gaps.h8(context),
                     Expanded(
                       child: TextField(
                         controller: _maxRentCtrl,
@@ -325,18 +330,18 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                     ),
                   ],
                 ),
-                Gaps.v24,
-                const Text(
+                Gaps.v24(context),
+                Text(
                   '희망 지불 구조',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
+                    fontSize: ResponsiveSizes.f(context, 16),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Gaps.v10,
+                Gaps.v10(context),
                 Wrap(
-                  spacing: Sizes.size8,
-                  runSpacing: Sizes.size8,
+                  spacing: ResponsiveSizes.p(context, 8),
+                  runSpacing: ResponsiveSizes.p(context, 8),
                   children: [
                     for (final option in _paymentOptions)
                       CategoryButton(
@@ -347,15 +352,15 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                       ),
                   ],
                 ),
-                Gaps.v24,
-                const Text(
+                Gaps.v24(context),
+                Text(
                   '입주 희망일',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
+                    fontSize: ResponsiveSizes.f(context, 16),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Gaps.v6,
+                Gaps.v6(context),
                 TextField(
                   onTap: _onTimeFieldTap,
                   controller: _movingDateCtrl,
@@ -366,15 +371,15 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                     suffixIcon: Icon(CupertinoIcons.calendar),
                   ),
                 ),
-                Gaps.v24,
-                const Text(
+                Gaps.v24(context),
+                Text(
                   '희망 계약 기간',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
+                    fontSize: ResponsiveSizes.f(context, 16),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Gaps.v6,
+                Gaps.v6(context),
                 Row(
                   children: [
                     Expanded(
@@ -387,7 +392,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                         ),
                       ),
                     ),
-                    Gaps.h12,
+                    Gaps.h12(context),
                     Expanded(
                       child: TextField(
                         controller: _maxContractCtrl,
@@ -400,26 +405,26 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                     ),
                   ],
                 ),
-                Gaps.v24,
-                const Text(
+                Gaps.v24(context),
+                Text(
                   '자유 소개',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
+                    fontSize: ResponsiveSizes.f(context, 16),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Gaps.v6,
+                Gaps.v6(context),
                 TextField(
                   controller: _introductionCtrl,
-                  minLines: 3,
-                  maxLines: 5,
+                  minLines: null,
+                  maxLines: null,
                   keyboardType: TextInputType.multiline,
                   decoration: const InputDecoration(
                     hintText: '자유롭게 글을 작성해주세요!',
                     border: OutlineInputBorder(),
                   ),
                 ),
-                Gaps.v24,
+                Gaps.v24(context),
                 GestureDetector(
                   onTap: _isPosting ? null : _onSave,
                   child: FormButton(
@@ -430,11 +435,11 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text(
+                        : Text(
                             '게시하기',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: Sizes.size16,
+                              fontSize: ResponsiveSizes.f(context, 16),
                               fontWeight: FontWeight.bold,
                             ),
                           ),

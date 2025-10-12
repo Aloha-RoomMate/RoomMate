@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/complete_screen.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
-import 'package:roommate/features/navigationbar/main_navigation.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -94,15 +93,15 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
           title: Text(
             '간단한 소개글을 작성해주세요!',
             style: TextStyle(
-              fontSize: Sizes.size20,
+              fontSize: ResponsiveSizes.f(context, 20),
             ),
           ),
         ),
         body: Padding(
           padding: EdgeInsets.only(
-            left: Sizes.size24,
-            right: Sizes.size24,
-            bottom: Sizes.size24,
+            left: ResponsiveSizes.p(context, 24),
+            right: ResponsiveSizes.p(context, 24),
+            bottom: ResponsiveSizes.p(context, 24),
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -111,14 +110,14 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                 Text(
                   '카테고리에서 선택하지 못한 특이사항 혹은 취미나 관심 진로에 대해 적어주시면 더 좋은 룸메이트를 찾는데 도움이 돼요!',
                 ),
-                Gaps.v6,
+                Gaps.v6(context),
                 Text(
                   '최소 50자 최대 300자예요!',
                   style: TextStyle(
                     color: Colors.grey.shade700,
                   ),
                 ),
-                Gaps.v12,
+                Gaps.v12(context),
                 TextField(
                   minLines: null,
                   maxLines: null,
@@ -130,7 +129,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                         '${(_controller.text.characters.length)} / $_limit',
                   ),
                 ),
-                Gaps.v20,
+                Gaps.v20(context),
                 GestureDetector(
                   onTap: _onNextTap,
                   child: FormButton(

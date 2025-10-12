@@ -2,13 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
-import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 const _JUSO_KEY = "devU01TX0FVVEgyMDI1MDkxMTE3MzcyNzExNjE3NjI=";
 
@@ -153,29 +151,31 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.only(right: 20, left: 20),
+            padding: EdgeInsets.symmetric(
+              horizontal: ResponsiveSizes.p(context, 20),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   '나의 위치찾기',
                   style: TextStyle(
-                    fontSize: Sizes.size28,
+                    fontSize: ResponsiveSizes.f(context, 28),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 8),
-                const Text(
+                Gaps.v8(context),
+                Text(
                   "현재 거주하고있는 위치를 알려주세요 !",
                   style: TextStyle(
-                    fontSize: Sizes.size14,
+                    fontSize: ResponsiveSizes.f(context, 14),
                     color: Colors.black87,
                     fontWeight: FontWeight.w300,
                   ),
                 ),
-                const SizedBox(height: Sizes.size16),
+                Gaps.v16(context),
                 const Divider(height: 1, color: Colors.black12),
-                const SizedBox(height: Sizes.size16),
+                Gaps.v16(context),
                 TextField(
                   controller: _addrCtrl,
                   decoration: InputDecoration(
@@ -200,20 +200,24 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
                       },
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(Sizes.size18),
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveSizes.p(context, 18),
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(Sizes.size18),
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveSizes.p(context, 18),
+                      ),
                       borderSide: BorderSide(
                         color: Theme.of(context).primaryColor,
-                        width: Sizes.size2,
+                        width: ResponsiveSizes.p(context, 2),
                       ),
                     ),
                   ),
                   onSubmitted: _searchAddress,
                 ),
 
-                Gaps.v16,
+                Gaps.v16(context),
               ],
             ),
           ),
@@ -222,7 +226,7 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
               child: _buildResults(lightCard),
             ),
           Padding(
-            padding: const EdgeInsets.all(Sizes.size16),
+            padding: EdgeInsets.all(ResponsiveSizes.p(context, 16)),
             child: GestureDetector(
               onTap: _onNextTap,
               child: FormButton(
@@ -252,9 +256,14 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
             color: Colors.white,
             elevation: 0,
             shadowColor: Colors.white,
-            margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 12),
+            margin: EdgeInsets.symmetric(
+              vertical: ResponsiveSizes.p(context, 5),
+              horizontal: ResponsiveSizes.p(context, 12),
+            ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadiusGeometry.circular(Sizes.size18),
+              borderRadius: BorderRadius.circular(
+                ResponsiveSizes.p(context, 18),
+              ),
               side: BorderSide(
                 color: Theme.of(context).primaryColor.withAlpha(100),
                 width: 1,
@@ -276,7 +285,10 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
               ),
               subtitle: Text(
                 '[지번] ${address['jibunAddr'] ?? '지번 주소 없음'}',
-                style: TextStyle(color: Colors.black54, fontSize: Sizes.size12),
+                style: TextStyle(
+                  color: Colors.black54,
+                  fontSize: ResponsiveSizes.f(context, 12),
+                ),
               ),
               onTap: () {
                 final road = (address['roadAddr'] as String?) ?? '';

@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/time_field.dart';
 import 'package:roommate/features/category/coliving_screen.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 /// 요일
 class DayOption {
@@ -211,15 +211,15 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
           title: Text(
             '생활 리듬을 선택해주세요!',
             style: TextStyle(
-              fontSize: Sizes.size20 + Sizes.size2,
+              fontSize: ResponsiveSizes.f(context, 22),
             ),
           ),
         ),
         body: Padding(
           padding: EdgeInsets.only(
-            left: Sizes.size24,
-            right: Sizes.size24,
-            bottom: Sizes.size24,
+            left: ResponsiveSizes.p(context, 24),
+            right: ResponsiveSizes.p(context, 24),
+            bottom: ResponsiveSizes.p(context, 24),
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -228,14 +228,14 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
                 Text(
                   '출근 요일을 알려주세요!',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
+                    fontSize: ResponsiveSizes.f(context, 16),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                Gaps.v6,
+                Gaps.v6(context),
                 Wrap(
-                  spacing: Sizes.size8,
-                  runSpacing: Sizes.size8,
+                  spacing: ResponsiveSizes.p(context, 8),
+                  runSpacing: ResponsiveSizes.p(context, 8),
                   children: [
                     for (final days in keyDays)
                       CategoryButton(
@@ -245,7 +245,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
                       ),
                   ],
                 ),
-                Gaps.v12,
+                Gaps.v12(context),
                 TimeField(
                   question: "출근일 기상 시간을 알려주세요",
                   onTimeFieldTap: () =>
@@ -254,7 +254,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
                   isJobLess: _isJobLess,
                 ),
 
-                Gaps.v12,
+                Gaps.v12(context),
                 TimeField(
                   question: "출근일 취침 시간을 알려주세요",
                   onTimeFieldTap: () =>
@@ -262,7 +262,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
                   controller: _weekSleepCtrl,
                   isJobLess: _isJobLess,
                 ),
-                Gaps.v24,
+                Gaps.v24(context),
                 GestureDetector(
                   onTap: _onNextTap,
                   child: FormButton(

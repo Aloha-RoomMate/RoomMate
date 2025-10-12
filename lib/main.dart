@@ -1,5 +1,4 @@
 import 'package:roommate/firebase_options.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:roommate/constants/sizes.dart';
@@ -36,9 +35,16 @@ class RoomMate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const seedGreen = Color(0xFF16A34A); // 원하는 초록
+
+    final scheme = ColorScheme.fromSeed(
+      seedColor: seedGreen,
+      brightness: Brightness.light,
+    );
     return MaterialApp(
       title: 'RoomMate',
       theme: ThemeData(
+        colorScheme: scheme,
         scaffoldBackgroundColor: Colors.white,
         primaryColor: Colors.green.shade600,
         appBarTheme: const AppBarTheme(
@@ -50,6 +56,28 @@ class RoomMate extends StatelessWidget {
             fontSize: Sizes.size18,
             color: Colors.black,
           ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: const UnderlineInputBorder(),
+          enabledBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: scheme.outlineVariant),
+          ),
+          focusedBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: scheme.primary, width: 2),
+          ),
+          floatingLabelStyle: TextStyle(color: scheme.primary),
+        ),
+
+        // 진행바 색
+        progressIndicatorTheme: ProgressIndicatorThemeData(
+          color: scheme.primary,
+        ),
+        // BottomNavigationBar 색
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          backgroundColor: scheme.surface,
+          selectedItemColor: scheme.primary,
+          unselectedItemColor: scheme.onSurfaceVariant,
+          type: BottomNavigationBarType.fixed,
         ),
       ),
       home: const AuthGate(),

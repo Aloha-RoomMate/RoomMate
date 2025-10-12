@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/category/coliving_screen.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class FormButton extends StatelessWidget {
   const FormButton({super.key, required this.enabled, required this.widget});
@@ -13,9 +12,9 @@ class FormButton extends StatelessWidget {
     return FractionallySizedBox(
       widthFactor: 1,
       child: AnimatedContainer(
-        padding: EdgeInsets.symmetric(vertical: Sizes.size16),
+        padding: EdgeInsets.symmetric(vertical: ResponsiveSizes.p(context, 16)),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 6)),
           color: enabled
               ? Theme.of(context).primaryColor
               : Colors.grey.shade300,
@@ -25,7 +24,7 @@ class FormButton extends StatelessWidget {
           duration: Duration(milliseconds: 300),
           style: TextStyle(
             color: enabled ? Colors.white : Colors.grey[400],
-            fontSize: Sizes.size20,
+            fontSize: ResponsiveSizes.f(context, 20),
             fontWeight: FontWeight.w400,
           ),
           child: widget,

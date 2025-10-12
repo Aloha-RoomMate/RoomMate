@@ -7,16 +7,21 @@ import 'package:roommate/class/chat_repository.dart';
 import 'package:roommate/features/chat/chat_screen.dart';
 import 'package:roommate/constants/sizes.dart';
 
-// 추천 스코어 계산 유틸 (struct/hobby/text + 이유)
+// 상세지표/사유 계산
 import 'package:roommate/features/recommend/compatibility.dart';
+
+// 상대 프로필 & 게시글 보기
+import 'package:roommate/features/view/user_profile_view.dart';
 
 /// ===============================
 /// 가중치
 /// ===============================
-/// 합이 1일 필요는 없지만 보통 1.0로 맞출 것을 추천
-const double kWStruct = 0.70; // 생활패턴(구조) 가중치
-const double kWHobby = 0.15; // 취미 가중치
-const double kWText = 0.15; // 소개글(톤) 가중치
+const double kWStruct = 0.70; // 생활패턴
+const double kWHobby = 0.15; // 취미
+const double kWText = 0.15; // 소개글 톤
+
+// 틱톡 버튼 컬러 느낌(#FE2C55)
+const Color kAccentRed = Color(0xFFFE2C55);
 
 class UserListScreen extends StatefulWidget {
   const UserListScreen({super.key});
@@ -29,7 +34,6 @@ class _UserListScreenState extends State<UserListScreen> {
   final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
-  // late → nullable 로 전환 (build에서 ??= 로 게으른 초기화)
   Future<_RecBundle>? _future;
 
   @override
@@ -40,18 +44,12 @@ class _UserListScreenState extends State<UserListScreen> {
 
   Future<_RecBundle> _load() async {
     final meUid = _auth.currentUser?.uid;
-    if (meUid == null) {
-      throw StateError('로그인 필요');
-    }
+    if (meUid == null) throw StateError('로그인 필요');
 
-    // 내 문서
     final meDoc = await _db.collection('users').doc(meUid).get();
-    if (!meDoc.exists) {
-      throw StateError('내 사용자 문서가 없습니다.');
-    }
+    if (!meDoc.exists) throw StateError('내 사용자 문서가 없습니다.');
     final me = AppUser.fromDoc(meDoc);
 
-    // 후보: pass == true 인 유저만, 나 제외
     final qs = await _db
         .collection('users')
         .where('userPass.pass', isEqualTo: true)
@@ -63,33 +61,22 @@ class _UserListScreenState extends State<UserListScreen> {
         .map((d) => AppUser.fromDoc(d))
         .toList();
 
-    // 로컬 호환도 계산 (+ 가중치로 최종점수 재계산)
     final items = <_RecItem>[];
     for (final u in others) {
-      final comp = scoreUsers(me, u); // struct/hobby/text 유사도 + 이유
+      final comp = scoreUsers(me, u); // breakdown + 사유
       final finalScore =
           kWStruct * comp.structSim +
           kWHobby * comp.hobbySim +
           kWText * comp.textSim;
 
-      items.add(
-        _RecItem(
-          user: u,
-          score: finalScore, // ⬅️ 가중치 적용한 최종 점수 사용
-          compSim: comp, // ⬅️ breakdown/이유는 comp에서 그대로 활용
-        ),
-      );
+      items.add(_RecItem(user: u, score: finalScore, compSim: comp));
     }
-
-    // 스코어 내림차순 정렬
     items.sort((a, b) => b.score.compareTo(a.score));
-
     return _RecBundle(me: me, items: items);
   }
 
   String _pct(num v) => '${(v * 100).toStringAsFixed(0)}%';
 
-  // 상세설명 시트
   void _showExplainSheet({
     required AppUser me,
     required _RecItem item,
@@ -97,7 +84,6 @@ class _UserListScreenState extends State<UserListScreen> {
     final other = item.user;
     final comp = item.compSim;
 
-    // 취미 겹침 (food/sport/interest)
     final myFood = (me.hobby?.foodLike ?? const <dynamic>[])
         .cast<String>()
         .toSet();
@@ -143,7 +129,7 @@ class _UserListScreenState extends State<UserListScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${other.displayName} 님과의 호환도',
+                          '${other.displayName} 님과의 겹침정도',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                       ),
@@ -156,7 +142,6 @@ class _UserListScreenState extends State<UserListScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 분해 지표 (가중치 표기도 동적으로)
                   _MetricRow(
                     label: '생활패턴(가중치 ${_pct(kWStruct)})',
                     value: comp.structSim,
@@ -181,15 +166,12 @@ class _UserListScreenState extends State<UserListScreen> {
                       spacing: 8,
                       runSpacing: 8,
                       children: comp.reasons
-                          .map(
-                            (r) => _PillActive(text: r),
-                          )
+                          .map((r) => _PillActive(text: r))
                           .toList(),
                     ),
                     const SizedBox(height: 16),
                   ],
 
-                  // 취미 겹침
                   Text(
                     '겹치는 취미',
                     style: Theme.of(context).textTheme.titleMedium,
@@ -198,7 +180,6 @@ class _UserListScreenState extends State<UserListScreen> {
                   _OverlapRow(title: '음식', items: interFood),
                   _OverlapRow(title: '운동', items: interSport),
                   _OverlapRow(title: '관심사', items: interInterest),
-
                   const SizedBox(height: 8),
                   if (interFood.isEmpty &&
                       interSport.isEmpty &&
@@ -216,12 +197,32 @@ class _UserListScreenState extends State<UserListScreen> {
     );
   }
 
+  Future<void> _startChat(AppUser partner) async {
+    final meUid = _auth.currentUser!.uid;
+    final chatRepo = ChatRepository();
+    final chatId = await chatRepo.createChatRoom(meUid, partner.uid);
+
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          chatRoomId: chatId,
+          partnerUid: partner.uid,
+          partnerName: partner.displayName,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("추천 유저")),
+      appBar: AppBar(
+        title: const Text('추천 유저'),
+      ),
       body: FutureBuilder<_RecBundle>(
-        future: _future ??= _load(), // nullable 안전장치
+        future: _future,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -237,8 +238,9 @@ class _UserListScreenState extends State<UserListScreen> {
               ),
             );
           }
-          final data = snap.data!;
-          final items = data.items;
+
+          final me = snap.data!.me;
+          final items = snap.data!.items;
 
           if (items.isEmpty) {
             return const Center(
@@ -252,73 +254,175 @@ class _UserListScreenState extends State<UserListScreen> {
           }
 
           return ListView.separated(
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemCount: items.length + 1, // +1: "Suggested accounts" 헤더
+            separatorBuilder: (_, __) => Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: const Divider(height: 1),
+            ),
             itemBuilder: (context, i) {
-              final it = items[i];
-              final u = it.user;
-              final title = u.displayName;
-              final subtitle = [
-                if (it.compSim.reasons.isNotEmpty)
-                  it.compSim.reasons.join(' · '),
-              ].where((e) => e.isNotEmpty).join('\n');
-
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundImage:
-                      (u.photoURL != null && u.photoURL!.isNotEmpty)
-                      ? NetworkImage(u.photoURL!)
-                      : null,
-                  child: (u.photoURL == null || u.photoURL!.isEmpty)
-                      ? const Icon(Icons.person)
-                      : null,
-                ),
-                title: Text(title),
-                subtitle: subtitle.isNotEmpty ? Text(subtitle) : null,
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _pct(it.score),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
+              if (i == 0) {
+                // 헤더
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+                  child: Row(
+                    children: [
+                      const Text(
+                        '추천된 유저',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      tooltip: '왜 이 점수인가요?',
-                      icon: const Icon(Icons.info_outline),
-                      onPressed: () => _showExplainSheet(me: data.me, item: it),
-                    ),
-                  ],
-                ),
-                onTap: () async {
-                  final meUid = _auth.currentUser!.uid;
-                  final partnerUid = u.uid;
-                  final partnerName = u.displayName;
+                      const SizedBox(width: 6),
+                      Tooltip(
+                        message: '프로필을 많이 채운 유저 위주로 추천돼요',
+                        triggerMode: TooltipTriggerMode.tap, // ← 탭으로 표시
+                        waitDuration: const Duration(milliseconds: 150),
+                        showDuration: const Duration(seconds: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        textStyle: const TextStyle(color: Colors.white),
+                        child: Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
 
-                  final chatRepo = ChatRepository();
-                  final chatId = await chatRepo.createChatRoom(
-                    meUid,
-                    partnerUid,
-                  );
-
-                  if (!context.mounted) return;
+              final it = items[i - 1];
+              return _SuggestedUserTile(
+                me: me,
+                item: it,
+                onOpenExplain: () =>
+                    _showExplainSheet(me: me, item: it), // 리스트 탭 → 바텀시트
+                onChat: () => _startChat(it.user), // 버튼 → 채팅
+                onOpenProfile: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => ChatScreen(
-                        chatRoomId: chatId,
-                        partnerUid: partnerUid,
-                        partnerName: partnerName,
-                      ),
+                      builder: (_) => UserProfileView(targetUid: it.user.uid),
                     ),
                   );
-                },
+                }, // 문서 아이콘 → 프로필/게시글
               );
             },
           );
         },
+      ),
+    );
+  }
+}
+
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Suggested User Tile (틱톡 DM 스타일)
+/// ─────────────────────────────────────────────────────────────────────────────
+class _SuggestedUserTile extends StatelessWidget {
+  final AppUser me;
+  final _RecItem item;
+  final VoidCallback onOpenExplain; // 타일 탭 액션(바텀시트)
+  final VoidCallback onChat; // Chat 버튼
+  final VoidCallback onOpenProfile; // 게시글 보기 아이콘
+
+  const _SuggestedUserTile({
+    required this.me,
+    required this.item,
+    required this.onOpenExplain,
+    required this.onChat,
+    required this.onOpenProfile,
+  });
+
+  String _summarySubtitle() {
+    // 틱톡의 "Followed by ○○" 느낌으로 간단 요약
+    final reasons = item.compSim.reasons;
+    if (reasons.isNotEmpty) return reasons.join(' · ');
+    // 없으면 구조/취미/텍스트 요약
+    return '겹침정도 ${((item.score) * 100).toStringAsFixed(0)}%';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final u = item.user;
+
+    return InkWell(
+      onTap: onOpenExplain, // ← 리스트 탭 시 상세 바텀시트
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        child: Row(
+          children: [
+            // 아바타
+            CircleAvatar(
+              radius: 24,
+              backgroundImage: (u.photoURL != null && u.photoURL!.isNotEmpty)
+                  ? NetworkImage(u.photoURL!)
+                  : null,
+              child: (u.photoURL == null || u.photoURL!.isEmpty)
+                  ? const Icon(Icons.person, size: 24)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+
+            // 이름 + 서브텍스트
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    u.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _summarySubtitle(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            // Chat 버튼
+            SizedBox(
+              height: 36,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: onChat,
+                child: const Text('채팅 보내기'),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // 게시글 보기 아이콘
+            IconButton(
+              tooltip: '게시글 보기',
+              onPressed: onOpenProfile,
+              icon: const Icon(Icons.article_outlined),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -332,18 +436,14 @@ class _RecBundle {
 
 class _RecItem {
   final AppUser user;
-  final double score; // 최종 점수 (가중치 적용)
-  final Compatibility compSim; // 구조/취미/텍스트 유사도 + 이유
-  _RecItem({
-    required this.user,
-    required this.score,
-    required this.compSim,
-  });
+  final double score; // 최종 점수
+  final Compatibility compSim; // breakdown/사유
+  _RecItem({required this.user, required this.score, required this.compSim});
 }
 
 class _MetricRow extends StatelessWidget {
   final String label;
-  final double value; // 0.0 ~ 1.0
+  final double value;
   const _MetricRow({required this.label, required this.value});
 
   String _pct(double v) => '${(v * 100).toStringAsFixed(0)}%';
@@ -362,7 +462,7 @@ class _MetricRow extends StatelessWidget {
   }
 }
 
-/// 카테고리 버튼의 "활성화된" 상태와 동일한 비주얼의 Pill
+/// 활성 Pill (앱 테마 프라이머리와 동일)
 class _PillActive extends StatelessWidget {
   final String text;
   const _PillActive({required this.text});
@@ -375,20 +475,17 @@ class _PillActive extends StatelessWidget {
         horizontal: Sizes.size14,
       ),
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor, // 활성화: 초록색(앱 테마 프라이머리)
+        color: Theme.of(context).primaryColor,
         borderRadius: BorderRadius.circular(Sizes.size18),
       ),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Colors.white, // 활성화: 흰색 텍스트
-        ),
+        style: const TextStyle(color: Colors.white),
       ),
     );
   }
 }
 
-/// “겹치는 취미” 섹션: 활성화된 카테고리 버튼 스타일로 출력
 class _OverlapRow extends StatelessWidget {
   final String title;
   final List<String> items;
@@ -408,10 +505,7 @@ class _OverlapRow extends StatelessWidget {
           Expanded(
             child: chips.isNotEmpty
                 ? Wrap(spacing: 6, runSpacing: 6, children: chips)
-                : Text(
-                    '없음',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                : Text('없음', style: Theme.of(context).textTheme.bodySmall),
           ),
         ],
       ),

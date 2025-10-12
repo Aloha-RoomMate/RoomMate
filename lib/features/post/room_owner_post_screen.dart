@@ -586,7 +586,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Gaps.v6,
+                Gaps.v6(context),
                 TextField(
                   controller: _titleCtrl,
                   decoration: const InputDecoration(
@@ -594,7 +594,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
-                Gaps.v24,
+                Gaps.v2(context),
 
                 // 주소 안내
                 const Text(
@@ -608,7 +608,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   '다른 유저에게는 XX동 \'부근\'으로 보여져요.\n지도에는 실제 주소 반경 200m 내의 랜덤한 위치로 표시돼요.',
                   style: TextStyle(fontSize: Sizes.size14, color: Colors.grey),
                 ),
-                Gaps.v12,
+                Gaps.v12(context),
                 // 주소 입력/검색
                 Row(
                   children: [
@@ -624,7 +624,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     ),
                   ],
                 ),
-                Gaps.v24,
+                Gaps.v24(context),
                 // 사진 업로드
                 const Text(
                   '사진 업로드',
@@ -633,7 +633,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Gaps.v6,
+                Gaps.v6(context),
                 Row(
                   children: [
                     ElevatedButton.icon(
@@ -641,7 +641,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       icon: const Icon(Icons.add_a_photo_outlined),
                       label: const Text('사진 추가'),
                     ),
-                    Gaps.h12,
+                    Gaps.h12(context),
                     if (_uploadingImages)
                       const SizedBox(
                         height: 20,
@@ -651,7 +651,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     if (!_uploadingImages) Text('${_pickedImages.length}장 선택됨'),
                   ],
                 ),
-                Gaps.v12,
+                Gaps.v12(context),
                 if (_pickedImages.isNotEmpty)
                   GridView.builder(
                     shrinkWrap: true,
@@ -692,12 +692,12 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       ],
                     ),
                   ),
-                Gaps.v24,
+                Gaps.v24(context),
                 SizedBox(
                   height: _addresses.isNotEmpty ? 300 : 0,
                   child: _buildResults(),
                 ),
-                Gaps.v12,
+                Gaps.v12(context),
 
                 // 금액/정보
                 Row(
@@ -713,7 +713,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                         ),
                       ),
                     ),
-                    Gaps.h8,
+                    Gaps.h8(context),
                     Expanded(
                       child: TextField(
                         controller: _rentCtrl,
@@ -725,7 +725,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                         ),
                       ),
                     ),
-                    Gaps.h8,
+                    Gaps.h8(context),
                     Expanded(
                       child: TextField(
                         controller: _manageFeeCtrl,
@@ -739,7 +739,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     ),
                   ],
                 ),
-                Gaps.v24,
+                Gaps.v24(context),
 
                 // 층수
                 Row(
@@ -754,7 +754,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                         ),
                       ),
                     ),
-                    Gaps.h12,
+                    Gaps.h12(context),
                     Expanded(
                       child: TextField(
                         controller: _wholeFloorCtrl,
@@ -767,7 +767,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     ),
                   ],
                 ),
-                Gaps.v24,
+                Gaps.v24(context),
 
                 // 전용 면적 / 화장실 개수
                 const Text(
@@ -777,7 +777,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Gaps.v6,
+                Gaps.v6(context),
                 Row(
                   children: [
                     Expanded(
@@ -790,7 +790,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                         ),
                       ),
                     ),
-                    Gaps.h12,
+                    Gaps.h12(context),
                     Expanded(
                       child: TextField(
                         controller: _toiletCtrl,
@@ -803,7 +803,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     ),
                   ],
                 ),
-                Gaps.v24,
+                Gaps.v24(context),
 
                 // 입주일
                 const Text(
@@ -813,7 +813,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Gaps.v6,
+                Gaps.v6(context),
                 TextField(
                   onTap: _onTimeFieldTap,
                   controller: _movingDateCtrl,
@@ -827,7 +827,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
-                Gaps.v24,
+                Gaps.v24(context),
 
                 // 계약기간
                 Row(
@@ -843,7 +843,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                         ),
                       ),
                     ),
-                    Gaps.h12,
+                    Gaps.h12(context),
                     Expanded(
                       child: TextField(
                         controller: _maxContractCtrl,
@@ -857,7 +857,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     ),
                   ],
                 ),
-                Gaps.v24,
+                Gaps.v24(context),
 
                 // 소개
                 TextField(
@@ -872,7 +872,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
-                Gaps.v24,
+                Gaps.v24(context),
 
                 // 저장 버튼 (FormButton 유지)
                 GestureDetector(

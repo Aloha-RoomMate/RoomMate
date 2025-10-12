@@ -2,12 +2,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
-import 'package:roommate/constants/sizes.dart';
-import 'package:roommate/features/authentication/userinfo/roomowner_screen.dart';
+import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
 import 'package:roommate/features/authentication/userinfo/searcher_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/authentication/widgets/demand_button.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 
 class UserjobScreen extends StatefulWidget {
   const UserjobScreen({super.key});
@@ -16,7 +16,8 @@ class UserjobScreen extends StatefulWidget {
   State<UserjobScreen> createState() => _UserjobScreenState();
 }
 
-class _UserjobScreenState extends State<UserjobScreen> {
+class _UserjobScreenState extends State<UserjobScreen>
+    with SingleTickerProviderStateMixin {
   final List<bool> _jobSelections = List<bool>.filled(4, false);
 
   int? _selectedIndex;
@@ -26,10 +27,30 @@ class _UserjobScreenState extends State<UserjobScreen> {
 
   late Future<User?> _userFuture; // ✅ 캐싱용 Future
 
+  // === ⬇️ 추가: "다음" 버튼용 페이드 컨트롤러 ===
+  static const _fadeDur = Duration(milliseconds: 300);
+  late final AnimationController _btnAC;
+  late final Animation<double> _btnFade;
+  bool _btnBusy = false;
+  // === ⬆️ 추가 ===
+
   @override
   void initState() {
     super.initState();
     _userFuture = Future.value(FirebaseAuth.instance.currentUser);
+
+    // 버튼 최초 진입 페이드 인
+    _btnAC = AnimationController(vsync: this, duration: _fadeDur);
+    _btnFade = CurvedAnimation(parent: _btnAC, curve: Curves.easeInOut);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _btnAC.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _btnAC.dispose();
+    super.dispose();
   }
 
   void _onJobTap(int index) {
@@ -66,6 +87,7 @@ class _UserjobScreenState extends State<UserjobScreen> {
     return anyJob && oneUserType;
   }
 
+  // 기존 네비게이션 로직
   void _onNextTap() {
     if (_isSending) return;
 
@@ -83,20 +105,35 @@ class _UserjobScreenState extends State<UserjobScreen> {
     if (_selectedIndex == 0) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => RoomownerScreen(
-            userType: 'roomOwner',
-            jobKinds: selectedJobs,
+          builder: (_) => HobbyScreen(
+            // userType: 'roomOwner',
+            // jobKinds: selectedJobs,
           ),
         ),
       );
     } else {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => SearcherScreen(),
+          builder: (_) => const SearcherScreen(),
         ),
       );
     }
   }
+
+  // === ⬇️ 추가: 페이드 아웃 후 네비게이션 래퍼 ===
+  Future<void> _onNextTapWithFade() async {
+    if (_btnBusy || !_isNextEnabled()) return;
+    _btnBusy = true;
+    try {
+      await _btnAC.reverse(); // 버튼 사라짐 (300ms)
+      if (!mounted) return;
+      _onNextTap(); // 기존 네비게이션 실행
+      // push 후 이 화면은 뒤로 남아있으니, 되돌아올 때는 initState에서 다시 페이드 인됨
+    } finally {
+      _btnBusy = false;
+    }
+  }
+  // === ⬆️ 추가 ===
 
   @override
   Widget build(BuildContext context) {
@@ -126,35 +163,37 @@ class _UserjobScreenState extends State<UserjobScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: Padding(
-                padding: const EdgeInsets.only(left: 20, right: 20),
+                padding: EdgeInsets.symmetric(
+                  horizontal: ResponsiveSizes.p(context, 20),
+                ),
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         '현재 하시고 계신 일에\n대해 알려주세요 !',
                         style: TextStyle(
-                          fontSize: Sizes.size28,
+                          fontSize: ResponsiveSizes.f(context, 28),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
+                      Gaps.v6(context),
+                      Text(
                         "나중에 더 찰떡궁합 룸메이트를 찾는데 사용되요.",
                         style: TextStyle(
-                          fontSize: Sizes.size14,
+                          fontSize: ResponsiveSizes.f(context, 14),
                           color: Colors.black87,
                           fontWeight: FontWeight.w300,
                         ),
                       ),
-                      const SizedBox(height: Sizes.size16),
+                      Gaps.v16(context),
                       const Divider(height: 1, color: Colors.black12),
-                      const SizedBox(height: Sizes.size16),
+                      Gaps.v16(context),
 
                       Center(
                         child: Wrap(
-                          spacing: Sizes.size10,
-                          runSpacing: Sizes.size10,
+                          spacing: ResponsiveSizes.p(context, 10),
+                          runSpacing: ResponsiveSizes.p(context, 10),
                           children: List.generate(4, (i) {
                             return CategoryButton(
                               text: textOptions[i],
@@ -165,27 +204,27 @@ class _UserjobScreenState extends State<UserjobScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: Sizes.size80),
+                      Gaps.v80(context),
 
-                      const Text(
+                      Text(
                         '현재 RoomMate를 \n이용하는 이유는 무엇인가요 ?',
                         style: TextStyle(
-                          fontSize: Sizes.size28,
+                          fontSize: ResponsiveSizes.f(context, 28),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
+                      Gaps.v6(context),
+                      Text(
                         "나중에도 변경가능해요 !",
                         style: TextStyle(
-                          fontSize: Sizes.size14,
+                          fontSize: ResponsiveSizes.f(context, 14),
                           color: Colors.black87,
                           fontWeight: FontWeight.w300,
                         ),
                       ),
-                      const SizedBox(height: Sizes.size16),
+                      Gaps.v16(context),
                       const Divider(height: 1, color: Colors.black12),
-                      const SizedBox(height: Sizes.size16),
+                      Gaps.v16(context),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -194,7 +233,7 @@ class _UserjobScreenState extends State<UserjobScreen> {
                             text: "Room-owner",
                             myonTap: _onTapLeft,
                           ),
-                          const SizedBox(width: Sizes.size56),
+                          Gaps.h56(context),
                           DemandButton(
                             key: _rightKey,
                             text: "Searcher",
@@ -203,7 +242,7 @@ class _UserjobScreenState extends State<UserjobScreen> {
                         ],
                       ),
 
-                      const SizedBox(height: Sizes.size24),
+                      Gaps.v24(context),
 
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 300),
@@ -229,25 +268,17 @@ class _UserjobScreenState extends State<UserjobScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: Sizes.size28),
+                      Gaps.v28(context),
 
+                      // ✅ "다음" 버튼 페이드 인/아웃
                       GestureDetector(
-                        onTap: isNextEnabled ? _onNextTap : null,
-                        child: FormButton(
-                          disabled: !_isNextEnabled(),
-                          text: "다음",
-                          // 아래껀 category 에서 formbutton 불러왔을때
-                          // enabled: _isUser == true || _jobSelections.isNotEmpty,
-                          // widget: _isSending
-                          //     ? Center(
-                          //         child: CircularProgressIndicator(
-                          //           color: Colors.white,
-                          //         ),
-                          //       )
-                          //     : Text(
-                          //         '다음',
-                          //         textAlign: TextAlign.center,
-                          //       ),
+                        onTap: isNextEnabled ? _onNextTapWithFade : null,
+                        child: FadeTransition(
+                          opacity: _btnFade,
+                          child: FormButton(
+                            disabled: !_isNextEnabled(),
+                            text: "다음",
+                          ),
                         ),
                       ),
                     ],
@@ -264,8 +295,8 @@ class _UserjobScreenState extends State<UserjobScreen> {
 
 Widget _buildDescriptionCard(BuildContext context, int? index, User data) {
   if (index == null) {
-    return const SizedBox(
-      height: Sizes.size96 + Sizes.size56 + Sizes.size1,
+    return SizedBox(
+      height: ResponsiveSizes.height(context, (96 + 56 + 1) / 800),
     );
   }
 
@@ -280,13 +311,12 @@ Widget _buildDescriptionCard(BuildContext context, int? index, User data) {
       "월세를 같이 부담하며 누군가의 \n룸메이트가 되려한다면 Searcher입니다.\n";
 
   final String desc = isOwner ? ownerDesc : searcherDesc;
-  final IconData icon = isOwner ? Icons.home_rounded : Icons.search_rounded;
 
   return Container(
     key: ValueKey(title),
-    padding: const EdgeInsets.all(16),
+    padding: EdgeInsets.all(ResponsiveSizes.p(context, 16)),
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(Sizes.size18),
+      borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 18)),
       color: Colors.transparent,
       border: Border.all(color: Colors.black.withAlpha(15)),
     ),
@@ -294,32 +324,32 @@ Widget _buildDescriptionCard(BuildContext context, int? index, User data) {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 44,
-          height: 44,
+          width: ResponsiveSizes.p(context, 44),
+          height: ResponsiveSizes.p(context, 44),
           decoration: BoxDecoration(
             border: Border.all(color: Colors.black.withAlpha(15)),
             color: Theme.of(context).primaryColor,
-            borderRadius: BorderRadius.circular(Sizes.size10),
+            borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 10)),
           ),
-          child: Icon(icon, color: Colors.white),
+          child: const Icon(Icons.home_rounded, color: Colors.white),
         ),
-        const SizedBox(width: 12),
+        Gaps.h12(context),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: Sizes.size16,
+                style: TextStyle(
+                  fontSize: ResponsiveSizes.f(context, 16),
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 6),
+              Gaps.v6(context),
               Text(
                 desc,
                 style: TextStyle(
-                  fontSize: Sizes.size12,
+                  fontSize: ResponsiveSizes.f(context, 12),
                   height: 1.6,
                   color: Colors.black.withAlpha(170),
                 ),
