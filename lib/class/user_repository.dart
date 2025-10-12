@@ -181,11 +181,13 @@ class UserRepository {
   Future<void> updateProfile({
     String? displayName,
     String? photoURL,
+    String? gender,
   }) async {
     await _meDoc().set(
       {
         if (displayName != null) 'displayName': displayName,
         if (photoURL != null) 'photoURL': photoURL,
+        if (gender != null) 'gender': gender,
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
