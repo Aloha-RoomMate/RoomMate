@@ -2,7 +2,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -13,7 +12,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/user_repository.dart';
@@ -885,7 +883,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 // 소개
                 TextField(
                   controller: _introductionCtrl,
-                  minLines: 3,
+                  minLines: null,
                   maxLines: null,
                   keyboardType: TextInputType.multiline,
                   decoration: const InputDecoration(
