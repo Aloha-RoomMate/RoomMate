@@ -1,4 +1,5 @@
 // features/view/room_owner_post_view.dart
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:roommate/class/app_user.dart';
@@ -111,6 +112,57 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
     );
   }
 
+  // ───────────── “부근” 보정 로직 (풀주소 노출 방지) ─────────────
+  String _dongOnly(String? full) {
+    final s = (full ?? '').trim();
+    if (s.isEmpty) return '';
+
+    // 끝의 '부근' 표기 제거 후 처리
+    final cleaned = s.replaceAll(RegExp(r'\s*부근$'), '');
+    final tokens = cleaned.split(RegExp(r'\s+'));
+
+    String pick(String suffix) =>
+        tokens.firstWhere((e) => e.endsWith(suffix), orElse: () => '');
+
+    // 우선순위: 동 > 읍 > 면 > 리 > 가 > 구
+    final d = pick('동');
+    final eup = pick('읍');
+    final myeon = pick('면');
+    final ri = pick('리');
+    final ga = pick('가');
+    final gu = pick('구');
+
+    final cand = [d, eup, myeon, ri, ga, gu].firstWhere(
+      (e) => e.isNotEmpty,
+      orElse: () => '',
+    );
+
+    if (cand.isNotEmpty) return cand;
+
+    // 역명(강남역 등)
+    final st = RegExp(r'([가-힣A-Za-z0-9]+역)\b').firstMatch(cleaned)?.group(1);
+    if (st != null && st.isNotEmpty) return st;
+
+    // 도로명(…로/…대로/…길)
+    final road = RegExp(
+      r'([가-힣A-Za-z0-9]+(?:로|대로|길))',
+    ).firstMatch(cleaned)?.group(1);
+    if (road != null && road.isNotEmpty) return road;
+
+    // 그 외: 첫 토큰
+    return tokens.first;
+  }
+
+  String _labelWithNear(String? labelOrText) {
+    final base = (labelOrText ?? '').trim();
+    if (base.isEmpty) return '부근';
+    if (RegExp(r'부근$').hasMatch(base)) return base; // 이미 '부근'이면 그대로
+    final pick = _dongOnly(base);
+    if (pick.isEmpty) return '부근';
+    return '$pick 부근';
+  }
+  // ─────────────────────────────────────────────────────
+
   Future<void> _startChat() async {
     if (_startingChat) return;
     final me = FirebaseAuth.instance.currentUser;
@@ -187,25 +239,62 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
         .map((e) => e.toString())
         .toList();
 
+    // “철산동 부근” 등으로 보정된 표시용 라벨
+    final nearLabel = _labelWithNear(widget.post.addressLabel);
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // 상단 이미지 슬라이더 (제목 오버레이 제거, AppBar는 화이트)
+          // 상단 이미지 슬라이더 (제목 오버레이 제거)
           SliverAppBar(
-            pinned: true,
             expandedHeight: 280.0,
+            pinned: true,
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             foregroundColor: Colors.black,
             elevation: 0,
+            // RoomOwnerPostView 의 SliverAppBar.flexibleSpace 교체
             flexibleSpace: FlexibleSpaceBar(
-              // title 제거 → 사진 위 텍스트 오버레이 없음
               background: imagePaths.isEmpty
-                  ? Image.asset(
-                      'assets/house.jpg',
-                      fit: BoxFit.cover,
-                      color: Colors.black.withOpacity(0.15),
-                      colorBlendMode: BlendMode.darken,
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // 배경: 기본 이미지를 cover + blur로 꽉 채우기
+                        ImageFiltered(
+                          imageFilter: ui.ImageFilter.blur(
+                            sigmaX: 16,
+                            sigmaY: 16,
+                          ),
+                          child: Image.asset(
+                            'assets/house.jpg',
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        // 상단 그라데이션(선택)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.center,
+                                  colors: [Colors.black12, Colors.transparent],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // 전경: 원본을 contain으로 중앙에
+                        Center(
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            child: Image.asset(
+                              'assets/house.jpg',
+                              filterQuality: FilterQuality.high,
+                            ),
+                          ),
+                        ),
+                      ],
                     )
                   : FutureBuilder<List<String>>(
                       future: _signedUrls(imagePaths),
@@ -220,10 +309,9 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                           return Image.asset(
                             'assets/house.jpg',
                             fit: BoxFit.cover,
-                            color: Colors.black.withOpacity(0.15),
-                            colorBlendMode: BlendMode.darken,
                           );
                         }
+                        // 한 페이지만 그릴 때마다 배경+전경을 같이 쌓아서 동기화
                         return Stack(
                           fit: StackFit.expand,
                           children: [
@@ -232,38 +320,67 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                               onPageChanged: (i) =>
                                   setState(() => _currentPage = i),
                               itemCount: urls.length,
-                              itemBuilder: (_, i) => Image.network(
-                                urls[i],
-                                fit: BoxFit.cover,
-                                loadingBuilder: (c, w, p) => p == null
-                                    ? w
-                                    : const Center(
-                                        child: CircularProgressIndicator(),
+                              itemBuilder: (_, i) => Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  // 배경: 같은 이미지를 cover + blur 로 꽉 채우기
+                                  ImageFiltered(
+                                    imageFilter: ui.ImageFilter.blur(
+                                      sigmaX: 16,
+                                      sigmaY: 16,
+                                    ),
+                                    child: Image.network(
+                                      urls[i],
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Image.asset(
+                                        'assets/house.jpg',
+                                        fit: BoxFit.cover,
                                       ),
-                                errorBuilder: (_, __, ___) => Image.asset(
-                                  'assets/house.jpg',
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            // 상단만 살짝 그라데이션(상태바 대비)
-                            Positioned.fill(
-                              child: IgnorePointer(
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.center,
-                                      colors: [
-                                        Colors.black.withOpacity(0.15),
-                                        Colors.transparent,
-                                      ],
                                     ),
                                   ),
-                                ),
+                                  // 상단 그라데이션(선택)
+                                  Positioned.fill(
+                                    child: IgnorePointer(
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.center,
+                                            colors: [
+                                              Colors.black12,
+                                              Colors.transparent,
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // 전경: 원본을 contain으로 중앙에 (안 잘림)
+                                  Center(
+                                    child: FittedBox(
+                                      fit: BoxFit.contain,
+                                      child: Image.network(
+                                        urls[i],
+                                        filterQuality: FilterQuality.high,
+                                        errorBuilder: (_, __, ___) =>
+                                            Image.asset(
+                                              'assets/house.jpg',
+                                              fit: BoxFit.contain,
+                                            ),
+                                        loadingBuilder: (c, w, p) => p == null
+                                            ? w
+                                            : const Center(
+                                                child:
+                                                    CircularProgressIndicator(),
+                                              ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            // 하단 도트 인디케이터
+
+                            // 기존 하단 도트 인디케이터 유지
                             Positioned(
                               bottom: 12,
                               left: 0,
@@ -296,7 +413,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             ),
           ),
 
-          // 슬라이더 아래 헤더 섹션 (제목/위치/가격 요약)
+          // 이미지 아래 헤더(제목만)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -305,12 +422,18 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                 Sizes.size20,
                 Sizes.size8,
               ),
-              child: _HeaderSection(
-                title: widget.post.title ?? '제목 없음',
-                addressLabel: widget.post.addressLabel ?? '위치 정보 부근',
-                depositText:
-                    "${numberFormat.format(widget.post.deposit ?? 0)}만원",
-                rentText: "${numberFormat.format(widget.post.rent ?? 0)}만원",
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.post.title ?? '제목 없음',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ),
@@ -322,6 +445,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 작성자
                   FutureBuilder<AppUser?>(
                     future: _authorFuture,
                     builder: (context, snapshot) {
@@ -380,29 +504,31 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                     ),
                   ),
                   Gaps.v16(context),
+
+                  // 위치: 반드시 “… 부근”으로 표기
                   _buildInfoRow(
                     Icons.location_on_outlined,
                     "위치",
-                    widget.post.addressLabel ?? "위치 정보 부근",
+                    nearLabel,
                   ),
+
+                  // 금액: 한 줄에 정리 (관리비가 0이면 생략)
                   _buildInfoRow(
                     Icons.attach_money_outlined,
-                    "보증금",
-                    "${numberFormat.format(widget.post.deposit ?? 0)}만원",
+                    "금액",
+                    () {
+                      final d = numberFormat.format(widget.post.deposit ?? 0);
+                      final r = numberFormat.format(widget.post.rent ?? 0);
+                      final m = numberFormat.format(widget.post.manageFee ?? 0);
+                      final parts = <String>["보증금 $d만", "월세 $r만"];
+                      if ((widget.post.manageFee ?? 0) > 0) {
+                        parts.add("관리비 $m만");
+                      }
+                      return parts.join(" · ");
+                    }(),
                     valueRight: true,
                   ),
-                  _buildInfoRow(
-                    Icons.local_atm_outlined,
-                    "월세",
-                    "${numberFormat.format(widget.post.rent ?? 0)}만원",
-                    valueRight: true,
-                  ),
-                  _buildInfoRow(
-                    Icons.receipt_long_outlined,
-                    "관리비",
-                    "${numberFormat.format(widget.post.manageFee ?? 0)}만원",
-                    valueRight: true,
-                  ),
+
                   _buildInfoRow(
                     Icons.stairs_outlined,
                     "층수",
@@ -551,113 +677,6 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ────────────────────────────── 헤더 섹션 위젯 ──────────────────────────────
-
-class _HeaderSection extends StatelessWidget {
-  const _HeaderSection({
-    required this.title,
-    required this.addressLabel,
-    required this.depositText,
-    required this.rentText,
-  });
-
-  final String title;
-  final String addressLabel;
-  final String depositText;
-  final String rentText;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final cs = Theme.of(context).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 큰 제목
-        Text(
-          title,
-          style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 8),
-
-        // 위치 + 가격 필(우측)
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.location_on_outlined,
-              size: 18,
-              color: cs.onSurfaceVariant,
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                addressLabel,
-                style: t.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            _InfoPill(label: '보증금', value: depositText),
-            const SizedBox(width: 6),
-            _InfoPill(label: '월세', value: rentText, highlight: true),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _InfoPill extends StatelessWidget {
-  const _InfoPill({
-    required this.label,
-    required this.value,
-    this.highlight = false,
-  });
-  final String label;
-  final String value;
-  final bool highlight;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final bg = highlight
-        ? cs.primary.withOpacity(0.10)
-        : cs.surfaceContainerHighest;
-    final fg = highlight ? cs.primary : cs.onSurface;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: fg,
-            ),
-          ),
-        ],
       ),
     );
   }
