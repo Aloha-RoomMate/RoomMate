@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
+
+// Screens
 import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/chat/chatlist_screen.dart';
 import 'package:roommate/features/navigationbar/screens/home_screen.dart';
@@ -13,6 +17,7 @@ import 'package:roommate/features/navigationbar/screens/map_screen.dart';
 import 'package:roommate/features/navigationbar/screens/mypage_screen.dart';
 import 'package:roommate/features/post/room_owner_post_screen.dart';
 import 'package:roommate/features/post/searcher_post_screen.dart';
+import 'package:roommate/features/recommend/userlist_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -27,12 +32,15 @@ class _MainNavigationState extends State<MainNavigation> {
 
   late final StreamSubscription<AppUser?> _userSubscription;
 
+  // 탭 타이틀 (상단 AppBar용) — 유저추천/마이페이지 탭은 상단 AppBar를 숨기므로 실사용은 안 되지만 안전하게 포함
   final List<String> _appBarTitles = [
-    '홈',
-    '채팅',
-    '지도',
-    '마이페이지',
+    '홈', // 0
+    '유저추천', // 1 (상단 AppBar 숨김)
+    '채팅', // 2
+    '맵', // 3
+    '마이페이지', // 4 (상단 AppBar 숨김)
   ];
+
   int _selectedIndex = 0;
 
   @override
@@ -61,11 +69,16 @@ class _MainNavigationState extends State<MainNavigation> {
 
   Widget _scaledIcon(IconData data, int itemIndex) {
     final isSelected = _selectedIndex == itemIndex;
-    return AnimatedScale(
-      scale: isSelected ? 1.18 : 1.0, // 살짝 확대
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      child: FaIcon(data),
+    return SizedBox(
+      // 아이콘 캔버스 고정 → 레이아웃 흔들림 방지
+      width: 24,
+      height: 24,
+      child: AnimatedScale(
+        scale: isSelected ? 1.15 : 1.0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        child: FaIcon(data),
+      ),
     );
   }
 
@@ -81,7 +94,7 @@ class _MainNavigationState extends State<MainNavigation> {
   // ---------- helpers ----------
   void _goMyPage() {
     setState(() {
-      _selectedIndex = 3; // 마이페이지 탭
+      _selectedIndex = 4; // 마이페이지 탭(인덱스 변경: 3 -> 4)
     });
   }
 
@@ -160,12 +173,12 @@ class _MainNavigationState extends State<MainNavigation> {
 
   /// 인덱스별 AppBar 구성
   PreferredSizeWidget? _buildAppBar() {
-    // 마이페이지는 하위 위젯(MypageScreen)이 자체 AppBar를 가짐 → 상위 AppBar 숨김
-    if (_selectedIndex == 3) return null;
+    // 유저추천(1)과 마이페이지(4)는 하위 위젯이 자체 AppBar를 가짐 → 상위 AppBar 숨김
+    if (_selectedIndex == 1 || _selectedIndex == 4) return null;
 
     final title = _appBarTitles[_selectedIndex];
 
-    // 홈만 + 아이콘 노출
+    // 홈(0)만 + 아이콘 노출
     final actions = <Widget>[];
     if (_selectedIndex == 0) {
       actions.add(
@@ -189,66 +202,55 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   Widget _buildBottomNavigationBar() {
+    final cs = Theme.of(context).colorScheme;
+
     final navItems = <BottomNavigationBarItem>[
       BottomNavigationBarItem(
         icon: _scaledIcon(FontAwesomeIcons.house, 0),
         label: '홈',
       ),
       BottomNavigationBarItem(
-        icon: _scaledIcon(FontAwesomeIcons.message, 1),
+        icon: _scaledIcon(FontAwesomeIcons.userGroup, 1),
+        label: '유저추천',
+      ),
+      BottomNavigationBarItem(
+        icon: _scaledIcon(FontAwesomeIcons.message, 2),
         label: '채팅',
       ),
       BottomNavigationBarItem(
-        icon: _scaledIcon(FontAwesomeIcons.map, 2),
-        label: '지도',
+        icon: _scaledIcon(FontAwesomeIcons.map, 3),
+        label: '맵',
       ),
       BottomNavigationBarItem(
-        icon: _scaledIcon(FontAwesomeIcons.user, 3),
+        icon: _scaledIcon(FontAwesomeIcons.user, 4),
         label: '마이페이지',
       ),
     ];
 
-    const double verticalInset = 8.0; // 위/아래 안 닿도록
-    const double dividerWidth = 1.0;
-
-    return Stack(
-      children: [
-        BottomNavigationBar(
-          onTap: _onNavTab,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: cs.surface,
+        border: Border(
+          top: BorderSide(color: cs.outlineVariant, width: 0.6),
+        ), // 헤어라인
+      ),
+      child: SafeArea(
+        top: false,
+        child: BottomNavigationBar(
+          onTap: (i) {
+            HapticFeedback.selectionClick();
+            _onNavTab(i);
+          },
           currentIndex: _selectedIndex,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white, // 흰색 배경
+          backgroundColor: cs.surface,
           elevation: 0,
-          unselectedItemColor: Colors.grey,
-          selectedItemColor: Theme.of(context).primaryColor,
+          selectedItemColor: cs.primary,
+          unselectedItemColor: cs.onSurfaceVariant,
+          showUnselectedLabels: true,
           items: navItems,
         ),
-        // 세로 구분선 오버레이
-        Positioned.fill(
-          child: IgnorePointer(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final count = navItems.length;
-                final itemW = constraints.maxWidth / count;
-                return Stack(
-                  children: List.generate(count - 1, (i) {
-                    final leftX = itemW * (i + 1) - (dividerWidth / 2);
-                    return Positioned(
-                      left: leftX,
-                      top: verticalInset,
-                      bottom: verticalInset,
-                      child: Container(
-                        width: dividerWidth,
-                        color: Theme.of(context).dividerColor.withOpacity(0.35),
-                      ),
-                    );
-                  }),
-                );
-              },
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -259,9 +261,10 @@ class _MainNavigationState extends State<MainNavigation> {
       index: _selectedIndex,
       children: const [
         HomeScreen(), // 0
-        ChatListScreen(), // 1
-        MapScreen(), // 2
-        MypageScreen(isBlocked: true), // 3 (자체 AppBar 사용)
+        UserListScreen(), // 1 ★ 유저추천 (자체 Scaffold+AppBar)
+        ChatListScreen(), // 2
+        MapScreen(), // 3
+        MypageScreen(isBlocked: true), // 4 (자체 AppBar 사용)
       ],
     );
 

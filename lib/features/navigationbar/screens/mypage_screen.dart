@@ -10,10 +10,15 @@ import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
+import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
+import 'package:roommate/features/authentication/userinfo/userjob_screen.dart';
 import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
 import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
+import 'package:roommate/features/category/coliving_screen.dart';
+import 'package:roommate/features/category/disease_screen.dart';
+import 'package:roommate/features/category/introduction_screen.dart';
 
 // ⬇️ 상세 보기로 진입하기 위해 추가
 import 'package:roommate/features/view/room_owner_post_view.dart';
@@ -176,6 +181,8 @@ class _MypageScreenState extends State<MypageScreen> {
           appBar: AppBar(
             scrolledUnderElevation: 0,
             backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent, // ← 틴트 제거
+            foregroundColor: Colors.black, // ← 아이콘/텍스트 대비
             toolbarHeight: ResponsiveSizes.p(context, 40),
             title: const Text('마이페이지'),
             actions: [
@@ -207,7 +214,8 @@ class _MypageScreenState extends State<MypageScreen> {
                       children: [
                         Gaps.v12(context),
                         Center(
-                          child: Column(
+                          child: Stack(
+                            clipBehavior: Clip.none,
                             children: [
                               CircleAvatar(
                                 radius: ResponsiveSizes.p(context, 60),
@@ -223,29 +231,21 @@ class _MypageScreenState extends State<MypageScreen> {
                                       )
                                     : null,
                               ),
-                              Gaps.v2(context),
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: ResponsiveSizes.p(context, 100),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      me.displayName,
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleMedium,
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                    Text(userTypeInfo?.type ?? '-'),
-                                  ],
+                              Positioned(
+                                right: -4,
+                                bottom: -4,
+                                child: FloatingActionButton.small(
+                                  backgroundColor: Colors.transparent,
+                                  elevation: 0,
+                                  heroTag: 'editAvatar',
+                                  onPressed: _showBottomSheet,
+                                  child: const Icon(Icons.photo_camera),
                                 ),
                               ),
                             ],
                           ),
                         ),
+
                         Gaps.v2(context),
                         Divider(
                           height: 1,
@@ -450,51 +450,33 @@ class _MypageScreenState extends State<MypageScreen> {
                     ),
 
                     // 🔒 락 오버레이
-                    if (isLocked) ...[
+                    if (isLocked)
                       Positioned.fill(
                         child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Colors.transparent, Colors.white],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned.fill(
-                        child: Center(
+                          color: Colors.white.withOpacity(0.85),
                           child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: _onNextTap,
-                                child: Padding(
-                                  padding: EdgeInsets.all(
-                                    ResponsiveSizes.p(context, 16),
-                                  ),
-                                  child: Icon(
-                                    Icons.lock_open_rounded,
-                                    color: Colors.black54,
-                                    size: ResponsiveSizes.p(context, 48),
-                                  ),
-                                ),
+                              Icon(
+                                Icons.lock_outline,
+                                size: ResponsiveSizes.p(context, 56),
+                                color: Colors.black54,
                               ),
-                              Gaps.v12(context),
+                              SizedBox(height: ResponsiveSizes.p(context, 12)),
                               Text(
-                                "추가적인 유저 정보를 입력하면\n 사용하실수 있습니다.\n자물쇠를 눌러주세요.",
+                                '추가 정보를 입력하면 사용 가능해요',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: ResponsiveSizes.f(context, 18),
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              SizedBox(height: ResponsiveSizes.p(context, 12)),
+                              FilledButton(
+                                onPressed: _onNextTap,
+                                child: const Text('정보 입력하기'),
                               ),
                             ],
                           ),
                         ),
                       ),
-                    ],
                   ],
                 );
               },
@@ -520,6 +502,94 @@ class _MyPageEndDrawer extends StatelessWidget {
     required this.onOpenProfileSheet,
     required this.onSignOut,
   });
+
+  void _openEditPicker(BuildContext parentContext) {
+    final pad = ResponsiveSizes.p(parentContext, 16);
+
+    showModalBottomSheet<void>(
+      context: parentContext,
+      showDragHandle: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(ResponsiveSizes.p(parentContext, 20)),
+        ),
+      ),
+      builder: (sheetCtx) {
+        // ✅ 매개변수 이름을 screenFactory로 변경
+        Widget tile({
+          required IconData icon,
+          required String title,
+          String? subtitle,
+          required Widget Function() screenFactory,
+        }) {
+          return ListTile(
+            leading: Icon(icon),
+            title: Text(title),
+            subtitle: subtitle == null ? null : Text(subtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              // 1) 먼저 시트 닫기
+              Navigator.pop(sheetCtx);
+
+              // 2) 다음 프레임에서 안전하게 push
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                // 3) 반드시 parentContext 사용 (root navigator)
+                Navigator.of(parentContext).push(
+                  MaterialPageRoute(builder: (_) => screenFactory()),
+                );
+              });
+            },
+          );
+        }
+
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              pad,
+              pad,
+              pad,
+              pad + ResponsiveSizes.p(parentContext, 6),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                tile(
+                  icon: Icons.badge_rounded,
+                  title: '직업/학교',
+                  screenFactory: () => const UserjobScreen(),
+                ),
+                tile(
+                  icon: Icons.sports_esports_rounded,
+                  title: '취미',
+                  screenFactory: () => const HobbyScreen(),
+                ),
+                tile(
+                  icon: Icons.people_alt_rounded,
+                  title: '공동 생활 성향',
+                  screenFactory: () => const ColivingScreen(),
+                ),
+                tile(
+                  icon: Icons.schedule_rounded,
+                  title: '생활 패턴',
+                  screenFactory: () => const DailyRhythmScreen(),
+                ),
+                tile(
+                  icon: Icons.healing_rounded,
+                  title: '질병/알레르기',
+                  screenFactory: () => const DiseaseScreen(),
+                ),
+                tile(
+                  icon: Icons.short_text_rounded,
+                  title: '자기소개',
+                  screenFactory: () => const IntroductionScreen(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -547,10 +617,14 @@ class _MyPageEndDrawer extends StatelessWidget {
               leading: const Icon(Icons.edit_rounded),
               title: const Text('내 정보 수정'),
               onTap: () {
-                Navigator.pop(context);
-                // TODO
+                Navigator.pop(context); // 드로어 먼저 닫고
+                // 드로어 닫힌 다음 프레임에 바텀시트 열기
+                Future.delayed(const Duration(milliseconds: 180), () {
+                  _openEditPicker(context);
+                });
               },
             ),
+
             ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('설정'),
@@ -848,7 +922,7 @@ class _MiniPostTile extends StatelessWidget {
     final radius = ResponsiveSizes.p(context, 12);
 
     return Card(
-      elevation: 3, // ✅ Material 그림자(스크롤 잔상 방지에 유리)
+      elevation: 0, // ✅ Material 그림자(스크롤 잔상 방지에 유리)
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
       ),
