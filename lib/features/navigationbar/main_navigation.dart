@@ -1,15 +1,10 @@
 import 'dart:async';
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-
 import 'package:roommate/class/app_user.dart';
-import 'package:roommate/class/room_owner_post_repository.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
-// Screens
 import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/chat/chatlist_screen.dart';
 import 'package:roommate/features/navigationbar/screens/home_screen.dart';
