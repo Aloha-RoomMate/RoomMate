@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:roommate/features/chat/chat_screen.dart';
-import 'package:roommate/features/recommend/userlist_screen.dart';
 import 'package:roommate/class/chat_repository.dart'; // ✅ 배지 0 초기화를 위해 사용(선택)
 import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/constants/gaps.dart';
@@ -305,15 +304,6 @@ class ChatListScreen extends StatelessWidget {
             );
           },
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const UserListScreen()),
-          );
-        },
-        child: const Icon(Icons.chat),
       ),
     );
   }

@@ -437,7 +437,7 @@ class _MapScreenState extends State<MapScreen> {
       maxLat: bounds.maxLat,
       maxLng: bounds.maxLng,
       limit: 250,
-      myGender: _myGender,
+      myGender: null,
     );
 
     for (final p in posts) {
@@ -508,7 +508,7 @@ class _MapScreenState extends State<MapScreen> {
     if (_controller == null || _lockOverlayOps || _isAnimatingCamera) return;
 
     if (_ownerCache.isEmpty) {
-      final all = await _postRepo.fetchAllPosts(limit: 1000, myGender: _myGender);
+      final all = await _postRepo.fetchAllPosts(limit: 1000, myGender: null);
       for (final p in all) {
         final id = p.postId ?? '';
         if (id.isEmpty) continue;
@@ -630,7 +630,6 @@ class _MapScreenState extends State<MapScreen> {
 
     final h = MediaQuery.of(context).size.height;
     final maxSuggestHeight = (h * 0.35).clamp(160.0, 260.0);
-    final maxChipHeight = (h * 0.20).clamp(80.0, 140.0);
 
     return Scaffold(
       body: Stack(
