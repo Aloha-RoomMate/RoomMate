@@ -630,7 +630,6 @@ class _MapScreenState extends State<MapScreen> {
 
     final h = MediaQuery.of(context).size.height;
     final maxSuggestHeight = (h * 0.35).clamp(160.0, 260.0);
-    final maxChipHeight = (h * 0.20).clamp(80.0, 140.0);
 
     return Scaffold(
       body: Stack(
