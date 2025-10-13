@@ -35,9 +35,9 @@ class _MainNavigationState extends State<MainNavigation> {
   // 탭 타이틀 (상단 AppBar용) — 유저추천/마이페이지 탭은 상단 AppBar를 숨기므로 실사용은 안 되지만 안전하게 포함
   final List<String> _appBarTitles = [
     '홈', // 0
-    '유저추천', // 1 (상단 AppBar 숨김)
+    '추천 유저', // 1 (상단 AppBar 숨김)
     '글 쓰기', // 2 (상단 AppBar 숨김)
-    '맵', // 3
+    '지도', // 3
     '채팅', // 4
   ];
 
