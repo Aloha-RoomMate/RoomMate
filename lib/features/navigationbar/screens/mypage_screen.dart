@@ -92,6 +92,8 @@ class _MypageScreenState extends State<MypageScreen> {
   Future<void> _showBottomSheet() async {
     await showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true, // ✅ 루트 네비게이터에 붙여서 플랫폼뷰 충돌 감소
+      useSafeArea: true,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(ResponsiveSizes.p(context, 25)),
@@ -198,6 +200,7 @@ class _MypageScreenState extends State<MypageScreen> {
             email: me.email ?? '',
             onOpenProfileSheet: _showBottomSheet,
             onSignOut: _signOut,
+            parentContext: context, // ✅ 부모(Scaffold) 컨텍스트 전달
           ),
 
           body: Padding(
@@ -495,12 +498,14 @@ class _MyPageEndDrawer extends StatelessWidget {
   final String email;
   final VoidCallback onOpenProfileSheet;
   final VoidCallback onSignOut;
+  final BuildContext parentContext; // ✅ 상위(Scaffold) 컨텍스트
 
   const _MyPageEndDrawer({
     required this.displayName,
     required this.email,
     required this.onOpenProfileSheet,
     required this.onSignOut,
+    required this.parentContext, // ✅ 주입
   });
 
   void _openEditPicker(BuildContext parentContext) {
@@ -508,6 +513,8 @@ class _MyPageEndDrawer extends StatelessWidget {
 
     showModalBottomSheet<void>(
       context: parentContext,
+      useRootNavigator: true, // ✅ 루트 네비게이터
+      useSafeArea: true,
       showDragHandle: true,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -531,10 +538,9 @@ class _MyPageEndDrawer extends StatelessWidget {
               // 1) 먼저 시트 닫기
               Navigator.pop(sheetCtx);
 
-              // 2) 다음 프레임에서 안전하게 push
+              // 2) 다음 프레임에서 안전하게 push (루트 네비게이터)
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                // 3) 반드시 parentContext 사용 (root navigator)
-                Navigator.of(parentContext).push(
+                Navigator.of(parentContext, rootNavigator: true).push(
                   MaterialPageRoute(builder: (_) => screenFactory()),
                 );
               });
@@ -610,7 +616,10 @@ class _MyPageEndDrawer extends StatelessWidget {
               title: const Text('프로필 사진 변경'),
               onTap: () {
                 Navigator.pop(context);
-                onOpenProfileSheet();
+                // ✅ 다음 프레임에 부모컨텍스트로 시트 오픈
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  onOpenProfileSheet();
+                });
               },
             ),
             ListTile(
@@ -618,9 +627,9 @@ class _MyPageEndDrawer extends StatelessWidget {
               title: const Text('내 정보 수정'),
               onTap: () {
                 Navigator.pop(context); // 드로어 먼저 닫고
-                // 드로어 닫힌 다음 프레임에 바텀시트 열기
-                Future.delayed(const Duration(milliseconds: 180), () {
-                  _openEditPicker(context);
+                // ✅ 다음 프레임에 부모(Scaffold) 컨텍스트로 바텀시트 오픈
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _openEditPicker(parentContext);
                 });
               },
             ),
