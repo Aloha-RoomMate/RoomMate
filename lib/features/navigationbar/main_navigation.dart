@@ -138,23 +138,6 @@ class _MainNavigationState extends State<MainNavigation> {
     }
   }
 
-  void _onPostTap() {
-    if (_currentUser == null) {
-      _toast('로그인이 만료되었습니다.');
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-      return;
-    } else if (_currentUser!.userPass?.pass == false) {
-      _showNeedInfoDialog(
-        title: '프로필 정보가 부족합니다',
-        message:
-            '마이페이지에서 추가로 정보를 입력하세요.\n생활패턴/공동생활/건강정보/자기소개가 충분해야 게시글 작성이 가능합니다.',
-      );
-      return;
-    }
-  }
-
   /// 인덱스별 AppBar 구성
   PreferredSizeWidget? _buildAppBar() {
     // 유저추천(1)과 글쓰기(2)는 하위 위젯이 자체 AppBar를 가짐 → 상위 AppBar 숨김
@@ -241,7 +224,6 @@ class _MainNavigationState extends State<MainNavigation> {
               }
             }
             _onNavTab(i);
-            print(">> USERTYPE: ${_currentUser!.userType}");
           },
           currentIndex: _selectedIndex,
           type: BottomNavigationBarType.fixed,
