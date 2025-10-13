@@ -55,7 +55,7 @@ class _UserProfileViewState extends State<UserProfileView> {
   }
 
   bool _looksStudent(AppUser u) {
-    final jk = u.userType?.jobKinds.toLowerCase() ?? "";
+    final jk = (u.userType?.jobKinds ?? "").toLowerCase();
     return jk.contains("대학생") || jk.contains("학생") || jk.contains("student");
   }
 
@@ -430,6 +430,9 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
   bool _hasMore = true;
   DocumentSnapshot? _lastDocument;
 
+  // ✅ 권한 거부 상태 플래그(크래시 방지)
+  bool _permissionDenied = false;
+
   @override
   void initState() {
     super.initState();
@@ -445,45 +448,80 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
   }
 
   Future<void> _loadInitial() async {
-    setState(() => _isLoading = true);
-    final result = await widget.repo.fetchUserPostsPaged(
-      uid: widget.authorUid,
-      limit: 20,
-    );
-    if (!mounted) return;
     setState(() {
-      _posts
-        ..clear()
-        ..addAll(result.posts);
-      _lastDocument = result.lastDocument;
-      _hasMore = result.posts.length == 20;
-      _isLoading = false;
+      _isLoading = true;
+      _permissionDenied = false;
     });
+    try {
+      final result = await widget.repo.fetchUserPostsPaged(
+        uid: widget.authorUid,
+        limit: 20,
+      );
+      if (!mounted) return;
+      setState(() {
+        _posts
+          ..clear()
+          ..addAll(result.posts);
+        _lastDocument = result.lastDocument;
+        _hasMore = result.posts.length == 20;
+        _isLoading = false;
+      });
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      if (e.code == 'permission-denied') {
+        setState(() {
+          _permissionDenied = true;
+          _isLoading = false;
+          _hasMore = false;
+        });
+      } else {
+        debugPrint('loadInitial error: ${e.code} ${e.message}');
+        setState(() {
+          _isLoading = false;
+          _hasMore = false;
+        });
+      }
+    }
   }
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent - 200 &&
         !_isLoadingMore &&
-        _hasMore) {
+        _hasMore &&
+        !_permissionDenied) {
       _loadMore();
     }
   }
 
   Future<void> _loadMore() async {
     setState(() => _isLoadingMore = true);
-    final result = await widget.repo.fetchUserPostsPaged(
-      uid: widget.authorUid,
-      lastItem: _lastDocument,
-      limit: 20,
-    );
-    if (!mounted) return;
-    setState(() {
-      _posts.addAll(result.posts);
-      _lastDocument = result.lastDocument;
-      _hasMore = result.posts.length == 20;
-      _isLoadingMore = false;
-    });
+    try {
+      final result = await widget.repo.fetchUserPostsPaged(
+        uid: widget.authorUid,
+        lastItem: _lastDocument,
+        limit: 20,
+      );
+      if (!mounted) return;
+      setState(() {
+        _posts.addAll(result.posts);
+        _lastDocument = result.lastDocument;
+        _hasMore = result.posts.length == 20;
+        _isLoadingMore = false;
+      });
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      if (e.code == 'permission-denied') {
+        setState(() {
+          _permissionDenied = true;
+          _isLoadingMore = false;
+          _hasMore = false;
+        });
+      } else {
+        debugPrint('loadMore error: ${e.code} ${e.message}');
+        setState(() => _isLoadingMore = false);
+      }
+    }
   }
 
   Future<void> _refresh() async {
@@ -509,7 +547,7 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
           ),
         ),
         const Spacer(),
-        if (!_isLoading)
+        if (!_isLoading && !_permissionDenied)
           Text(
             "${_posts.length}${_hasMore ? '+' : ''}",
             style: Theme.of(context).textTheme.bodySmall,
@@ -520,6 +558,15 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
           tooltip: '새로고침',
         ),
       ],
+    );
+
+    Widget noAccess() => Container(
+      height: boxHeight,
+      alignment: Alignment.center,
+      child: const Text(
+        '성별 제한으로 이 사용자의 게시글 목록을 볼 수 없어요.',
+        style: TextStyle(color: Colors.black54),
+      ),
     );
 
     return Container(
@@ -541,6 +588,8 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
             height: boxHeight,
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
+                : _permissionDenied
+                ? noAccess()
                 : RefreshIndicator(
                     onRefresh: _refresh,
                     child: ListView.builder(
