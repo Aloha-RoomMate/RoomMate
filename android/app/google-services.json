@@ -14,11 +14,27 @@
       },
       "oauth_client": [
         {
+          "client_id": "909707662887-20r55ceq10oc92bradn9o6dp7dv44ouu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.roommate",
+            "certificate_hash": "ff5a057ddcad619cea958cc9a4c9486084194934"
+          }
+        },
+        {
           "client_id": "909707662887-l1r37n0qs9lsbeplgrfkaosajfvquslk.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.roommate",
             "certificate_hash": "db2e475aed4e4d372090a3733251d6d139023a66"
+          }
+        },
+        {
+          "client_id": "909707662887-p3lde2ue23rc96jqtvoj80k8epnpu3sl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.roommate",
+            "certificate_hash": "af77797475441feb3234d1ccc56e55d6eeb69b50"
           }
         },
         {
