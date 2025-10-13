@@ -437,7 +437,7 @@ class _MapScreenState extends State<MapScreen> {
       maxLat: bounds.maxLat,
       maxLng: bounds.maxLng,
       limit: 250,
-      myGender: _myGender,
+      myGender: null,
     );
 
     for (final p in posts) {
@@ -508,7 +508,7 @@ class _MapScreenState extends State<MapScreen> {
     if (_controller == null || _lockOverlayOps || _isAnimatingCamera) return;
 
     if (_ownerCache.isEmpty) {
-      final all = await _postRepo.fetchAllPosts(limit: 1000, myGender: _myGender);
+      final all = await _postRepo.fetchAllPosts(limit: 1000, myGender: null);
       for (final p in all) {
         final id = p.postId ?? '';
         if (id.isEmpty) continue;
