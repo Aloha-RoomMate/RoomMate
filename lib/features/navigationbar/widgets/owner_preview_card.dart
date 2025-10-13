@@ -23,7 +23,6 @@ class OwnerPreviewCard extends StatelessWidget {
     this.onChat,
   });
 
-  String _genderText(AppUser? u) => '성별 정보 없음';
   String _smokingText(AppUser? u) {
     final s = u?.coliving?.smoking;
     if (s == null) return '흡연 정보 없음';
@@ -219,9 +218,8 @@ class OwnerPreviewCard extends StatelessWidget {
                                 ),
                                 Gaps.v8(context),
                                 _InfoRow(
-                                  icon: Icons.person_outline,
-                                  text:
-                                      '${_genderText(author)} · ${_smokingText(author)}',
+                                  icon: Icons.smoking_rooms_rounded,
+                                  text: _smokingText(author),
                                 ),
                                 if (loadingAuthor) ...[
                                   Gaps.v12(context),
