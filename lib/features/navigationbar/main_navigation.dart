@@ -6,9 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/room_owner_post_repository.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
-
 // Screens
 import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/chat/chatlist_screen.dart';
@@ -36,9 +36,9 @@ class _MainNavigationState extends State<MainNavigation> {
   final List<String> _appBarTitles = [
     '홈', // 0
     '유저추천', // 1 (상단 AppBar 숨김)
-    '채팅', // 2
+    '글 쓰기', // 2 (상단 AppBar 숨김)
     '맵', // 3
-    '마이페이지', // 4 (상단 AppBar 숨김)
+    '채팅', // 4
   ];
 
   int _selectedIndex = 0;
@@ -82,20 +82,11 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
-  Future<void> _signOut(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    if (context.mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    }
-  }
-
   // ---------- helpers ----------
   void _goMyPage() {
-    setState(() {
-      _selectedIndex = 4; // 마이페이지 탭(인덱스 변경: 3 -> 4)
-    });
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => MypageScreen(isBlocked: true)),
+    );
   }
 
   Future<void> _showNeedInfoDialog({
@@ -128,29 +119,33 @@ class _MainNavigationState extends State<MainNavigation> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
-  // ---------- + 버튼 동작 ----------
-  void _onPostTap(AppUser? user) {
-    // 1) 로그인/로딩 체크
+  void _onMypageTap(AppUser? user) {
+    // 로그인 안되어 있으면
     if (user == null) {
-      _toast('사용자 정보를 불러오는 중입니다...');
+      _toast('로그인이 만료되었습니다.');
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
       return;
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const MypageScreen(
+            isBlocked: false,
+          ),
+        ),
+      );
     }
+  }
 
-    // 2) userType 미설정 → 안내
-    if (user.userType == null || user.userType?.type == null) {
-      _showNeedInfoDialog(
-        title: '먼저 사용자 유형을 설정해주세요',
-        message: '게시글을 등록하려면 마이페이지에서 사용자 유형을 선택해야 합니다.',
+  void _onPostTap() {
+    if (_currentUser == null) {
+      _toast('로그인이 만료되었습니다.');
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
       return;
-    }
-
-    // 3) userPass 미통과 → 안내
-    final bool isPassed = user.userPass?.pass == true;
-    if (!isPassed) {
+    } else if (_currentUser!.userPass?.pass == false) {
       _showNeedInfoDialog(
         title: '프로필 정보가 부족합니다',
         message:
@@ -158,23 +153,12 @@ class _MainNavigationState extends State<MainNavigation> {
       );
       return;
     }
-
-    // 4) 통과 → 유형별 화면 이동
-    if (user.userType!.type == 'roomOwner') {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const RoomOwnerPostScreen()),
-      );
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const SearcherPostScreen()),
-      );
-    }
   }
 
   /// 인덱스별 AppBar 구성
   PreferredSizeWidget? _buildAppBar() {
-    // 유저추천(1)과 마이페이지(4)는 하위 위젯이 자체 AppBar를 가짐 → 상위 AppBar 숨김
-    if (_selectedIndex == 1 || _selectedIndex == 4) return null;
+    // 유저추천(1)과 글쓰기(2)는 하위 위젯이 자체 AppBar를 가짐 → 상위 AppBar 숨김
+    if (_selectedIndex == 1 || _selectedIndex == 2) return null;
 
     final title = _appBarTitles[_selectedIndex];
 
@@ -183,8 +167,8 @@ class _MainNavigationState extends State<MainNavigation> {
     if (_selectedIndex == 0) {
       actions.add(
         IconButton(
-          onPressed: () => _onPostTap(_currentUser),
-          icon: const FaIcon(FontAwesomeIcons.plus),
+          onPressed: () => _onMypageTap(_currentUser),
+          icon: const FaIcon(FontAwesomeIcons.solidUser),
           tooltip: '게시글 작성',
         ),
       );
@@ -210,20 +194,20 @@ class _MainNavigationState extends State<MainNavigation> {
         label: '홈',
       ),
       BottomNavigationBarItem(
-        icon: _scaledIcon(FontAwesomeIcons.userGroup, 1),
+        icon: _scaledIcon(FontAwesomeIcons.star, 1),
         label: '유저추천',
       ),
       BottomNavigationBarItem(
-        icon: _scaledIcon(FontAwesomeIcons.message, 2),
-        label: '채팅',
+        icon: _scaledIcon(FontAwesomeIcons.solidSquarePlus, 2),
+        label: '글 쓰기',
       ),
       BottomNavigationBarItem(
         icon: _scaledIcon(FontAwesomeIcons.map, 3),
         label: '맵',
       ),
       BottomNavigationBarItem(
-        icon: _scaledIcon(FontAwesomeIcons.user, 4),
-        label: '마이페이지',
+        icon: _scaledIcon(FontAwesomeIcons.message, 4),
+        label: '채팅',
       ),
     ];
 
@@ -239,7 +223,25 @@ class _MainNavigationState extends State<MainNavigation> {
         child: BottomNavigationBar(
           onTap: (i) {
             HapticFeedback.selectionClick();
+            if (i == 2) {
+              if (_currentUser == null) {
+                _toast('로그인이 만료되었습니다.');
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+                return; // 여기서 return하여 _onNavTab(i)가 호출되지 않도록 함
+              }
+              if (_currentUser!.userPass?.pass == false) {
+                _showNeedInfoDialog(
+                  title: '프로필 정보가 부족합니다',
+                  message:
+                      '마이페이지에서 추가로 정보를 입력하세요.\n생활패턴/공동생활/건강정보/자기소개가 충분해야 게시글 작성이 가능합니다.',
+                );
+                return; // 여기서 return하여 _onNavTab(i)가 호출되지 않도록 함
+              }
+            }
             _onNavTab(i);
+            print(">> USERTYPE: ${_currentUser!.userType}");
           },
           currentIndex: _selectedIndex,
           type: BottomNavigationBarType.fixed,
@@ -259,12 +261,14 @@ class _MainNavigationState extends State<MainNavigation> {
     // body: 인덱스별로 화면 배치, 앱바 컨트롤
     final body = IndexedStack(
       index: _selectedIndex,
-      children: const [
+      children: [
         HomeScreen(), // 0
         UserListScreen(), // 1 ★ 유저추천 (자체 Scaffold+AppBar)
-        ChatListScreen(), // 2
+        _currentUser?.userType?.type == "roomOwner"
+            ? RoomOwnerPostScreen()
+            : SearcherPostScreen(),
         MapScreen(), // 3
-        MypageScreen(isBlocked: true), // 4 (자체 AppBar 사용)
+        ChatListScreen(), // 4 (자체 AppBar 사용)
       ],
     );
 
