@@ -65,6 +65,18 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
   static const String _bucket = 'RoomMate-image';
   final _supabase = Supabase.instance.client;
 
+  // ── 성별 정규화(동일 파일 내 헬퍼) ─────────────────────────────────────────
+  static const Set<String> _maleTokens = {'male', '남성', '남자', 'm', 'M'};
+  static const Set<String> _femaleTokens = {'female', '여성', '여자', 'f', 'F'};
+
+  String? _normalizeGender(String? g) {
+    if (g == null) return null;
+    final t = g.trim();
+    if (_maleTokens.contains(t)) return 'male';
+    if (_femaleTokens.contains(t)) return 'female';
+    return t; // 알 수 없는 표기는 원문 유지
+  }
+
   String _guessMimeType(String ext) {
     switch (ext.toLowerCase()) {
       case 'png':
@@ -457,7 +469,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
           }
         }
 
-        // 텍스트/숫자 등 기본 필드 업데이트
+        // 텍스트/숫자 등 기본 필드 업데이트(작성자/성별/타입은 불변)
         await docRef.update({
           ...common,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -504,10 +516,14 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       }
       final jitter = _randomizeCoord(center, 200.0);
 
+      // ✅ 작성 시 성별/타입/작성자 저장 (성별은 표준값으로 정규화)
+      final normalizedGender = _normalizeGender(_me?.gender);
+
       // 문서 선 생성 (imageUrls 비움)
       final docRef = await col.add({
         'authorId': _me?.uid ?? uid,
-        'postType': _me?.userType?.type ?? 'roomOwner',
+        'authorGender': normalizedGender ?? _me?.gender, // ← 핵심: 저장
+        'postType': 'roomOwner', // 화면 특성상 고정
         'title': _titleCtrl.text,
         'address': _addrCtrl.text,
         'addressLabel': _addrCtrl.text,
@@ -527,7 +543,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
             : Timestamp.fromDate(_selectedMovingDate!),
         'imageUrls': <String>[],
         'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': DateTime.now().toIso8601String(),
+        'updatedAt': FieldValue.serverTimestamp(), // ← 일관성 유지
       });
 
       final postId = docRef.id;

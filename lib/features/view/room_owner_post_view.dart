@@ -32,7 +32,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
   late Future<AppUser?> _authorFuture;
   bool _startingChat = false;
 
-  // Supabase (Private 버킷 → 서명 URL 필요) ✅ 버킷명 일치
+  // Supabase (Private 버킷 → 서명 URL 필요)
   static const String _bucket = 'RoomMate-image';
   static const int _urlTtl = 3600; // 1시간
   final _supabase = Supabase.instance.client;
@@ -70,13 +70,12 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
     return res.map((e) => e.signedUrl).toList();
   }
 
-  /// ✅ 변경된 스택형 정보 행: 제목 아래로 값이 감싸지며 내려감
-  // 제목 아래 값 스택형 + 값 정렬 옵션 추가
+  /// 제목 아래로 값이 감싸지며 내려가는 스택형 정보 행
   Widget _buildInfoRow(
     IconData icon,
     String title,
     String value, {
-    bool valueRight = false, // ← 값을 오른쪽 정렬할지 여부
+    bool valueRight = false,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Sizes.size8),
@@ -191,24 +190,21 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // 상단 이미지 슬라이더
+          // 상단 이미지 슬라이더 (제목 오버레이 제거, AppBar는 화이트)
           SliverAppBar(
-            expandedHeight: 280.0,
             pinned: true,
-            backgroundColor: Theme.of(context).primaryColor,
+            expandedHeight: 280.0,
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: Colors.black,
+            elevation: 0,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                widget.post.title ?? '제목 없음',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              // title 제거 → 사진 위 텍스트 오버레이 없음
               background: imagePaths.isEmpty
                   ? Image.asset(
                       'assets/house.jpg',
                       fit: BoxFit.cover,
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withOpacity(0.15),
                       colorBlendMode: BlendMode.darken,
                     )
                   : FutureBuilder<List<String>>(
@@ -224,7 +220,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                           return Image.asset(
                             'assets/house.jpg',
                             fit: BoxFit.cover,
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withOpacity(0.15),
                             colorBlendMode: BlendMode.darken,
                           );
                         }
@@ -247,6 +243,23 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                                 errorBuilder: (_, __, ___) => Image.asset(
                                   'assets/house.jpg',
                                   fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            // 상단만 살짝 그라데이션(상태바 대비)
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.center,
+                                      colors: [
+                                        Colors.black.withOpacity(0.15),
+                                        Colors.transparent,
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -280,6 +293,25 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                         );
                       },
                     ),
+            ),
+          ),
+
+          // 슬라이더 아래 헤더 섹션 (제목/위치/가격 요약)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                Sizes.size20,
+                Sizes.size16,
+                Sizes.size20,
+                Sizes.size8,
+              ),
+              child: _HeaderSection(
+                title: widget.post.title ?? '제목 없음',
+                addressLabel: widget.post.addressLabel ?? '위치 정보 부근',
+                depositText:
+                    "${numberFormat.format(widget.post.deposit ?? 0)}만원",
+                rentText: "${numberFormat.format(widget.post.rent ?? 0)}만원",
+              ),
             ),
           ),
 
@@ -519,6 +551,113 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ────────────────────────────── 헤더 섹션 위젯 ──────────────────────────────
+
+class _HeaderSection extends StatelessWidget {
+  const _HeaderSection({
+    required this.title,
+    required this.addressLabel,
+    required this.depositText,
+    required this.rentText,
+  });
+
+  final String title;
+  final String addressLabel;
+  final String depositText;
+  final String rentText;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 큰 제목
+        Text(
+          title,
+          style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 8),
+
+        // 위치 + 가격 필(우측)
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.location_on_outlined,
+              size: 18,
+              color: cs.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                addressLabel,
+                style: t.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            _InfoPill(label: '보증금', value: depositText),
+            const SizedBox(width: 6),
+            _InfoPill(label: '월세', value: rentText, highlight: true),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({
+    required this.label,
+    required this.value,
+    this.highlight = false,
+  });
+  final String label;
+  final String value;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final bg = highlight
+        ? cs.primary.withOpacity(0.10)
+        : cs.surfaceContainerHighest;
+    final fg = highlight ? cs.primary : cs.onSurface;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: fg,
+            ),
+          ),
+        ],
       ),
     );
   }
