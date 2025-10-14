@@ -460,7 +460,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
           final center = await _addrToCoordinate(newLabel);
           if (center != null) {
             final jitter = _randomizeCoord(center, 200.0);
-            common['addr'] = GeoPoint(
+            common['coordinate'] = GeoPoint(
               jitter['latitude']!,
               jitter['longitude']!,
             );
@@ -525,7 +525,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
         'title': _titleCtrl.text,
         'address': _addrCtrl.text,
         'addressLabel': _addrCtrl.text,
-        'addr': GeoPoint(jitter['latitude']!, jitter['longitude']!),
+        'coordinate': GeoPoint(jitter['latitude']!, jitter['longitude']!),
         'deposit': int.tryParse(_depositCtrl.text) ?? 0,
         'rent': int.tryParse(_rentCtrl.text) ?? 0,
         'manageFee': int.tryParse(_manageFeeCtrl.text) ?? 0,

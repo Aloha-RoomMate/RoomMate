@@ -267,7 +267,7 @@ class RoomOwnerPostRepository {
 
     // 2) 최종 사각형 필터
     var list = snap.docs.map(RoomOwnerPost.fromDoc).where((p) {
-      final gp = p.addr;
+      final gp = p.coordinate;
       if (gp == null) return false;
       final lat = gp.latitude, lng = gp.longitude;
       return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;

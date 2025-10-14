@@ -461,7 +461,7 @@ class _MapScreenState extends State<MapScreen> {
     for (final id in neededIds) {
       if (_ownerMarkers.containsKey(id)) continue;
       final p = _ownerCache[id]!;
-      final gp = p.addr;
+      final gp = p.coordinate;
       if (gp == null) continue;
 
       final marker = NMarker(
@@ -520,7 +520,7 @@ class _MapScreenState extends State<MapScreen> {
       final id = entry.key;
       if (_ownerMarkers.containsKey(id)) continue;
       final p = entry.value;
-      final gp = p.addr;
+      final gp = p.coordinate;
       if (gp == null) continue;
 
       final marker = NMarker(

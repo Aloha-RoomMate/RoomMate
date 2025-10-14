@@ -178,9 +178,9 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
   Widget build(BuildContext context) {
     final numberFormat = NumberFormat.decimalPattern();
 
-    final hasAddr = widget.post.addr != null;
-    final double? lat = widget.post.addr?.latitude;
-    final double? lng = widget.post.addr?.longitude;
+    final hasAddr = widget.post.coordinate != null;
+    final double? lat = widget.post.coordinate?.latitude;
+    final double? lng = widget.post.coordinate?.longitude;
 
     // Firestore의 imageUrls(= Storage 경로 배열)
     final List<String> imagePaths = (widget.post.imageUrls ?? [])
