@@ -422,6 +422,31 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  void _showMarkerInfo() {
+    final messenger = ScaffoldMessenger.of(context);
+    // 기존 스낵바가 있으면 숨기기
+    messenger.hideCurrentSnackBar();
+
+    // 시트가 올라와 있으면 그 높이만큼 띄워서 스낵바가 위에 보이게
+    final h = MediaQuery.of(context).size.height;
+    double sheetSize = 0.0;
+    try {
+      sheetSize = (_results.isNotEmpty) ? _sheetCtrl.size : 0.0;
+    } catch (_) {
+      sheetSize = 0.0;
+    }
+    final bottomMargin = 16.0 + (sheetSize * h);
+
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.fromLTRB(16, 0, 16, bottomMargin),
+        duration: const Duration(seconds: 3),
+        content: const Text('마커는 실제 집에서 반경 200m 내에 랜덤으로 찍힌 부분입니다.'),
+      ),
+    );
+  }
+
   Future<void> _refreshOwnerMarkersForViewport() async {
     if (_controller == null || _lockOverlayOps || _isAnimatingCamera) return;
 
@@ -1110,6 +1135,20 @@ class _MapScreenState extends State<MapScreen> {
               onChat: _startChatWithOwner,
             ),
         ],
+      ),
+
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        // 지형/기기별 약간 여백
+        padding: EdgeInsets.only(
+          right: ResponsiveSizes.p(context, 6),
+          bottom: ResponsiveSizes.p(context, 6),
+        ),
+        child: FloatingActionButton(
+          onPressed: _showMarkerInfo,
+          tooltip: '마커 안내',
+          child: const Icon(Icons.zoom_in), // 돋보기 + 아이콘
+        ),
       ),
     );
   }
