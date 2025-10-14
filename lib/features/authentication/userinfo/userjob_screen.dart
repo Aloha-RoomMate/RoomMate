@@ -197,19 +197,27 @@ class _UserjobScreenState extends State<UserjobScreen> {
                   ),
                   Gaps.v80(context),
                   Text(
-                    '성별을 선택해주세요!',
+                    '성별을 선택해주세요 !',
                     style: TextStyle(
                       fontSize: ResponsiveSizes.f(context, 28),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  Gaps.v16(context),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: ResponsiveSizes.p(context, 12),
+                  Gaps.v6(context),
+                  Text(
+                    "동성의 룸메이트만 찾으실수 있습니다.",
+                    style: TextStyle(
+                      fontSize: ResponsiveSizes.f(context, 14),
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w300,
                     ),
+                  ),
+                  Gaps.v16(context),
+                  const Divider(height: 1, color: Colors.black12),
+                  Gaps.v16(context),
+                  Center(
                     child: Wrap(
-                      spacing: ResponsiveSizes.p(context, 10),
+                      spacing: ResponsiveSizes.p(context, 40),
                       runSpacing: ResponsiveSizes.p(context, 10),
                       children: genderOptions.map((gender) {
                         return CategoryButton(
@@ -222,7 +230,7 @@ class _UserjobScreenState extends State<UserjobScreen> {
                   ),
                   Gaps.v80(context),
                   Text(
-                    '현재 RoomMate를 \n이용하는 이유는 무엇인가요 ?',
+                    'RoomMate를 이용하려는\n이유는 무엇인가요 ?',
                     style: TextStyle(
                       fontSize: ResponsiveSizes.f(context, 28),
                       fontWeight: FontWeight.w700,

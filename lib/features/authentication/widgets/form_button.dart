@@ -12,13 +12,14 @@ class FormButton extends StatelessWidget {
     return FractionallySizedBox(
       widthFactor: 1,
       child: AnimatedContainer(
-        padding: EdgeInsets.symmetric(vertical: ResponsiveSizes.p(context, 16)),
+        padding: EdgeInsets.all(ResponsiveSizes.p(context, 16)),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 6)),
+          borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 20)),
           color: enabled
               ? Theme.of(context).primaryColor
               : Colors.grey.shade300,
         ),
+
         duration: Duration(milliseconds: 300),
         child: AnimatedDefaultTextStyle(
           duration: Duration(milliseconds: 300),

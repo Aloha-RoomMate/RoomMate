@@ -122,7 +122,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   '환영합니다. $name님',
                   style: TextStyle(
                     color: Theme.of(context).primaryColor,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     fontSize: ResponsiveSizes.f(context, 32),
                   ),
                 ),

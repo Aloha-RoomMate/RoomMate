@@ -161,7 +161,6 @@ class HobbyScreenState extends State<HobbyScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text(""),
             backgroundColor: Colors.white,
             scrolledUnderElevation: 0,
           ),
