@@ -220,7 +220,9 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
-          elevation: 1,
+          automaticallyImplyLeading: false, // ← 기본 뒤로가기 아이콘 숨김
+          elevation: 0,
+          scrolledUnderElevation: 0,
           title: Text(
             '게시글 작성',
             style: TextStyle(fontSize: ResponsiveSizes.f(context, 20)),

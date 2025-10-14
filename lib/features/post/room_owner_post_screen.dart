@@ -634,6 +634,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false, // ← 기본 뒤로가기 아이콘 숨김
           elevation: 10,
           title: Text(
             _isEdit ? '게시글 수정' : '게시글 작성',
