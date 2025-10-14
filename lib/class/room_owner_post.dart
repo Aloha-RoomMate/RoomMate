@@ -127,7 +127,7 @@ class RoomOwnerPost {
   }
 
   /// addressLabel을 기반으로 "XX동 부근"
-  String get shortAddress {
+  String get getAddressLabel {
     final fullAddress = addressLabel;
     if (fullAddress == null || fullAddress.isEmpty) {
       return '주소 정보 없음';
