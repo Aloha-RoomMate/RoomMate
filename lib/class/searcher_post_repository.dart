@@ -1,3 +1,5 @@
+// ⬇️ 기존 파일 전체 (fetchUserPostsPaged만 추가)
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:roommate/class/searcher_post.dart';
 
@@ -89,6 +91,59 @@ class SearcherPostRepository {
         .orderBy('createdAt', descending: true)
         .get();
     return snap.docs.map(SearcherPost.fromDoc).toList();
+  }
+
+  /// ✅ (추가) 5-1. 특정 사용자 글 — 페이지네이션
+  /// 마이페이지 3x3 그리드용
+  Future<PaginatedSearcherPostsResult> fetchUserPostsPaged({
+    required String uid,
+    DocumentSnapshot? lastItem,
+    int limit = 20,
+  }) async {
+    try {
+      var q = _col
+          .where('authorId', isEqualTo: uid)
+          .orderBy('createdAt', descending: true)
+          .limit(limit);
+      if (lastItem != null) q = q.startAfterDocument(lastItem);
+
+      final snap = await q.get();
+      final list = snap.docs.map(SearcherPost.fromDoc).toList();
+      return PaginatedSearcherPostsResult(
+        posts: list,
+        lastDocument: snap.docs.isNotEmpty ? snap.docs.last : null,
+      );
+    } on FirebaseException catch (e) {
+      final msg = e.message ?? '';
+      final building =
+          e.code == 'failed-precondition' &&
+          (msg.contains('index') || msg.contains('currently building'));
+      if (!building) rethrow;
+
+      // 🩹 인덱스 빌드 중 폴백: 클라에서 createdAt desc 정렬
+      var q = _col.where('authorId', isEqualTo: uid).limit(limit);
+      if (lastItem != null) q = q.startAfterDocument(lastItem);
+
+      final snap = await q.get();
+      final docs = snap.docs.toList()
+        ..sort((a, b) {
+          final at = a.data()['createdAt'];
+          final bt = b.data()['createdAt'];
+          final ad = (at is Timestamp)
+              ? at.toDate()
+              : DateTime.fromMillisecondsSinceEpoch(0);
+          final bd = (bt is Timestamp)
+              ? bt.toDate()
+              : DateTime.fromMillisecondsSinceEpoch(0);
+          return bd.compareTo(ad); // desc
+        });
+
+      final list = docs.map(SearcherPost.fromDoc).toList();
+      return PaginatedSearcherPostsResult(
+        posts: list,
+        lastDocument: snap.docs.isNotEmpty ? snap.docs.last : null,
+      );
+    }
   }
 
   /// 6. 삭제 (Delete)
