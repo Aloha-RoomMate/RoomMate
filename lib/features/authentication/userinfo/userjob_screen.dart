@@ -234,7 +234,11 @@ class _UserjobScreenState extends State<UserjobScreen>
         final data = snapshot.data!;
 
         return Scaffold(
-          appBar: AppBar(title: const Text('')),
+          appBar: AppBar(
+            title: const Text(''),
+            elevation: 0,
+            scrolledUnderElevation: 0,
+          ),
           body: SafeArea(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
