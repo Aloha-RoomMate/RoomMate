@@ -267,7 +267,7 @@ class _UserListScreenState extends State<UserListScreen> {
                   child: Row(
                     children: [
                       const Text(
-                        '추천된 유저',
+                        '나와 잘 맞을듯한 룸메이트',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 16,
@@ -406,7 +406,7 @@ class _SuggestedUserTile extends StatelessWidget {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(Sizes.size20),
                   ),
                 ),
                 onPressed: onChat,

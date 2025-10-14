@@ -410,12 +410,15 @@ class _UserjobScreenState extends State<UserjobScreen>
                         onTap: isNextEnabled ? _onNextTapWithFade : null,
                         child: FadeTransition(
                           opacity: _btnFade,
-                          child: FormButton(
-                            enabled: isNextEnabled,
-                            widget: Text(
-                              widget.returnAfterSave ? "저장" : "다음",
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.white),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: FormButton(
+                              enabled: isNextEnabled,
+                              widget: Text(
+                                widget.returnAfterSave ? "저장" : "다음",
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.white),
+                              ),
                             ),
                           ),
                         ),
