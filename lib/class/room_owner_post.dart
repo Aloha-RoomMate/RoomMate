@@ -13,7 +13,7 @@ class RoomOwnerPost {
   final String? title;
 
   /// 지도용 좌표
-  final GeoPoint? addr;
+  final GeoPoint? coordinate;
 
   /// 표시용 주소 라벨(예: "강북구 송중동 부근")
   final String? addressLabel;
@@ -44,7 +44,7 @@ class RoomOwnerPost {
     required this.authorId,
     this.postType,
     this.title,
-    this.addr,
+    this.coordinate,
     this.authorGender,
     this.addressLabel,
     this.deposit,
@@ -68,7 +68,7 @@ class RoomOwnerPost {
       'postType': postType,
       'title': title,
       'authorGender': authorGender,
-      'addr': addr, // GeoPoint
+      'coordinate': coordinate, // GeoPoint
       'addressLabel': addressLabel, // 사람이 읽는 주소(뷰에서 사용)
       'deposit': deposit,
       'rent': rent,
@@ -100,7 +100,7 @@ class RoomOwnerPost {
       postType: map['postType'] as String?,
       title: map['title'] as String? ?? '제목 없음',
       authorGender: map['authorGender'] as String?,
-      addr: map['addr'] as GeoPoint?,
+      coordinate: map['coordinate'] as GeoPoint?,
       addressLabel: map['addressLabel'] as String?,
       deposit: (map['deposit'] as num?)?.toInt(),
       rent: (map['rent'] as num?)?.toInt(),
@@ -124,5 +124,48 @@ class RoomOwnerPost {
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
     return RoomOwnerPost.fromMap(doc.id, doc.data() ?? <String, dynamic>{});
+  }
+
+  /// addressLabel을 기반으로 "XX동 부근"
+  String get getAddressLabel {
+    final fullAddress = addressLabel;
+    if (fullAddress == null || fullAddress.isEmpty) {
+      return '주소 정보 없음';
+    }
+
+    // 1. 괄호 안의 동/읍/면 이름 추출
+    final RegExp regExp = RegExp(r'\(([^)]+)\)');
+    final match = regExp.firstMatch(fullAddress);
+    if (match != null) {
+      final dongName = match.group(1);
+      if (dongName != null &&
+          (dongName.endsWith('동') ||
+              dongName.endsWith('읍') ||
+              dongName.endsWith('면') ||
+              dongName.endsWith('가'))) {
+        return '$dongName 부근';
+      }
+    }
+
+    // 2. 괄호가 없는 경우, 공백으로 분리하여 동/읍/면 찾기
+    List<String> parts = fullAddress.split(' ');
+    for (String part in parts) {
+      if (part.endsWith('동') ||
+          part.endsWith('읍') ||
+          part.endsWith('면') ||
+          part.endsWith('가')) {
+        // '시'나 '구'로 끝나는 경우는 제외 (e.g. '강남구')
+        if (!part.endsWith('시') && !part.endsWith('구')) {
+          return '$part 부근';
+        }
+      }
+    }
+
+    // 3. 못 찾았을 경우, 두 번째 조각(보통 '시' 또는 '구') 사용
+    if (parts.length > 1) {
+      return '${parts[1]} 부근';
+    }
+
+    return '위치 정보 없음';
   }
 }

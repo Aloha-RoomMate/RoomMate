@@ -500,7 +500,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
           final center = await _addrToCoordinate(newAddress);
           if (center != null) {
             final jitter = _randomizeCoord(center, 200.0);
-            common['addr'] = GeoPoint(
+            common['coordinate'] = GeoPoint(
               jitter['latitude']!,
               jitter['longitude']!,
             );
@@ -572,7 +572,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
         'title': _titleCtrl.text,
         'address': _addrCtrl.text, // 내부 전체 주소 저장 (공개용 아님)
         'addressLabel': publicLabel, // 공개용 라벨(…부근) ← 리스트/상세에서 이걸 사용
-        'addr': GeoPoint(jitter['latitude']!, jitter['longitude']!),
+        'coordinate': GeoPoint(jitter['latitude']!, jitter['longitude']!),
         'deposit': int.tryParse(_depositCtrl.text) ?? 0,
         'rent': int.tryParse(_rentCtrl.text) ?? 0,
         'manageFee': int.tryParse(_manageFeeCtrl.text) ?? 0,

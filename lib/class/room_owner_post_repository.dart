@@ -250,33 +250,55 @@ class RoomOwnerPostRepository {
     String? myGender,
   }) async {
     myGender ??= await _fetchViewerGender();
-
-    // 1) 대략 범위(사전식)로 1차 컷
-    var query = _col
-        .where('postType', isEqualTo: 'roomOwner')
-        .where('addr', isGreaterThanOrEqualTo: GeoPoint(minLat, minLng))
-        .where('addr', isLessThanOrEqualTo: GeoPoint(maxLat, maxLng))
-        .limit(limit);
-
     final tokens = _synonyms(myGender);
-    if (tokens.isNotEmpty) {
-      query = query.where('authorGender', whereIn: tokens);
+
+    try {
+      var query = _col
+          .where('postType', isEqualTo: 'roomOwner')
+          .where('coordinate', isGreaterThanOrEqualTo: GeoPoint(minLat, minLng))
+          .where('coordinate', isLessThanOrEqualTo: GeoPoint(maxLat, maxLng))
+          .limit(limit);
+
+      if (tokens.isNotEmpty) {
+        query = query.where('authorGender', whereIn: tokens);
+      }
+
+      final snap = await query.get();
+
+      // 최종 사각형 필터(사전식 한계 보정)
+      var list = snap.docs.map(RoomOwnerPost.fromDoc).where((p) {
+        final gp = p.coordinate;
+        if (gp == null) return false;
+        final lat = gp.latitude, lng = gp.longitude;
+        return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+      }).toList();
+
+      if (list.length > limit) list = list.take(limit).toList();
+      return list;
+    } on FirebaseException catch (e) {
+      // 👉 인덱스 없을 때 임시 폴백
+      final needsIndex = e.code == 'failed-precondition';
+      if (!needsIndex) rethrow;
+
+      var q = _col.where('postType', isEqualTo: 'roomOwner').limit(800);
+      if (tokens.isNotEmpty) q = q.where('authorGender', whereIn: tokens);
+
+      final snap = await q.get();
+      final list = snap.docs
+          .map(RoomOwnerPost.fromDoc)
+          .where((p) {
+            final gp = p.coordinate;
+            if (gp == null) return false;
+            final lat = gp.latitude, lng = gp.longitude;
+            return lat >= minLat &&
+                lat <= maxLat &&
+                lng >= minLng &&
+                lng <= maxLng;
+          })
+          .take(limit)
+          .toList();
+
+      return list;
     }
-
-    final snap = await query.get();
-
-    // 2) 최종 사각형 필터
-    var list = snap.docs.map(RoomOwnerPost.fromDoc).where((p) {
-      final gp = p.addr;
-      if (gp == null) return false;
-      final lat = gp.latitude, lng = gp.longitude;
-      return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
-    }).toList();
-
-    // 필요시 최종 개수 제한(1차 limit에서 더 줄어들 수 있음)
-    if (list.length > limit) {
-      list = list.take(limit).toList();
-    }
-    return list;
   }
 }
