@@ -1,3 +1,4 @@
+// features/category/disease_screen.dart
 import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
@@ -8,14 +9,15 @@ import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
 
 class DiseaseScreen extends StatefulWidget {
-  const DiseaseScreen({super.key});
+  const DiseaseScreen({super.key, this.returnAfterSave = false});
+  final bool returnAfterSave;
 
   @override
   State<DiseaseScreen> createState() => _DiseaseScreenState();
 }
 
 class _DiseaseScreenState extends State<DiseaseScreen> {
-  TextEditingController _textEditingController = TextEditingController();
+  final TextEditingController _textEditingController = TextEditingController();
   bool _isHealthy = false;
   String _diseases = "";
   bool _isSending = false;
@@ -28,6 +30,17 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
         _diseases = _textEditingController.text;
       });
     });
+    _prefill();
+  }
+
+  Future<void> _prefill() async {
+    final me = await UserRepository().fetchMe();
+    final d = me?.disease;
+    if (d != null) {
+      _isHealthy = d.isHealthy ?? false;
+      _textEditingController.text = d.diseases ?? '';
+      if (mounted) setState(() {});
+    }
   }
 
   void _onScaffoldTap() {
@@ -55,32 +68,33 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
 
         await UserRepository().setDisease(disease);
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('저장 성공'),
-            ),
-          );
-          setState(() {
-            _isSending = false;
-          });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장 성공')),
+        );
+
+        setState(() {
+          _isSending = false;
+        });
+
+        if (widget.returnAfterSave) {
+          Navigator.of(context).pop(true); // ✅ 수정 모드
+        } else {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => IntroductionScreen(),
-            ),
+            MaterialPageRoute(builder: (context) => const IntroductionScreen()),
           );
         }
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('데이터 저장 중 에러 발생'),
-          ),
+          const SnackBar(content: Text('데이터 저장 중 에러 발생')),
         );
       } finally {
-        setState(() {
-          _isSending = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isSending = false;
+          });
+        }
       }
     }
   }
@@ -99,9 +113,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
         appBar: AppBar(
           title: Text(
             '질병 여부를 알려주세요!',
-            style: TextStyle(
-              fontSize: ResponsiveSizes.f(context, 24),
-            ),
+            style: TextStyle(fontSize: ResponsiveSizes.f(context, 24)),
           ),
           centerTitle: true,
         ),
@@ -144,13 +156,13 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
                   child: FormButton(
                     enabled: _isHealthy == true || _diseases.isNotEmpty,
                     widget: _isSending
-                        ? Center(
+                        ? const Center(
                             child: CircularProgressIndicator(
                               color: Colors.white,
                             ),
                           )
                         : Text(
-                            '다음',
+                            widget.returnAfterSave ? '저장' : '다음',
                             textAlign: TextAlign.center,
                           ),
                   ),

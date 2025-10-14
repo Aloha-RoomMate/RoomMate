@@ -9,7 +9,8 @@ import 'package:roommate/features/navigationbar/main_navigation.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
 
 class HobbyScreen extends StatefulWidget {
-  const HobbyScreen({super.key});
+  const HobbyScreen({super.key, this.returnAfterSave = false});
+  final bool returnAfterSave; // ✅ 수정모드 true면 저장 후 pop(true)
 
   @override
   State<HobbyScreen> createState() => HobbyScreenState();
@@ -29,11 +30,28 @@ class HobbyScreenState extends State<HobbyScreen> {
   void initState() {
     super.initState();
     _userFuture = _getUser();
+    _prefill(); // ✅ 기존 취미 프리필
   }
 
   Future<User?> _getUser() async => FirebaseAuth.instance.currentUser;
 
-  final foodSection = HobbyWidget(
+  Future<void> _prefill() async {
+    try {
+      final me = await _userRepository.fetchMe();
+      final h = me?.hobby;
+      if (h != null) {
+        setState(() {
+          foodList = List<String>.from(h.foodLike);
+          sportsList = List<String>.from(h.sportLike);
+          interestList = List<String>.from(h.interestLike);
+        });
+      }
+    } catch (_) {
+      // silent
+    }
+  }
+
+  final foodSection = const HobbyWidget(
     icon: Icons.food_bank_rounded,
     title: '최애 음식',
     items: [
@@ -61,7 +79,7 @@ class HobbyScreenState extends State<HobbyScreen> {
     previewCount: 9,
   );
 
-  final sportSection = HobbyWidget(
+  final sportSection = const HobbyWidget(
     icon: Icons.sports_gymnastics_rounded,
     title: '운동과 엑티비티',
     items: [
@@ -88,7 +106,7 @@ class HobbyScreenState extends State<HobbyScreen> {
     previewCount: 10,
   );
 
-  final interestSection = HobbyWidget(
+  final interestSection = const HobbyWidget(
     icon: Icons.lightbulb_rounded,
     title: '요즘 관심사',
     items: [
@@ -124,19 +142,26 @@ class HobbyScreenState extends State<HobbyScreen> {
 
       final hobby = Hobby(
         foodLike: foodList.toList(),
-        interestLike: interestList.toList(), // ✅ key 일치
+        interestLike: interestList.toList(),
         sportLike: sportsList.toList(),
       );
 
       await _userRepository.setHobby(hobby);
 
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => const MainNavigation()),
+
+      if (widget.returnAfterSave) {
+        Navigator.of(context).pop(true); // ✅ 수정모드: 마이페이지로 복귀
+      } else {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (context) => const MainNavigation()),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('데이터 저장 중 에러 발생')),
       );
-    } catch (e, st) {
-      print("error: $e");
-      print("stack: $st");
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
@@ -161,6 +186,7 @@ class HobbyScreenState extends State<HobbyScreen> {
 
         return Scaffold(
           appBar: AppBar(
+            title: const Text(""),
             backgroundColor: Colors.white,
             scrolledUnderElevation: 0,
           ),
@@ -203,18 +229,21 @@ class HobbyScreenState extends State<HobbyScreen> {
                       children: [
                         HobbyWidgetStateful(
                           section: sportSection,
+                          initialSelected: sportsList, // ✅ 프리필
                           onSelectionChanged: (selected) {
                             setState(() => sportsList = selected);
                           },
                         ),
                         HobbyWidgetStateful(
                           section: foodSection,
+                          initialSelected: foodList, // ✅ 프리필
                           onSelectionChanged: (selected) {
                             setState(() => foodList = selected);
                           },
                         ),
                         HobbyWidgetStateful(
                           section: interestSection,
+                          initialSelected: interestList, // ✅ 프리필
                           onSelectionChanged: (selected) {
                             setState(() => interestList = selected);
                           },
@@ -225,15 +254,16 @@ class HobbyScreenState extends State<HobbyScreen> {
                               ? _onNextTap
                               : null,
                           child: FormButton(
-                            enabled: _isNextEnable(),
+                            // ✅ FormButton 시그니처에 맞춤 (enabled/widget)
+                            enabled: _isNextEnable() && !_isSending,
                             widget: _isSending
-                                ? Center(
+                                ? const Center(
                                     child: CircularProgressIndicator(
                                       color: Colors.white,
                                     ),
                                   )
                                 : Text(
-                                    '다음',
+                                    widget.returnAfterSave ? "저장" : "다음",
                                     textAlign: TextAlign.center,
                                   ),
                           ),

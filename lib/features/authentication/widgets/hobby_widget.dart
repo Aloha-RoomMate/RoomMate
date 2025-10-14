@@ -22,10 +22,14 @@ class HobbyWidgetStateful extends StatefulWidget {
   final HobbyWidget section;
   final Function(List<String>)? onSelectionChanged;
 
+  /// ✅ 추가: 프리필(초기 선택 값)
+  final List<String>? initialSelected;
+
   const HobbyWidgetStateful({
     super.key,
     required this.section,
     this.onSelectionChanged,
+    this.initialSelected,
   });
 
   @override
@@ -37,6 +41,26 @@ class _HobbyWidgetState extends State<HobbyWidgetStateful> {
 
   // 현재 섹션에서 선택된 항목들 (중복 방지)
   final List<String> _selectedItems = <String>[];
+
+  @override
+  void initState() {
+    super.initState();
+
+    // ✅ 프리필: 목록에 존재하는 값만 적용
+    if (widget.initialSelected != null) {
+      _selectedItems
+        ..clear()
+        ..addAll(
+          widget.initialSelected!.where(
+            (e) => widget.section.items.contains(e),
+          ),
+        );
+      // 부모로도 초기 선택 상태 전달
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.onSelectionChanged?.call(List<String>.from(_selectedItems));
+      });
+    }
+  }
 
   void _onPressed(String item) {
     setState(() {
@@ -112,7 +136,7 @@ class _HobbyWidgetState extends State<HobbyWidgetStateful> {
             ],
           ),
 
-        // 더보기/접기 토글
+        // 더보기/접기 토글 (네 로직 그대로)
         Row(
           children: [
             const Expanded(
@@ -131,9 +155,9 @@ class _HobbyWidgetState extends State<HobbyWidgetStateful> {
                 color: Colors.black,
                 size: Sizes.size20,
               ),
-              label: Text(
-                _expanded ? "접기" : "더보기",
-                style: const TextStyle(color: Colors.black),
+              label: const Text(
+                "더보기",
+                style: TextStyle(color: Colors.black),
               ),
             ),
             const Expanded(

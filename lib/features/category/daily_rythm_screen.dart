@@ -1,3 +1,4 @@
+// features/category/daily_rythm_screen.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
@@ -9,10 +10,9 @@ import 'package:roommate/features/category/widgets/time_field.dart';
 import 'package:roommate/features/category/coliving_screen.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
 
-/// 요일
 class DayOption {
-  final String label; // '월~일' or '없음'
-  const DayOption(this.label); // 생성자
+  final String label;
+  const DayOption(this.label);
 }
 
 const keyDays = [
@@ -26,36 +26,62 @@ const keyDays = [
   DayOption('없음'),
 ];
 
-/// 알람 횟수 (한국어 그대로)
-class AlarmOption {
-  final String label; // 1회, 2회, 3회 이상
-  const AlarmOption(this.label);
-}
-
-/// 시간 필드 식별자
-enum TimeKey {
-  weekAwake,
-  weekSleep,
-}
+enum TimeKey { weekAwake, weekSleep }
 
 class DailyRhythmScreen extends StatefulWidget {
-  const DailyRhythmScreen({super.key});
+  const DailyRhythmScreen({super.key, this.returnAfterSave = false});
+  final bool returnAfterSave;
 
   @override
   State<DailyRhythmScreen> createState() => _DailyRhythmScreenState();
 }
 
 class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
-  final Set<String> _selectedDays = {}; // 월~일 , 없음
+  final Set<String> _selectedDays = {};
   final UserRepository _userRepository = UserRepository();
   bool get _isJobLess => _selectedDays.contains('없음');
   bool _isSending = false;
 
-  // 시간 필드
   final TextEditingController _weekAwakeCtrl = TextEditingController();
   final TextEditingController _weekSleepCtrl = TextEditingController();
 
-  /// 선택 여부를 리스트에 담는 함수.
+  @override
+  void initState() {
+    super.initState();
+    _prefill();
+  }
+
+  Future<void> _prefill() async {
+    final me = await _userRepository.fetchMe();
+    final dr = me?.dailyRhythm;
+    if (dr != null) {
+      _selectedDays
+        ..clear()
+        ..addAll(dr.workDays);
+      if (dr.isJobLess) {
+        _selectedDays
+          ..clear()
+          ..add('없음');
+        _weekAwakeCtrl.clear();
+        _weekSleepCtrl.clear();
+      } else {
+        if (dr.weekAwakeMins != null) {
+          _weekAwakeCtrl.text = _formatToHMMinutes(dr.weekAwakeMins!);
+        }
+        if (dr.weekSleepMins != null) {
+          _weekSleepCtrl.text = _formatToHMMinutes(dr.weekSleepMins!);
+        }
+      }
+      if (mounted) setState(() {});
+    }
+  }
+
+  String _formatToHMMinutes(int mins) {
+    final h = (mins ~/ 60) % 24;
+    final m = mins % 60;
+    return '${h.toString().padLeft(2, '0')} : ${m.toString().padLeft(2, '0')}';
+  }
+
   void _onDayChipTap(String day) {
     if (day == '없음') {
       if (_selectedDays.contains('없음')) {
@@ -64,10 +90,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
         _selectedDays
           ..clear()
           ..add('없음');
-        for (final controller in [
-          _weekAwakeCtrl,
-          _weekSleepCtrl,
-        ]) {
+        for (final controller in [_weekAwakeCtrl, _weekSleepCtrl]) {
           controller.clear();
         }
       }
@@ -77,14 +100,11 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
       } else {
         _selectedDays.add(day);
       }
-      _selectedDays.remove('없음'); // 요일 선택 시 없음 해제
+      _selectedDays.remove('없음');
     }
     setState(() {});
-    // 얘가 호출되면서 위젯을 모두 다시 그림.
-    // 따라서 바뀐 bool 값으로 카테고리 버튼 색깔이 바뀜
   }
 
-  /// 시간 int로 바꿔주면 나중에 편함.
   int? toMinutes(String textTime) {
     if (textTime.isEmpty) return null;
     final p = textTime.replaceAll(' ', '').split(':');
@@ -107,34 +127,29 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
           weekSleepMins: _isJobLess ? null : toMinutes(_weekSleepCtrl.text),
         );
 
-        // 실제 데이터 넘기는 부분
         await _userRepository.setDailyRhythm(rhythm);
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('저장 성공'),
-            ),
-          );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장 성공')),
+        );
 
-          setState(() {
-            _isSending = false;
-          });
+        setState(() {
+          _isSending = false;
+        });
 
+        if (widget.returnAfterSave) {
+          Navigator.of(context).pop(true); // ✅ 수정 모드
+        } else {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => ColivingScreen(),
-            ),
+            MaterialPageRoute(builder: (context) => const ColivingScreen()),
           );
         }
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('데이터 저장 중 에러 발생'),
-          ),
+          const SnackBar(content: Text('데이터 저장 중 에러 발생')),
         );
-        // context 쓸거면 mounted 확인
       } finally {
         if (mounted) {
           setState(() {
@@ -153,7 +168,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
     return '${date.hour.toString().padLeft(2, '0')} : ${date.minute.toString().padLeft(2, '0')}';
   }
 
-  void _onTimeFieldTap(
+  Future<void> _onTimeFieldTap(
     TextEditingController controller,
     TimeKey key,
   ) async {
@@ -163,11 +178,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
         return CupertinoDatePicker(
           mode: CupertinoDatePickerMode.time,
           onDateTimeChanged: (date) {
-            final weekKeys = {
-              TimeKey.weekAwake,
-              TimeKey.weekSleep,
-            };
-            // 현재 키가 주중 키중 하나인가?
+            final weekKeys = {TimeKey.weekAwake, TimeKey.weekSleep};
             final bool isWeekTime = weekKeys.contains(key);
             if (_isJobLess && isWeekTime) return;
             setState(() {
@@ -191,7 +202,6 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
   bool _isNextEnable() {
     final daysCheck = _selectedDays.isNotEmpty;
     final timesCheck = _timesCheck();
-
     return (_isJobLess) || (daysCheck && timesCheck);
   }
 
@@ -210,9 +220,7 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
         appBar: AppBar(
           title: Text(
             '생활 리듬을 선택해주세요!',
-            style: TextStyle(
-              fontSize: ResponsiveSizes.f(context, 22),
-            ),
+            style: TextStyle(fontSize: ResponsiveSizes.f(context, 22)),
           ),
         ),
         body: Padding(
@@ -253,7 +261,6 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
                   controller: _weekAwakeCtrl,
                   isJobLess: _isJobLess,
                 ),
-
                 Gaps.v12(context),
                 TimeField(
                   question: "출근일 취침 시간을 알려주세요",
@@ -268,13 +275,13 @@ class _DailyRhythmScreenState extends State<DailyRhythmScreen> {
                   child: FormButton(
                     enabled: _isNextEnable(),
                     widget: _isSending
-                        ? Center(
+                        ? const Center(
                             child: CircularProgressIndicator(
                               color: Colors.white,
                             ),
                           )
                         : Text(
-                            '다음',
+                            widget.returnAfterSave ? '저장' : '다음',
                             textAlign: TextAlign.center,
                           ),
                   ),

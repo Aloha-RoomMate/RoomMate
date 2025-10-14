@@ -1,4 +1,4 @@
-// 샤라웃 투 https://github.com/youngsoonoh/youtube_profile/tree/example1 오용순
+// ⬇️ 기존 파일 전체 (returnAfterSave 핸드오프 + then 리프레시)
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,6 +9,7 @@ import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
 import 'package:roommate/constants/gaps.dart';
+import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
 import 'package:roommate/features/authentication/userinfo/userjob_screen.dart';
@@ -19,11 +20,10 @@ import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/features/category/coliving_screen.dart';
 import 'package:roommate/features/category/disease_screen.dart';
 import 'package:roommate/features/category/introduction_screen.dart';
-
-// ⬇️ 상세 보기로 진입하기 위해 추가
 import 'package:roommate/features/view/room_owner_post_view.dart';
-// ⬇️ 썸네일 서명 URL 생성
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:roommate/class/searcher_post.dart';
+import 'package:roommate/class/searcher_post_repository.dart';
 
 class MypageScreen extends StatefulWidget {
   const MypageScreen({super.key, required this.isBlocked});
@@ -37,15 +37,14 @@ class _MypageScreenState extends State<MypageScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _repo = UserRepository();
   final _postRepo = RoomOwnerPostRepository();
+  final _searcherRepo = SearcherPostRepository();
 
   File? _profileImage;
 
-  /// 분(예: 510) → "08:30"
   String _fmtHm(int? minutes, {bool use12h = false}) {
     if (minutes == null) return "-";
     final h24 = (minutes ~/ 60) % 24;
     final m = minutes % 60;
-
     if (!use12h) {
       return "${h24.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}";
     } else {
@@ -63,7 +62,6 @@ class _MypageScreenState extends State<MypageScreen> {
 
   Future<AppUser?> _getMyData() async => _repo.fetchMe();
 
-  // -------------------- 이미지 처리 --------------------
   Future<void> _getPhotoLibraryImage() async {
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
@@ -92,7 +90,7 @@ class _MypageScreenState extends State<MypageScreen> {
   Future<void> _showBottomSheet() async {
     await showModalBottomSheet<void>(
       context: context,
-      useRootNavigator: true, // ✅ 루트 네비게이터에 붙여서 플랫폼뷰 충돌 감소
+      useRootNavigator: true,
       useSafeArea: true,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -147,7 +145,6 @@ class _MypageScreenState extends State<MypageScreen> {
     );
   }
 
-  // -------------------- 계정 --------------------
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
@@ -156,7 +153,6 @@ class _MypageScreenState extends State<MypageScreen> {
     );
   }
 
-  // -------------------- UI --------------------
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<AppUser?>(
@@ -172,19 +168,18 @@ class _MypageScreenState extends State<MypageScreen> {
         }
         final me = snapshot.data!;
 
-        // ✅ 더 읽기 좋은 변수명
         final userDailyRhythm = me.dailyRhythm ?? me.dailyRhythm;
         final colivingPreference = me.coliving ?? me.coliving;
-        final userTypeInfo = me.userType ?? me.userType;
         final userHobby = me.hobby ?? me.hobby;
+        final userTypeInfo = me.userType ?? me.userType;
 
         return Scaffold(
           key: _scaffoldKey,
           appBar: AppBar(
             scrolledUnderElevation: 0,
             backgroundColor: Colors.white,
-            surfaceTintColor: Colors.transparent, // ← 틴트 제거
-            foregroundColor: Colors.black, // ← 아이콘/텍스트 대비
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: Colors.black,
             toolbarHeight: ResponsiveSizes.p(context, 40),
             title: const Text('마이페이지'),
             actions: [
@@ -194,15 +189,16 @@ class _MypageScreenState extends State<MypageScreen> {
               ),
             ],
           ),
-
           endDrawer: _MyPageEndDrawer(
             displayName: me.displayName,
             email: me.email ?? '',
             onOpenProfileSheet: _showBottomSheet,
             onSignOut: _signOut,
-            parentContext: context, // ✅ 부모(Scaffold) 컨텍스트 전달
+            parentContext: context,
+            onEdited: () {
+              if (mounted) setState(() {});
+            },
           ),
-
           body: Padding(
             padding: EdgeInsets.all(ResponsiveSizes.p(context, 12)),
             child: StreamBuilder<bool>(
@@ -248,14 +244,27 @@ class _MypageScreenState extends State<MypageScreen> {
                             ],
                           ),
                         ),
-
                         Gaps.v2(context),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Gaps.v10(context),
+                            Text(
+                              me.displayName,
+                              style: const TextStyle(
+                                fontSize: Sizes.size16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Gaps.v6(context),
+                            Text(userTypeInfo!.type),
+                            Gaps.v6(context),
+                          ],
+                        ),
                         Divider(
                           height: 1,
                           color: Theme.of(context).primaryColor.withAlpha(100),
                         ),
-
-                        // 본문
                         Column(
                           children: [
                             // 생활 패턴
@@ -295,7 +304,6 @@ class _MypageScreenState extends State<MypageScreen> {
                                 ],
                               ),
                             ),
-
                             // 공동 생활 성향
                             AccordionWidget(
                               title: " 내 공동 생활 성향",
@@ -365,29 +373,6 @@ class _MypageScreenState extends State<MypageScreen> {
                                 ],
                               ),
                             ),
-
-                            // 유저 타입
-                            AccordionWidget(
-                              title: " 내 유저타입",
-                              content: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  LabeldRow(
-                                    label: "유저타입",
-                                    chips: [
-                                      ChipButton(
-                                        text:
-                                            (userTypeInfo?.type == "roomOwner")
-                                            ? "RoomOwner"
-                                            : "Searcher",
-                                        isSelected: true,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-
                             // 취미
                             AccordionWidget(
                               title: " 내 취미",
@@ -436,23 +421,32 @@ class _MypageScreenState extends State<MypageScreen> {
                                 ],
                               ),
                             ),
-
                             Gaps.v16(context),
-
-                            // ✅ 내가 쓴 글: 3열 그리드 (무한 스크롤 유지)
-                            _MyPostsSection(
-                              title: "내가 쓴 글",
-                              repo: _postRepo,
-                              currentUid: me.uid,
-                            ),
-
+                            // 내가 쓴 글
+                            (() {
+                              final isOwner = (userTypeInfo.type)
+                                  .toString()
+                                  .toLowerCase()
+                                  .contains('owner');
+                              if (isOwner) {
+                                return _MyOwnerPostsSection(
+                                  title: "내가 쓴 글",
+                                  repo: _postRepo,
+                                  currentUid: me.uid,
+                                );
+                              } else {
+                                return _MySearcherPostsSection(
+                                  title: "내가 쓴 글",
+                                  repo: _searcherRepo,
+                                  currentUid: me.uid,
+                                );
+                              }
+                            }()),
                             Gaps.v24(context),
                           ],
                         ),
                       ],
                     ),
-
-                    // 🔒 락 오버레이
                     if (isLocked)
                       Positioned.fill(
                         child: Container(
@@ -498,14 +492,16 @@ class _MyPageEndDrawer extends StatelessWidget {
   final String email;
   final VoidCallback onOpenProfileSheet;
   final VoidCallback onSignOut;
-  final BuildContext parentContext; // ✅ 상위(Scaffold) 컨텍스트
+  final BuildContext parentContext;
+  final VoidCallback onEdited;
 
   const _MyPageEndDrawer({
     required this.displayName,
     required this.email,
     required this.onOpenProfileSheet,
     required this.onSignOut,
-    required this.parentContext, // ✅ 주입
+    required this.parentContext,
+    required this.onEdited,
   });
 
   void _openEditPicker(BuildContext parentContext) {
@@ -513,7 +509,7 @@ class _MyPageEndDrawer extends StatelessWidget {
 
     showModalBottomSheet<void>(
       context: parentContext,
-      useRootNavigator: true, // ✅ 루트 네비게이터
+      useRootNavigator: true,
       useSafeArea: true,
       showDragHandle: true,
       shape: RoundedRectangleBorder(
@@ -522,7 +518,6 @@ class _MyPageEndDrawer extends StatelessWidget {
         ),
       ),
       builder: (sheetCtx) {
-        // ✅ 매개변수 이름을 screenFactory로 변경
         Widget tile({
           required IconData icon,
           required String title,
@@ -535,14 +530,18 @@ class _MyPageEndDrawer extends StatelessWidget {
             subtitle: subtitle == null ? null : Text(subtitle),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // 1) 먼저 시트 닫기
               Navigator.pop(sheetCtx);
-
-              // 2) 다음 프레임에서 안전하게 push (루트 네비게이터)
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                Navigator.of(parentContext, rootNavigator: true).push(
-                  MaterialPageRoute(builder: (_) => screenFactory()),
-                );
+                Navigator.of(parentContext, rootNavigator: true)
+                    .push(MaterialPageRoute(builder: (_) => screenFactory()))
+                    .then((res) {
+                      if (res == true) {
+                        onEdited();
+                        ScaffoldMessenger.of(parentContext).showSnackBar(
+                          const SnackBar(content: Text('저장되었습니다.')),
+                        );
+                      }
+                    });
               });
             },
           );
@@ -562,32 +561,37 @@ class _MyPageEndDrawer extends StatelessWidget {
                 tile(
                   icon: Icons.badge_rounded,
                   title: '직업/학교',
-                  screenFactory: () => const UserjobScreen(),
+                  screenFactory: () =>
+                      const UserjobScreen(returnAfterSave: true),
                 ),
                 tile(
                   icon: Icons.sports_esports_rounded,
                   title: '취미',
-                  screenFactory: () => const HobbyScreen(),
+                  screenFactory: () => const HobbyScreen(returnAfterSave: true),
                 ),
                 tile(
                   icon: Icons.people_alt_rounded,
                   title: '공동 생활 성향',
-                  screenFactory: () => const ColivingScreen(),
+                  screenFactory: () =>
+                      const ColivingScreen(returnAfterSave: true),
                 ),
                 tile(
                   icon: Icons.schedule_rounded,
                   title: '생활 패턴',
-                  screenFactory: () => const DailyRhythmScreen(),
+                  screenFactory: () =>
+                      const DailyRhythmScreen(returnAfterSave: true),
                 ),
                 tile(
                   icon: Icons.healing_rounded,
                   title: '질병/알레르기',
-                  screenFactory: () => const DiseaseScreen(),
+                  screenFactory: () =>
+                      const DiseaseScreen(returnAfterSave: true),
                 ),
                 tile(
                   icon: Icons.short_text_rounded,
                   title: '자기소개',
-                  screenFactory: () => const IntroductionScreen(),
+                  screenFactory: () =>
+                      const IntroductionScreen(returnAfterSave: true),
                 ),
               ],
             ),
@@ -616,7 +620,6 @@ class _MyPageEndDrawer extends StatelessWidget {
               title: const Text('프로필 사진 변경'),
               onTap: () {
                 Navigator.pop(context);
-                // ✅ 다음 프레임에 부모컨텍스트로 시트 오픈
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   onOpenProfileSheet();
                 });
@@ -626,21 +629,16 @@ class _MyPageEndDrawer extends StatelessWidget {
               leading: const Icon(Icons.edit_rounded),
               title: const Text('내 정보 수정'),
               onTap: () {
-                Navigator.pop(context); // 드로어 먼저 닫고
-                // ✅ 다음 프레임에 부모(Scaffold) 컨텍스트로 바텀시트 오픈
+                Navigator.pop(context);
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _openEditPicker(parentContext);
                 });
               },
             ),
-
             ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('설정'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO
-              },
+              onTap: () => Navigator.pop(context),
             ),
             const Divider(),
             ListTile(
@@ -657,6 +655,9 @@ class _MyPageEndDrawer extends StatelessWidget {
     );
   }
 }
+
+// LabeldRow, _MyOwnerPostsSection, _MiniOwnerPostTile, _MySearcherPostsSection, _MiniSearcherPostTile
+// (원본 동일 – 변경 없음)
 
 // -------------------- 라벨 + 칩 --------------------
 
@@ -705,13 +706,14 @@ class LabeldRow extends StatelessWidget {
 }
 
 // -------------------- 내가 쓴 글 (3열 그리드 + 무한 스크롤) --------------------
+// ✅ 최소 변경: 기존 _MyPostsSection을 Owner용으로 리네이밍만 하고 그대로 사용
 
-class _MyPostsSection extends StatefulWidget {
+class _MyOwnerPostsSection extends StatefulWidget {
   final String title;
   final RoomOwnerPostRepository repo;
   final String currentUid;
 
-  const _MyPostsSection({
+  const _MyOwnerPostsSection({
     super.key,
     required this.title,
     required this.repo,
@@ -719,10 +721,10 @@ class _MyPostsSection extends StatefulWidget {
   });
 
   @override
-  State<_MyPostsSection> createState() => _MyPostsSectionState();
+  State<_MyOwnerPostsSection> createState() => _MyOwnerPostsSectionState();
 }
 
-class _MyPostsSectionState extends State<_MyPostsSection> {
+class _MyOwnerPostsSectionState extends State<_MyOwnerPostsSection> {
   final _scrollController = ScrollController();
   final List<RoomOwnerPost> _posts = [];
   bool _isLoading = true;
@@ -829,25 +831,23 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
     final grid = _isLoading
         ? const Center(child: CircularProgressIndicator())
         : RepaintBoundary(
-            // ✅ 스크롤 중 불필요한 리페인트 줄이기
             child: GridView.builder(
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3, // ← 3열
+                crossAxisCount: 3,
                 mainAxisSpacing: ResponsiveSizes.p(context, 8),
                 crossAxisSpacing: ResponsiveSizes.p(context, 8),
-                childAspectRatio: 0.78, // 이미지를 크게, 아래 텍스트 살짝
+                childAspectRatio: 0.78,
               ),
               itemCount: _posts.length + (_hasMore ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index >= _posts.length) {
-                  // 로딩 셀
                   return const Center(
                     child: CircularProgressIndicator(strokeWidth: 2),
                   );
                 }
-                return _MiniPostTile(post: _posts[index]);
+                return _MiniOwnerPostTile(post: _posts[index]);
               },
             ),
           );
@@ -859,13 +859,12 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
         vertical: ResponsiveSizes.p(context, 12),
       ),
       decoration: BoxDecoration(
-        border: BoxBorder.all(
+        border: Border.all(
           color: Theme.of(context).primaryColor.withAlpha(100),
         ),
         color: Colors.white,
         borderRadius: BorderRadius.circular(radius),
       ),
-      // ✅ 자식(그리드) 클리핑으로 잔상/넘침 방지
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -880,8 +879,9 @@ class _MyPostsSectionState extends State<_MyPostsSection> {
 }
 
 /// 3열 그리드용 미니 타일 (썸네일 + 간단 정보)
-class _MiniPostTile extends StatelessWidget {
-  _MiniPostTile({required this.post});
+// ✅ 최소 변경: 클래스명만 Owner용으로 변경
+class _MiniOwnerPostTile extends StatelessWidget {
+  _MiniOwnerPostTile({required this.post});
 
   final RoomOwnerPost post;
 
@@ -931,11 +931,11 @@ class _MiniPostTile extends StatelessWidget {
     final radius = ResponsiveSizes.p(context, 12);
 
     return Card(
-      elevation: 0, // ✅ Material 그림자(스크롤 잔상 방지에 유리)
+      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
       ),
-      clipBehavior: Clip.antiAlias, // ✅ 라운드 영역 밖으로 그림 그리지 않음
+      clipBehavior: Clip.antiAlias,
       margin: EdgeInsets.zero,
       child: InkWell(
         onTap: () => _openDetail(context),
@@ -982,7 +982,7 @@ class _MiniPostTile extends StatelessWidget {
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.white, // ✅ 사진 아래 영역만 흰색
+                color: Colors.white,
                 borderRadius: BorderRadius.vertical(
                   bottom: Radius.circular(radius),
                 ),
@@ -1028,6 +1028,270 @@ class _MiniPostTile extends StatelessWidget {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// -------------------- Searcher용 (3열 그리드 + 무한 스크롤) --------------------
+// ✅ 최소 추가: Searcher 전용 섹션/타일 (간단 텍스트 카드)
+
+class _MySearcherPostsSection extends StatefulWidget {
+  final String title;
+  final SearcherPostRepository repo;
+  final String currentUid;
+
+  const _MySearcherPostsSection({
+    super.key,
+    required this.title,
+    required this.repo,
+    required this.currentUid,
+  });
+
+  @override
+  State<_MySearcherPostsSection> createState() =>
+      _MySearcherPostsSectionState();
+}
+
+class _MySearcherPostsSectionState extends State<_MySearcherPostsSection> {
+  final _scrollController = ScrollController();
+  final List<SearcherPost> _posts = [];
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  DocumentSnapshot? _lastDocument;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitial();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadInitial() async {
+    setState(() => _isLoading = true);
+    final result = await widget.repo.fetchUserPostsPaged(
+      uid: widget.currentUid,
+      limit: 20,
+    );
+    if (!mounted) return;
+    setState(() {
+      _posts
+        ..clear()
+        ..addAll(result.posts);
+      _lastDocument = result.lastDocument;
+      _hasMore = result.posts.length == 20;
+      _isLoading = false;
+    });
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    setState(() => _isLoadingMore = true);
+    final result = await widget.repo.fetchUserPostsPaged(
+      uid: widget.currentUid,
+      lastItem: _lastDocument,
+      limit: 20,
+    );
+    if (!mounted) return;
+    setState(() {
+      _posts.addAll(result.posts);
+      _lastDocument = result.lastDocument;
+      _hasMore = result.posts.length == 20;
+      _isLoadingMore = false;
+    });
+  }
+
+  Future<void> _refresh() async {
+    _lastDocument = null;
+    _hasMore = true;
+    _posts.clear();
+    await _loadInitial();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = ResponsiveSizes.p(context, 18);
+    final h = MediaQuery.of(context).size.height;
+    final boxHeight = (h * 0.60).clamp(
+      ResponsiveSizes.p(context, 360),
+      ResponsiveSizes.p(context, 720),
+    );
+
+    final header = Row(
+      children: [
+        Text(
+          widget.title,
+          style: TextStyle(
+            fontSize: ResponsiveSizes.f(context, 18),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const Spacer(),
+        if (!_isLoading)
+          Text(
+            "${_posts.length}${_hasMore ? '+' : ''}",
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          onPressed: _isLoading ? null : _refresh,
+          tooltip: '새로고침',
+        ),
+      ],
+    );
+
+    final grid = _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : GridView.builder(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: ResponsiveSizes.p(context, 8),
+              crossAxisSpacing: ResponsiveSizes.p(context, 8),
+              childAspectRatio: 0.9,
+            ),
+            itemCount: _posts.length + (_hasMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index >= _posts.length) {
+                return const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                );
+              }
+              return _MiniSearcherPostTile(post: _posts[index]);
+            },
+          );
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveSizes.p(context, 12),
+        vertical: ResponsiveSizes.p(context, 12),
+      ),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Theme.of(context).primaryColor.withAlpha(100),
+        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          header,
+          Gaps.v8(context),
+          SizedBox(height: boxHeight, child: grid),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniSearcherPostTile extends StatelessWidget {
+  const _MiniSearcherPostTile({required this.post});
+  final SearcherPost post;
+
+  String _area() {
+    final a = post.wantArea ?? const <String>[];
+    if (a.isEmpty) return '희망 위치 미지정';
+    return a.take(2).join(', ') + (a.length > 2 ? ' 외' : '');
+  }
+
+  String _price() {
+    final d = post.deposit ?? 0;
+    final lo = post.minRent ?? 0;
+    final hi = post.maxRent ?? 0;
+    final range = (lo > 0 && hi > 0) ? '$lo~$hi' : (hi > 0 ? '~$hi' : '$lo~');
+    return '보증금 $d만 / 월 $range만';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = ResponsiveSizes.p(context, 12);
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      child: Container(
+        color: Colors.white,
+        padding: EdgeInsets.fromLTRB(
+          ResponsiveSizes.p(context, 10),
+          ResponsiveSizes.p(context, 10),
+          ResponsiveSizes.p(context, 10),
+          ResponsiveSizes.p(context, 12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 제목
+            Text(
+              (post.title ?? '제목 없음'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            SizedBox(height: ResponsiveSizes.p(context, 6)),
+            // 위치
+            Row(
+              children: [
+                const Icon(Icons.place_outlined, size: 14),
+                SizedBox(width: ResponsiveSizes.p(context, 4)),
+                Expanded(
+                  child: Text(
+                    _area(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.grey.shade800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: ResponsiveSizes.p(context, 4)),
+            // 비용
+            Row(
+              children: [
+                const Icon(Icons.payments_outlined, size: 14),
+                SizedBox(width: ResponsiveSizes.p(context, 4)),
+                Expanded(
+                  child: Text(
+                    _price(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
           ],
         ),
       ),

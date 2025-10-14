@@ -1,3 +1,4 @@
+// features/category/coliving_screen.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
@@ -8,7 +9,6 @@ import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/category/widgets/form_button.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
 
-/// 공용 공간 사용
 class CoSpaceOption {
   final String label;
   const CoSpaceOption(this.label);
@@ -20,7 +20,6 @@ const keyCoSpace = [
   CoSpaceOption('거의 사용 안 함'),
 ];
 
-/// 교류 선호도
 class InteractionOption {
   final String label;
   const InteractionOption(this.label);
@@ -32,7 +31,6 @@ const keyInteraction = [
   InteractionOption('거의 없이'),
 ];
 
-/// 정리정돈 성향
 class CleanOption {
   final String label;
   const CleanOption(this.label);
@@ -44,7 +42,6 @@ const keyCleanOption = [
   CleanOption('어지르는 편이예요'),
 ];
 
-/// 화장실 청결 민감도
 class BathroomCleanOption {
   final String label;
   const BathroomCleanOption(this.label);
@@ -56,7 +53,6 @@ const keyBathroomClean = [
   BathroomCleanOption('예민해요'),
 ];
 
-/// 반려동물 여부
 class Pet {
   final String label;
   const Pet(this.label);
@@ -73,7 +69,6 @@ const keyPet = [
   Pet('조류'),
 ];
 
-/// Mbti
 class Mbti {
   final String label;
   const Mbti(this.label);
@@ -100,7 +95,8 @@ const keyMbti = [
 ];
 
 class ColivingScreen extends StatefulWidget {
-  const ColivingScreen({super.key});
+  const ColivingScreen({super.key, this.returnAfterSave = false});
+  final bool returnAfterSave;
 
   @override
   State<ColivingScreen> createState() => _WorkPatternScreenState();
@@ -117,7 +113,36 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
   final Set<String> _selectedPet = {};
   final Set<String> _selectedMbti = {};
 
-  /// 선택 함수들 선언
+  @override
+  void initState() {
+    super.initState();
+    _prefill();
+  }
+
+  Future<void> _prefill() async {
+    final me = await UserRepository().fetchMe();
+    final c = me?.coliving;
+    if (c != null) {
+      if (c.coSpace.isNotEmpty) _selectedCoSpace.add(c.coSpace);
+      if (c.interaction.isNotEmpty) _selectedInteraction.add(c.interaction);
+      if (c.bathroom.isNotEmpty) _selectedBathroom.add(c.bathroom);
+      _isSmoking = c.smoking;
+      if (c.pet.isNotEmpty) {
+        if (c.pet.contains('없음')) {
+          _selectedPet
+            ..clear()
+            ..add('없음');
+        } else {
+          _selectedPet
+            ..clear()
+            ..addAll(c.pet);
+        }
+      }
+      if (c.mbti.isNotEmpty) _selectedMbti.add(c.mbti);
+      setState(() {});
+    }
+  }
+
   void _onCoSpaceTap(String option) {
     if (_selectedCoSpace.isNotEmpty) {
       _selectedCoSpace.clear();
@@ -175,11 +200,9 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
         ..clear()
         ..add(option);
     } else {
-      _selectedMbti.add('모름');
-      if (_selectedMbti.isNotEmpty) {
-        _selectedMbti.clear();
-      }
-      _selectedMbti.add(option);
+      _selectedMbti
+        ..clear()
+        ..add(option);
     }
     setState(() {});
   }
@@ -200,7 +223,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
           _isSending = true;
         });
         final coliving = Coliving(
-          coSpace: _selectedCoSpace.first, // 그냥 .toString 하면 "{'활발'}". 껍데기까지.
+          coSpace: _selectedCoSpace.first,
           interaction: _selectedInteraction.first,
           bathroom: _selectedBathroom.first,
           smoking: _isSmoking,
@@ -208,33 +231,28 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
           mbti: _selectedMbti.first,
         );
 
-        // 실제 데이터 넘기기
-        // USRREPO 선언 바로 할 수 있음.
         await UserRepository().setColiving(coliving);
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('저장 성공'),
-            ),
-          );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장 성공')),
+        );
 
-          setState(() {
-            _isSending = false;
-          });
+        setState(() {
+          _isSending = false;
+        });
 
+        if (widget.returnAfterSave) {
+          Navigator.of(context).pop(true); // ✅ 수정 모드: 돌아가기
+        } else {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => DiseaseScreen(),
-            ),
+            MaterialPageRoute(builder: (context) => const DiseaseScreen()),
           );
         }
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('데이터 저장 중 에러 발생'),
-          ),
+          const SnackBar(content: Text('데이터 저장 중 에러 발생')),
         );
       } finally {
         if (mounted) {
@@ -250,9 +268,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
       appBar: AppBar(
         title: Text(
           '공동 생활 성향에 대해 알려주세요!',
-          style: TextStyle(
-            fontSize: ResponsiveSizes.f(context, 19),
-          ),
+          style: TextStyle(fontSize: ResponsiveSizes.f(context, 19)),
         ),
       ),
       body: Padding(
@@ -364,7 +380,6 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                     value: _isSmoking,
                     onChanged: _onSmokingTap,
                   ),
-                  // Dart가 알아서 바뀐 newValue 넘겨줌.
                 ],
               ),
               Gaps.v24(context),
@@ -415,13 +430,11 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
                 child: FormButton(
                   enabled: _isNextEnable(),
                   widget: _isSending
-                      ? Center(
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                          ),
+                      ? const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
                         )
                       : Text(
-                          '다음',
+                          widget.returnAfterSave ? '저장' : '다음',
                           textAlign: TextAlign.center,
                         ),
                 ),
