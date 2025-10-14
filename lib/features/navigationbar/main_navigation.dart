@@ -1,20 +1,16 @@
 import 'dart:async';
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-
 import 'package:roommate/class/app_user.dart';
-import 'package:roommate/class/room_owner_post_repository.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
-// Screens
 import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/chat/chatlist_screen.dart';
 import 'package:roommate/features/navigationbar/screens/home_screen.dart';
 import 'package:roommate/features/navigationbar/screens/map_screen.dart';
 import 'package:roommate/features/navigationbar/screens/mypage_screen.dart';
+import 'package:roommate/features/navigationbar/widgets/feed_filter.dart';
 import 'package:roommate/features/post/room_owner_post_screen.dart';
 import 'package:roommate/features/post/searcher_post_screen.dart';
 import 'package:roommate/features/recommend/userlist_screen.dart';
@@ -32,13 +28,17 @@ class _MainNavigationState extends State<MainNavigation> {
 
   late final StreamSubscription<AppUser?> _userSubscription;
 
-  // 탭 타이틀 (상단 AppBar용) — 유저추천/마이페이지 탭은 상단 AppBar를 숨기므로 실사용은 안 되지만 안전하게 포함
+  // ✅ HomeScreen의 현재 탭(target)을 전달받는 notifier
+  final ValueNotifier<FeedTarget> _homeTarget = ValueNotifier<FeedTarget>(
+    FeedTarget.roomOwner,
+  );
+
   final List<String> _appBarTitles = [
-    '홈', // 0
-    '유저추천', // 1 (상단 AppBar 숨김)
-    '글 쓰기', // 2 (상단 AppBar 숨김)
-    '맵', // 3
-    '채팅', // 4
+    '홈',
+    '유저추천',
+    '글 쓰기',
+    '맵',
+    '채팅',
   ];
 
   int _selectedIndex = 0;
@@ -58,6 +58,7 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   void dispose() {
     _userSubscription.cancel();
+    _homeTarget.dispose();
     super.dispose();
   }
 
@@ -70,7 +71,6 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget _scaledIcon(IconData data, int itemIndex) {
     final isSelected = _selectedIndex == itemIndex;
     return SizedBox(
-      // 아이콘 캔버스 고정 → 레이아웃 흔들림 방지
       width: 24,
       height: 24,
       child: AnimatedScale(
@@ -82,7 +82,6 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
-  // ---------- helpers ----------
   void _goMyPage() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => MypageScreen(isBlocked: true)),
@@ -120,7 +119,6 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   void _onMypageTap(AppUser? user) {
-    // 로그인 안되어 있으면
     if (user == null) {
       _toast('로그인이 만료되었습니다.');
       Navigator.of(context).push(
@@ -130,46 +128,40 @@ class _MainNavigationState extends State<MainNavigation> {
     } else {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => const MypageScreen(
-            isBlocked: false,
-          ),
+          builder: (_) => const MypageScreen(isBlocked: false),
         ),
       );
     }
   }
 
-  void _onPostTap() {
-    if (_currentUser == null) {
-      _toast('로그인이 만료되었습니다.');
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-      return;
-    } else if (_currentUser!.userPass?.pass == false) {
-      _showNeedInfoDialog(
-        title: '프로필 정보가 부족합니다',
-        message:
-            '마이페이지에서 추가로 정보를 입력하세요.\n생활패턴/공동생활/건강정보/자기소개가 충분해야 게시글 작성이 가능합니다.',
-      );
-      return;
-    }
-  }
-
-  /// 인덱스별 AppBar 구성
   PreferredSizeWidget? _buildAppBar() {
-    // 유저추천(1)과 글쓰기(2)는 하위 위젯이 자체 AppBar를 가짐 → 상위 AppBar 숨김
     if (_selectedIndex == 1 || _selectedIndex == 2) return null;
 
     final title = _appBarTitles[_selectedIndex];
-
-    // 홈(0)만 + 아이콘 노출
     final actions = <Widget>[];
+
     if (_selectedIndex == 0) {
+      actions.add(
+        IconButton(
+          tooltip: '필터',
+          onPressed: () {
+            // ✅ HomeScreen이 실시간으로 넣어주는 현재 탭 타겟 사용
+            final target = _homeTarget.value;
+            FeedFilterBottomSheet.show(
+              context,
+              _currentUser,
+              target: target,
+              // 영역/방종류/지불구조 풀은 PostListView에서 Chips 옆 "필터" 열기 시에만 주입되므로 여기선 생략해도 OK
+            );
+          },
+          icon: const FaIcon(FontAwesomeIcons.filter),
+        ),
+      );
       actions.add(
         IconButton(
           onPressed: () => _onMypageTap(_currentUser),
           icon: const FaIcon(FontAwesomeIcons.solidUser),
-          tooltip: '게시글 작성',
+          tooltip: '마이페이지',
         ),
       );
     }
@@ -214,9 +206,7 @@ class _MainNavigationState extends State<MainNavigation> {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: cs.surface,
-        border: Border(
-          top: BorderSide(color: cs.outlineVariant, width: 0.6),
-        ), // 헤어라인
+        border: Border(top: BorderSide(color: cs.outlineVariant, width: 0.6)),
       ),
       child: SafeArea(
         top: false,
@@ -229,7 +219,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                 );
-                return; // 여기서 return하여 _onNavTab(i)가 호출되지 않도록 함
+                return;
               }
               if (_currentUser!.userPass?.pass == false) {
                 _showNeedInfoDialog(
@@ -237,11 +227,10 @@ class _MainNavigationState extends State<MainNavigation> {
                   message:
                       '마이페이지에서 추가로 정보를 입력하세요.\n생활패턴/공동생활/건강정보/자기소개가 충분해야 게시글 작성이 가능합니다.',
                 );
-                return; // 여기서 return하여 _onNavTab(i)가 호출되지 않도록 함
+                return;
               }
             }
             _onNavTab(i);
-            print(">> USERTYPE: ${_currentUser!.userType}");
           },
           currentIndex: _selectedIndex,
           type: BottomNavigationBarType.fixed,
@@ -258,17 +247,17 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    // body: 인덱스별로 화면 배치, 앱바 컨트롤
     final body = IndexedStack(
       index: _selectedIndex,
       children: [
-        HomeScreen(), // 0
-        UserListScreen(), // 1 ★ 유저추천 (자체 Scaffold+AppBar)
+        // ✅ HomeScreen에 targetNotifier 전달
+        HomeScreen(targetNotifier: _homeTarget),
+        UserListScreen(),
         _currentUser?.userType?.type == "roomOwner"
-            ? RoomOwnerPostScreen()
-            : SearcherPostScreen(),
-        MapScreen(), // 3
-        ChatListScreen(), // 4 (자체 AppBar 사용)
+            ? const RoomOwnerPostScreen()
+            : const SearcherPostScreen(),
+        MapScreen(),
+        ChatListScreen(),
       ],
     );
 
