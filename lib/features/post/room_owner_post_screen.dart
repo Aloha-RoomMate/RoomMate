@@ -11,6 +11,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -635,47 +636,57 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false, // ← 기본 뒤로가기 아이콘 숨김
-          elevation: 10,
+          elevation: 0,
+          scrolledUnderElevation: 0,
           title: Text(
             _isEdit ? '게시글 수정' : '게시글 작성',
-            style: const TextStyle(fontSize: Sizes.size24),
           ),
         ),
         body: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(12),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // 제목
-                const Text(
+                Text(
                   '제목을 입력해주세요!',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: ResponsiveSizes.f(context, 28),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                Gaps.v6(context),
+                Gaps.v10(context),
                 TextField(
                   controller: _titleCtrl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: '제목 입력',
+                    hintStyle: TextStyle(
+                      fontSize: ResponsiveSizes.f(context, 14),
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w300,
+                    ),
                     border: OutlineInputBorder(),
                   ),
                 ),
-                Gaps.v2(context),
+                Gaps.v48(context),
 
                 // 주소 안내
-                const Text(
+                Text(
                   '주소를 입력해주세요!',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: ResponsiveSizes.f(context, 28),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const Text(
+                Gaps.v2(context),
+                Text(
                   '다른 유저에게는 상세주소 대신 “… 부근”으로 노출돼요.\n지도에는 실제 주소 반경 200m 내의 랜덤 위치로 표시돼요.',
-                  style: TextStyle(fontSize: Sizes.size14, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: ResponsiveSizes.f(context, 14),
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w300,
+                  ),
                 ),
                 Gaps.v12(context),
                 // 주소 입력/검색
@@ -684,9 +695,14 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     Expanded(
                       child: TextField(
                         controller: _addrCtrl,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: '도로명 주소 입력',
                           border: OutlineInputBorder(),
+                          hintStyle: TextStyle(
+                            fontSize: ResponsiveSizes.f(context, 14),
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w300,
+                          ),
                         ),
                         onSubmitted: (kw) async {
                           await _searchAddress(kw);
@@ -705,7 +721,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 ),
                 // 공개 라벨 미리보기
                 if ((_publicAddrLabel ?? '').isNotEmpty) ...[
-                  Gaps.v6(context),
+                  Gaps.v1(context),
                   Row(
                     children: [
                       const Icon(
@@ -724,35 +740,8 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     ],
                   ),
                 ],
-                Gaps.v24(context),
 
-                // 사진 업로드
-                const Text(
-                  '사진 업로드',
-                  style: TextStyle(
-                    fontSize: Sizes.size16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Gaps.v6(context),
-                Row(
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: _uploadingImages ? null : _showPickSourceSheet,
-                      icon: const Icon(Icons.add_a_photo_outlined),
-                      label: const Text('사진 추가'),
-                    ),
-                    Gaps.h12(context),
-                    if (_uploadingImages)
-                      const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    if (!_uploadingImages) Text('${_pickedImages.length}장 선택됨'),
-                  ],
-                ),
-                Gaps.v12(context),
+                Gaps.v2(context),
                 if (_pickedImages.isNotEmpty)
                   GridView.builder(
                     shrinkWrap: true,
@@ -801,6 +790,33 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   child: _buildResults(),
                 ),
                 Gaps.v12(context),
+                // 사진 업로드
+                Text(
+                  '사진 업로드',
+                  style: TextStyle(
+                    fontSize: ResponsiveSizes.f(context, 28),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Gaps.v6(context),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _uploadingImages ? null : _showPickSourceSheet,
+                      icon: const Icon(Icons.add_a_photo_outlined),
+                      label: const Text('사진 추가'),
+                    ),
+                    Gaps.h12(context),
+                    if (_uploadingImages)
+                      const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    if (!_uploadingImages) Text('${_pickedImages.length}장 선택됨'),
+                  ],
+                ),
+                Gaps.v40(context),
 
                 // 금액/정보
                 Row(
@@ -809,9 +825,13 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _depositCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: "보증금(만 원)",
-                          hintStyle: TextStyle(fontSize: Sizes.size12),
+                          hintStyle: TextStyle(
+                            fontSize: ResponsiveSizes.f(context, 14),
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w300,
+                          ),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -821,9 +841,13 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _rentCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: "월세(만 원)",
-                          hintStyle: TextStyle(fontSize: Sizes.size12),
+                          hintStyle: TextStyle(
+                            fontSize: ResponsiveSizes.f(context, 14),
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w300,
+                          ),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -833,9 +857,13 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _manageFeeCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: "관리비(만 원)",
-                          hintStyle: TextStyle(fontSize: Sizes.size12),
+                          hintStyle: TextStyle(
+                            fontSize: ResponsiveSizes.f(context, 14),
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w300,
+                          ),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -851,8 +879,13 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _corFloorCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: '해당층',
+                          hintStyle: TextStyle(
+                            fontSize: ResponsiveSizes.f(context, 14),
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w300,
+                          ),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -862,8 +895,13 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _wholeFloorCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: '건물층',
+                          hintStyle: TextStyle(
+                            fontSize: ResponsiveSizes.f(context, 14),
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w300,
+                          ),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -873,11 +911,11 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 Gaps.v24(context),
 
                 // 전용 면적 / 화장실 개수
-                const Text(
+                Text(
                   '전용 면적 / 화장실 개수',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: ResponsiveSizes.f(context, 28),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 Gaps.v6(context),
@@ -887,8 +925,13 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _areaCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: '(평)',
+                          hintStyle: TextStyle(
+                            fontSize: ResponsiveSizes.f(context, 14),
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w300,
+                          ),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -898,8 +941,13 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _toiletCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: '화장실 개수',
+                          hintStyle: TextStyle(
+                            fontSize: ResponsiveSizes.f(context, 14),
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w300,
+                          ),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -909,11 +957,11 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 Gaps.v24(context),
 
                 // 입주일
-                const Text(
+                Text(
                   '입주가능일',
                   style: TextStyle(
-                    fontSize: Sizes.size16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: ResponsiveSizes.f(context, 28),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 Gaps.v6(context),
@@ -921,12 +969,17 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   onTap: _onTimeFieldTap,
                   controller: _movingDateCtrl,
                   readOnly: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     suffixIcon: Padding(
                       padding: EdgeInsets.all(10),
                       child: FaIcon(FontAwesomeIcons.calendar),
                     ),
                     hintText: '입주 가능일',
+                    hintStyle: TextStyle(
+                      fontSize: ResponsiveSizes.f(context, 14),
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w300,
+                    ),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -939,9 +992,13 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _minContractCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: '최소 거주 기간(개월)',
-                          hintStyle: TextStyle(fontSize: Sizes.size14),
+                          hintStyle: TextStyle(
+                            fontSize: ResponsiveSizes.f(context, 14),
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w300,
+                          ),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -951,9 +1008,14 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       child: TextField(
                         controller: _maxContractCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: '최대 거주 기간(개월)',
-                          hintStyle: TextStyle(fontSize: Sizes.size14),
+                          hintStyle: TextStyle(
+                            fontSize: ResponsiveSizes.f(context, 14),
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w300,
+                          ),
+
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -961,17 +1023,28 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   ],
                 ),
                 Gaps.v24(context),
-
+                Text(
+                  '더 상세하게 알려주세요 !',
+                  style: TextStyle(
+                    fontSize: ResponsiveSizes.f(context, 28),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Gaps.v24(context),
                 // 소개
                 TextField(
                   controller: _introductionCtrl,
                   minLines: null,
                   maxLines: null,
                   keyboardType: TextInputType.multiline,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText:
                         '자유롭게 글을 작성해주세요!\n취미, 희망 진로, 동거 규칙에 대해 작성해주시면 좋아요!',
-                    hintStyle: TextStyle(fontSize: Sizes.size14),
+                    hintStyle: TextStyle(
+                      fontSize: ResponsiveSizes.f(context, 14),
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w300,
+                    ),
                     border: OutlineInputBorder(),
                   ),
                 ),

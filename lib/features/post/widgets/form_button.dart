@@ -14,7 +14,7 @@ class FormButton extends StatelessWidget {
       child: AnimatedContainer(
         padding: EdgeInsets.symmetric(vertical: Sizes.size16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(20),
           color: enabled
               ? Theme.of(context).primaryColor
               : Colors.grey.shade300,
