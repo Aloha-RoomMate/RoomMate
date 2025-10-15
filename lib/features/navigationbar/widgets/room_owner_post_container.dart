@@ -60,9 +60,9 @@ class _RoomOwnerPostContainerState extends State<RoomOwnerPostContainer> {
     return urls.where((u) => u.isNotEmpty).toList();
   }
 
-  String _fmtMan(int? v) {
+  String _fmtNum(int? v) {
     if (v == null) return '-';
-    return '${_numKo.format(v)}만';
+    return _numKo.format(v);
   }
 
   String _formatDate(DateTime? dt) {
@@ -144,29 +144,28 @@ class _RoomOwnerPostContainerState extends State<RoomOwnerPostContainer> {
                                 ),
                         ),
                       ),
-                      // 날짜 배지(선택)
-                      if (moveIn.isNotEmpty)
-                        Positioned(
-                          left: p8,
-                          bottom: p8,
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: p10,
-                              vertical: p8 * 0.6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.45),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              moveIn,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: fsBody * 0.9,
-                              ),
+                      // 날짜 배지(선택
+                      Positioned(
+                        left: p8,
+                        bottom: p8,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: p10,
+                            vertical: p8 * 0.6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.45),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            moveIn,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: fsBody * 0.9,
                             ),
                           ),
                         ),
+                      ),
                       // 페이지 인디케이터
                       if (urls.length > 1)
                         Positioned(
@@ -209,7 +208,7 @@ class _RoomOwnerPostContainerState extends State<RoomOwnerPostContainer> {
               ),
             ),
 
-            // ====== 하단 텍스트 (4줄: 위치 + 월세 + 관리비 + 보증금) ======
+            // ====== 하단 텍스트 (4줄: 위치 + 보증금 + 월세 + 관리비) ======
             Padding(
               padding: EdgeInsets.fromLTRB(p10, p10, p10, p10),
               child: Column(
@@ -232,14 +231,14 @@ class _RoomOwnerPostContainerState extends State<RoomOwnerPostContainer> {
                   ),
                   SizedBox(height: p8 * 0.75),
 
-                  // 2) 월세
+                  // 2) 보증금
                   Row(
                     children: [
-                      FaIcon(FontAwesomeIcons.coins, size: iconSizeS),
+                      FaIcon(FontAwesomeIcons.piggyBank, size: iconSizeS),
                       SizedBox(width: p8 * 0.75),
                       Expanded(
                         child: Text(
-                          '월세 ${_fmtMan(rent)}',
+                          '보증금 ${_fmtNum(deposit)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: fsBody),
@@ -249,7 +248,24 @@ class _RoomOwnerPostContainerState extends State<RoomOwnerPostContainer> {
                   ),
                   SizedBox(height: p8 * 0.75),
 
-                  // 3) 관리비
+                  // 3) 월세
+                  Row(
+                    children: [
+                      FaIcon(FontAwesomeIcons.coins, size: iconSizeS),
+                      SizedBox(width: p8 * 0.75),
+                      Expanded(
+                        child: Text(
+                          '월세 ${_fmtNum(rent)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: fsBody),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: p8 * 0.75),
+
+                  // 4) 관리비
                   Row(
                     children: [
                       FaIcon(
@@ -259,24 +275,7 @@ class _RoomOwnerPostContainerState extends State<RoomOwnerPostContainer> {
                       SizedBox(width: p8 * 0.75),
                       Expanded(
                         child: Text(
-                          '관리비 ${_fmtMan(manage)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: fsBody),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: p8 * 0.75),
-
-                  // 4) 보증금
-                  Row(
-                    children: [
-                      FaIcon(FontAwesomeIcons.piggyBank, size: iconSizeS),
-                      SizedBox(width: p8 * 0.75),
-                      Expanded(
-                        child: Text(
-                          '보증금 ${_fmtMan(deposit)}',
+                          '관리비 ${_fmtNum(manage)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: fsBody),
