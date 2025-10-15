@@ -193,7 +193,6 @@ class UserType {
   final String jobKinds; // 문자열 고정
   final String? address;
   final List<String>? searchAreas;
-
   const UserType({
     required this.type,
     required this.jobKinds,
@@ -227,6 +226,7 @@ class Coliving {
   final String coSpace;
   final String interaction;
   final String bathroom;
+  final String cleanOption;
   final bool smoking;
   final List<String> pet;
   final String mbti;
@@ -235,6 +235,7 @@ class Coliving {
     required this.coSpace,
     required this.interaction,
     required this.bathroom,
+    required this.cleanOption,
     required this.smoking,
     required this.pet,
     required this.mbti,
@@ -244,6 +245,8 @@ class Coliving {
     'coSpace': coSpace,
     'interaction': interaction,
     'bathroom': bathroom,
+
+    'cleanOption': cleanOption,
     'smoking': smoking,
     'pet': pet,
     'mbti': mbti,
@@ -255,6 +258,7 @@ class Coliving {
       coSpace: map['coSpace'] as String? ?? "",
       interaction: map['interaction'] as String? ?? "",
       bathroom: map['bathroom'] as String? ?? "",
+      cleanOption: map['cleanOption'] as String? ?? "",
       smoking: map['smoking'] == true,
       pet: List<String>.from(map['pet'] ?? const []),
       mbti: map['mbti'] as String? ?? "",

@@ -125,6 +125,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
     if (c != null) {
       if (c.coSpace.isNotEmpty) _selectedCoSpace.add(c.coSpace);
       if (c.interaction.isNotEmpty) _selectedInteraction.add(c.interaction);
+      if (c.cleanOption.isNotEmpty) _selectedCleaning.add(c.cleanOption);
       if (c.bathroom.isNotEmpty) _selectedBathroom.add(c.bathroom);
       _isSmoking = c.smoking;
       if (c.pet.isNotEmpty) {
@@ -225,6 +226,7 @@ class _WorkPatternScreenState extends State<ColivingScreen> {
         final coliving = Coliving(
           coSpace: _selectedCoSpace.first,
           interaction: _selectedInteraction.first,
+          cleanOption: _selectedCleaning.first,
           bathroom: _selectedBathroom.first,
           smoking: _isSmoking,
           pet: _selectedPet.toList(),
