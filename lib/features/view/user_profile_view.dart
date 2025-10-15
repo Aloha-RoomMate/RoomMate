@@ -136,7 +136,9 @@ class _UserProfileViewState extends State<UserProfileView> {
                       ),
                       Gaps.v8(context),
                       Text(
-                        user.displayName,
+                        user.birthYear != null
+                            ? '${user.displayName}-${user.birthYear}'
+                            : '${user.displayName} (생년월일 정보 없음)',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.titleMedium,
                         overflow: TextOverflow.ellipsis,

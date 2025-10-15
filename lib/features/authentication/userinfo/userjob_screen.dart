@@ -162,10 +162,11 @@ class _UserjobScreenState extends State<UserjobScreen>
         return SizedBox(
           height: 300,
           child: CupertinoDatePicker(
-            mode: CupertinoDatePickerMode.date,
+            mode: CupertinoDatePickerMode.monthYear,
             onDateTimeChanged: _onBirthYearPickerChanged,
-            initialDateTime: _selectedBirthYear ?? DateTime.now(),
-            maximumDate: DateTime.now(),
+            initialDateTime:
+                _selectedBirthYear ?? DateTime(DateTime.now().year - 20),
+            maximumDate: DateTime(DateTime.now().year - 20),
             minimumDate: DateTime(1950),
           ),
         );
