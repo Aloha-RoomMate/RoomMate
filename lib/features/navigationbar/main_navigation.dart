@@ -187,7 +187,7 @@ class _MainNavigationState extends State<MainNavigation> {
       ),
       BottomNavigationBarItem(
         icon: _scaledIcon(FontAwesomeIcons.star, 1),
-        label: '유저추천',
+        label: '추천 유저',
       ),
       BottomNavigationBarItem(
         icon: _scaledIcon(FontAwesomeIcons.solidSquarePlus, 2),
@@ -195,7 +195,7 @@ class _MainNavigationState extends State<MainNavigation> {
       ),
       BottomNavigationBarItem(
         icon: _scaledIcon(FontAwesomeIcons.map, 3),
-        label: '맵',
+        label: '지도',
       ),
       BottomNavigationBarItem(
         icon: _scaledIcon(FontAwesomeIcons.message, 4),
