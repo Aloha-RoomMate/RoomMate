@@ -465,7 +465,6 @@ class _PostListViewState extends State<PostListView> {
                               item is SearcherPost) {
                             return SearcherPostContainer(
                               post: item,
-                              imageAspect: imageAspect,
                             );
                           }
                           return const SizedBox.shrink();
