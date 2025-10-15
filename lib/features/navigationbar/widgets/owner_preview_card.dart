@@ -60,24 +60,6 @@ class _OwnerPreviewCardState extends State<OwnerPreviewCard>
     return s ? '흡연' : '비흡연';
   }
 
-  String _dongOnly(String? full) {
-    final s = (full ?? '').trim();
-    if (s.isEmpty) return '주소 정보 없음';
-    final tokens = s.split(RegExp(r'\s+'));
-    String pick(String suffix) =>
-        tokens.firstWhere((e) => e.endsWith(suffix), orElse: () => '');
-    final cand = [
-      pick('동'),
-      pick('읍'),
-      pick('면'),
-      pick('리'),
-      pick('구'),
-    ].firstWhere((e) => e.isNotEmpty, orElse: () => '');
-    if (cand.isNotEmpty) return cand;
-    if (tokens.length >= 2) return '${tokens[0]} ${tokens[1]}';
-    return tokens.first;
-  }
-
   Future<void> _dismissSmoothly() async {
     // 시트를 최소 스냅 사이즈로 부드럽게 내린 다음 페이드 아웃
     try {
@@ -161,7 +143,7 @@ class _OwnerPreviewCardState extends State<OwnerPreviewCard>
     final rent = widget.post.rent ?? 0;
     final manage = widget.post.manageFee ?? 0;
 
-    final dong = _dongOnly(widget.post.addressLabel);
+    final dong = widget.post.getAddressLabel;
     final photos = (widget.post.imageUrls ?? const <String>[]);
 
     // 세로형(9:16)
@@ -318,14 +300,14 @@ class _OwnerPreviewCardState extends State<OwnerPreviewCard>
                                     Gaps.v8(context),
                                     _InfoRow(
                                       icon: Icons.payments_outlined,
-                                      text: '보증금 $deposit 만원',
+                                      text: '보증금 $deposit',
                                     ),
                                     Gaps.v8(context),
                                     _InfoRow(
                                       icon: Icons.receipt_long_outlined,
                                       text: (manage > 0)
-                                          ? '월세 $rent만 · 관리비 $manage만'
-                                          : '월세 $rent만 (관리비 없음)',
+                                          ? '월세 $rent · 관리비 $manage'
+                                          : '월세 $rent (관리비 없음)',
                                     ),
                                     Gaps.v8(context),
                                     _InfoRow(
