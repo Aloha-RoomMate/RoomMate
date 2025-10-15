@@ -165,6 +165,24 @@ Map<String, int> _ngrams(String s, int n) {
   return m;
 }
 
+/// ─────────────────────────────────────────
+/// 연령대(10년 단위) 버킷 & 보너스
+/// ─────────────────────────────────────────
+int? _ageDecadeFromBirthYear(int? birthYear, {DateTime? now}) {
+  if (birthYear == null || birthYear <= 0) return null;
+  final y = (now ?? DateTime.now()).year;
+  final age = y - birthYear; // 국제식 나이
+  if (age < 0 || age > 120) return null;
+  return (age ~/ 10) * 10; // 23 -> 20, 31 -> 30
+}
+
+bool _isSameAgeDecade(int? by1, int? by2) {
+  final d1 = _ageDecadeFromBirthYear(by1);
+  final d2 = _ageDecadeFromBirthYear(by2);
+  if (d1 == null || d2 == null) return false;
+  return d1 == d2;
+}
+
 class Compatibility {
   final double structSim;
   final double hobbySim;
@@ -208,15 +226,25 @@ Compatibility scoreUsers(AppUser me, AppUser other) {
       : (other.introduction ?? '');
   final text = charBigramCosine(introMe, introOt);
 
-  final score = wStruct * struct + wHobby * hobby + wText * text;
+  // 기본 점수 (가중치 합 = 1.0)
+  double score = wStruct * struct + wHobby * hobby + wText * text;
 
+  // ★ 같은 연령대(10년 단위)면 보너스 +5% (최대 1.0으로 클램프)
+  const double ageBonus = 0.05;
   final reasons = <String>[];
+  if (_isSameAgeDecade(me.birthYear, other.birthYear)) {
+    score = (score + ageBonus).clamp(0.0, 1.0);
+    reasons.add("동연령대");
+  }
+
+  // 기존 사유들
   if (other.coliving?.smoking == false && me.coliving?.smoking == false) {
     reasons.add("비흡연 선호 일치");
   }
   if (hobby >= 0.2) reasons.add("취미 겹침");
   if (struct >= 0.75) reasons.add("생활 패턴 유사");
   if (text >= 0.5) reasons.add("자기소개 톤 유사");
+
   return Compatibility(struct, hobby, text, score, reasons.take(3).toList());
 }
 
@@ -227,6 +255,7 @@ String explainCompatibility(Compatibility c) {
   final t = (c.textSim * 100).toStringAsFixed(1);
   final total = (c.score * 100).toStringAsFixed(0);
 
+  // NOTE: 동연령대 보너스(+5%)는 총점에만 반영됩니다.
   return [
     '총점: $total%',
     '· 생활 패턴(70%): $s%',
