@@ -312,12 +312,38 @@ class _MypageScreenState extends State<MypageScreen> {
                                 children: [
                                   LabeldRow(
                                     labelWidth: 140,
-                                    label: "공용공간 사용 선호도",
+                                    label: "공용 공간 사용 선호도",
                                     chips: [
                                       if ((colivingPreference?.coSpace ?? '')
                                           .isNotEmpty)
                                         ChipButton(
                                           text: colivingPreference!.coSpace,
+                                          isSelected: true,
+                                        ),
+                                    ],
+                                  ),
+                                  LabeldRow(
+                                    labelWidth: 140,
+                                    label: "룸메이트와의 교류도",
+                                    chips: [
+                                      if ((colivingPreference?.interaction ??
+                                              '')
+                                          .isNotEmpty)
+                                        ChipButton(
+                                          text: colivingPreference!.interaction,
+                                          isSelected: true,
+                                        ),
+                                    ],
+                                  ),
+                                  LabeldRow(
+                                    labelWidth: 140,
+                                    label: "정리 정돈 습관",
+                                    chips: [
+                                      if ((colivingPreference?.cleanOption ??
+                                              '')
+                                          .isNotEmpty)
+                                        ChipButton(
+                                          text: colivingPreference!.cleanOption,
                                           isSelected: true,
                                         ),
                                     ],
