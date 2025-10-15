@@ -353,6 +353,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                     Icons.location_on_outlined,
                     "위치",
                     widget.post.addressLabel ?? "위치 정보 부근",
+                    valueRight: true,
                   ),
                   _buildInfoRow(
                     Icons.attach_money_outlined,
