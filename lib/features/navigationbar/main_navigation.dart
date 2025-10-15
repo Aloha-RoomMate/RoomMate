@@ -28,11 +28,6 @@ class _MainNavigationState extends State<MainNavigation> {
 
   late final StreamSubscription<AppUser?> _userSubscription;
 
-  // ✅ HomeScreen의 현재 탭(target)을 전달받는 notifier
-  final ValueNotifier<FeedTarget> _homeTarget = ValueNotifier<FeedTarget>(
-    FeedTarget.roomOwner,
-  );
-
   final List<String> _appBarTitles = [
     '홈',
     '유저추천',
@@ -58,7 +53,6 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   void dispose() {
     _userSubscription.cancel();
-    _homeTarget.dispose();
     super.dispose();
   }
 
@@ -145,14 +139,7 @@ class _MainNavigationState extends State<MainNavigation> {
         IconButton(
           tooltip: '필터',
           onPressed: () {
-            // ✅ HomeScreen이 실시간으로 넣어주는 현재 탭 타겟 사용
-            final target = _homeTarget.value;
-            FeedFilterBottomSheet.show(
-              context,
-              _currentUser,
-              target: target,
-              // 영역/방종류/지불구조 풀은 PostListView에서 Chips 옆 "필터" 열기 시에만 주입되므로 여기선 생략해도 OK
-            );
+            FeedFilterBottomSheet.show(context);
           },
           icon: const FaIcon(FontAwesomeIcons.filter),
         ),
@@ -250,8 +237,7 @@ class _MainNavigationState extends State<MainNavigation> {
     final body = IndexedStack(
       index: _selectedIndex,
       children: [
-        // ✅ HomeScreen에 targetNotifier 전달
-        HomeScreen(targetNotifier: _homeTarget),
+        HomeScreen(),
         UserListScreen(),
         _currentUser?.userType?.type == "roomOwner"
             ? const RoomOwnerPostScreen()

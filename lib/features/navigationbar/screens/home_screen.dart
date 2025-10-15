@@ -1,15 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:roommate/features/view/post_list_view.dart';
-import 'package:roommate/features/navigationbar/widgets/feed_filter.dart'; // FeedTarget import
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({
-    super.key,
-    this.targetNotifier,
-  });
-
-  /// 현재 탭의 FeedTarget을 부모(MainNavigation)에 알려주기 위한 notifier
-  final ValueNotifier<FeedTarget>? targetNotifier;
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -19,22 +12,10 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  void _emitTarget() {
-    final t = (_tabController.index == 1)
-        ? FeedTarget.searcher
-        : FeedTarget.roomOwner;
-    widget.targetNotifier?.value = t;
-  }
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) _emitTarget();
-    });
-    // 초기값도 한 번 발행
-    WidgetsBinding.instance.addPostFrameCallback((_) => _emitTarget());
   }
 
   @override
