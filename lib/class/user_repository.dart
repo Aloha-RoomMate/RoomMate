@@ -182,12 +182,14 @@ class UserRepository {
     String? displayName,
     String? photoURL,
     String? gender,
+    int? birthYear,
   }) async {
     await _meDoc().set(
       {
         if (displayName != null) 'displayName': displayName,
         if (photoURL != null) 'photoURL': photoURL,
         if (gender != null) 'gender': gender,
+        if (birthYear != null) 'birthYear': birthYear,
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),

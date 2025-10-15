@@ -1,5 +1,6 @@
 // 화면 깜빡임을 줄이기 위해 빌드를 너무 자주하게 하면 안된다.
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
@@ -26,6 +27,10 @@ class _UserjobScreenState extends State<UserjobScreen>
   // 성별
   String? _selectedGender; // '남성' | '여성'
   bool _genderLocked = false; // ✅ 저장된 성별이 있으면 잠금(수정 불가)
+
+  // 태어난 년도
+  final _birthYearCtrl = TextEditingController();
+  DateTime? _selectedBirthYear;
 
   // 룸메이트 이용 이유 (0: owner, 1: searcher)
   int? _selectedIndex;
@@ -69,6 +74,12 @@ class _UserjobScreenState extends State<UserjobScreen>
         _genderLocked = true;
       }
 
+      // 태어난 년도 프리필
+      if (me.birthYear != null) {
+        _selectedBirthYear = DateTime(me.birthYear!);
+        _birthYearCtrl.text = me.birthYear!.toString();
+      }
+
       // 유저 타입 프리필
       final t = (me.userType?.type ?? 'searcher').toLowerCase();
       _selectedIndex = (t == 'roomowner' || t == 'room_owner') ? 0 : 1;
@@ -96,6 +107,7 @@ class _UserjobScreenState extends State<UserjobScreen>
 
   @override
   void dispose() {
+    _birthYearCtrl.dispose();
     _btnAC.dispose();
     super.dispose();
   }
@@ -136,12 +148,38 @@ class _UserjobScreenState extends State<UserjobScreen>
     setState(() => _selectedGender = gender);
   }
 
-  // 버튼 활성 조건: 직업 ≥1, 성별(잠금이거나 직접 선택), 타입 선택, 그리고 저장 중이 아닐 때
+  // 태어난 년도 선택
+  void _onBirthYearPickerChanged(DateTime date) {
+    _selectedBirthYear = date;
+    _birthYearCtrl.text = date.year.toString();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _onBirthYearFieldTap() async {
+    await showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SizedBox(
+          height: 300,
+          child: CupertinoDatePicker(
+            mode: CupertinoDatePickerMode.date,
+            onDateTimeChanged: _onBirthYearPickerChanged,
+            initialDateTime: _selectedBirthYear ?? DateTime.now(),
+            maximumDate: DateTime.now(),
+            minimumDate: DateTime(1950),
+          ),
+        );
+      },
+    );
+  }
+
+  // 버튼 활성 조건: 직업 ≥1, 성별(잠금이거나 직접 선택), 태어난 년도, 타입 선택, 그리고 저장 중이 아닐 때
   bool _isNextEnabled() {
     final anyJob = _jobSelections.contains(true);
     final genderOk = _genderLocked || (_selectedGender != null);
+    final birthYearOk = _selectedBirthYear != null;
     final typeOk = _selectedIndex != null;
-    return anyJob && genderOk && typeOk && !_isSending;
+    return anyJob && genderOk && birthYearOk && typeOk && !_isSending;
   }
 
   // 저장 + 네비
@@ -163,7 +201,10 @@ class _UserjobScreenState extends State<UserjobScreen>
 
       // 성별 저장: 잠금이 아닐 때만 업데이트
       if (!_genderLocked && _selectedGender != null) {
-        await _repo.updateProfile(gender: _selectedGender);
+        await _repo.updateProfile(
+          gender: _selectedGender,
+          birthYear: _selectedBirthYear?.year,
+        );
       }
 
       final userType = _selectedIndex == 0 ? 'roomOwner' : 'searcher';
@@ -336,6 +377,27 @@ class _UserjobScreenState extends State<UserjobScreen>
                               ),
                             ),
                           ],
+                        ),
+                      ),
+
+                      Gaps.v80(context),
+
+                      // ===== 태어난 년도 =====
+                      Text(
+                        '태어난 년도를 선택해주세요!',
+                        style: TextStyle(
+                          fontSize: ResponsiveSizes.f(context, 28),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Gaps.v16(context),
+                      TextField(
+                        onTap: _onBirthYearFieldTap,
+                        controller: _birthYearCtrl,
+                        readOnly: true,
+                        decoration: const InputDecoration(
+                          hintText: '태어난 년도 선택',
+                          border: OutlineInputBorder(),
                         ),
                       ),
 
