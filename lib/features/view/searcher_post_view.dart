@@ -1,220 +1,343 @@
+// features/view/searcher_post_view.dart
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/searcher_post.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:roommate/class/chat_repository.dart';
+import 'package:roommate/features/chat/chat_screen.dart';
+import 'package:roommate/features/view/user_profile_view.dart';
+// import 'package:roommate/features/post/searcher_post_screen.dart'; // 수정 화면이 준비되면 활성화
 
 class SearcherPostView extends StatefulWidget {
   final SearcherPost post;
-  const SearcherPostView({super.key, required this.post});
+
+  const SearcherPostView({
+    super.key,
+    required this.post,
+  });
 
   @override
   State<SearcherPostView> createState() => _SearcherPostViewState();
 }
 
 class _SearcherPostViewState extends State<SearcherPostView> {
-  static const String _bucket = 'RoomMate-image';
-  static const int _urlTtl = 1800;
-  static final _supabase = Supabase.instance.client;
+  final UserRepository _userRepository = UserRepository();
+  final ChatRepository _chatRepo = ChatRepository();
+  late Future<AppUser?> _authorFuture;
+  bool _startingChat = false;
 
-  Future<List<String>> _signedUrls() async {
-    final paths = widget.post.imageUrls ?? const <String>[];
-    if (paths.isEmpty) return const <String>[];
-    final urls = <String>[];
-    for (final p in paths) {
-      final u = await _supabase.storage
-          .from(_bucket)
-          .createSignedUrl(p, _urlTtl);
-      urls.add(u);
-    }
-    return urls;
+  bool get _isOwner {
+    final me = FirebaseAuth.instance.currentUser;
+    return me != null && widget.post.authorId == me.uid;
   }
 
-  String _fmtDate(dynamic ts) {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.post.authorId != null && widget.post.authorId!.isNotEmpty) {
+      _authorFuture = _userRepository.fetchUserById(widget.post.authorId!);
+    } else {
+      _authorFuture = Future.value(null);
+    }
+  }
+
+  Widget _buildInfoRow(
+    IconData icon,
+    String title,
+    String value, {
+    bool valueRight = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Sizes.size8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: Sizes.size20, color: Colors.grey.shade600),
+          Gaps.h16(context),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: Sizes.size16)),
+                Gaps.v6(context),
+                Align(
+                  alignment: valueRight
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    textAlign: valueRight ? TextAlign.right : TextAlign.left,
+                    style: const TextStyle(
+                      fontSize: Sizes.size16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _startChat() async {
+    if (_startingChat) return;
+    final me = FirebaseAuth.instance.currentUser;
+    final partnerUid = widget.post.authorId ?? '';
+
+    if (me == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다.')),
+      );
+      return;
+    }
+    if (partnerUid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('작성자 정보를 확인할 수 없어요.')),
+      );
+      return;
+    }
+    if (partnerUid == me.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('내가 올린 글입니다.')),
+      );
+      return;
+    }
+
+    setState(() => _startingChat = true);
     try {
-      if (ts == null) return '-';
-      final toDate = (ts as dynamic).toDate?.call();
-      if (toDate is DateTime) {
-        final y = toDate.year.toString();
-        final m = toDate.month.toString().padLeft(2, '0');
-        final d = toDate.day.toString().padLeft(2, '0');
-        return '$y-$m-$d';
-      }
-    } catch (_) {}
-    return '-';
+      final partner = await _userRepository.fetchUserById(partnerUid);
+      final partnerName = partner?.displayName ?? '상대방';
+      final chatRoomId = await _chatRepo.createChatRoom(me.uid, partnerUid);
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            chatRoomId: chatRoomId,
+            partnerUid: partnerUid,
+            partnerName: partnerName,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('채팅 시작에 실패했어요: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _startingChat = false);
+    }
+  }
+
+  void _goEdit() {
+    // TODO: 방 구하기 게시물 수정 화면으로 이동
+    // Navigator.push(
+    //   context,
+    //   MaterialPageRoute(
+    //     builder: (_) => SearcherPostScreen(
+    //       postToEdit: widget.post,
+    //     ),
+    //   ),
+    // );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('수정 기능은 아직 준비 중입니다.')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final numberFormat = NumberFormat.decimalPattern();
     final p = widget.post;
 
-    final title = (p.title ?? '').isEmpty ? '제목 없음' : p.title!;
     final wantAreas = (p.wantArea ?? const <String>[]).join(', ');
     final wantRoom = (p.wantRoom ?? const <String>[]).join(', ');
     final wantPay = (p.wantPay ?? const <String>[]).join(', ');
 
-    final deposit = p.deposit ?? 0;
-    final minRent = p.minRent ?? 0;
-    final maxRent = p.maxRent ?? 0;
+    final deposit = numberFormat.format(p.deposit ?? 0);
+    final minRent = numberFormat.format(p.minRent ?? 0);
+    final maxRent = numberFormat.format(p.maxRent ?? 0);
 
-    final moving = _fmtDate(p.movingDate);
-    final contract = '${p.minContract ?? 0}~${p.maxContract ?? 0}개월';
+    final movingDate = p.movingDate != null
+        ? DateFormat('yyyy년 MM월 dd일').format(p.movingDate!.toDate())
+        : "정보 없음";
+    final contract = '${p.minContract ?? '-'}개월 ~ ${p.maxContract ?? '-'}개월';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('상세 보기', style: TextStyle(fontSize: Sizes.size18)),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(Sizes.size16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 제목
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: Sizes.size20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Gaps.v14(context),
-
-            // 이미지 그리드
-            FutureBuilder<List<String>>(
-              future: _signedUrls(),
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
-                  return const SizedBox(
-                    height: 120,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final urls = snap.data ?? const <String>[];
-                if (urls.isEmpty) {
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.asset(
-                      'assets/house.jpg',
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  );
-                }
-                return GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  itemCount: urls.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 6,
-                    crossAxisSpacing: 6,
-                  ),
-                  itemBuilder: (_, i) => ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      urls[i],
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          Image.asset('assets/house.jpg', fit: BoxFit.cover),
-                    ),
-                  ),
-                );
-              },
-            ),
-            Gaps.v16(context),
-
-            // 정보 블록
-            _InfoRow(
-              icon: FontAwesomeIcons.locationDot,
-              label: '희망 지역',
-              value: wantAreas.isEmpty ? '-' : wantAreas,
-            ),
-            Gaps.v10(context),
-            _InfoRow(
-              icon: FontAwesomeIcons.houseChimney,
-              label: '희망 구조',
-              value: wantRoom.isEmpty ? '-' : wantRoom,
-            ),
-            Gaps.v10(context),
-            _InfoRow(
-              icon: FontAwesomeIcons.handHoldingDollar,
-              label: '지불 구조',
-              value: wantPay.isEmpty ? '-' : wantPay,
-            ),
-            Gaps.v10(context),
-            _InfoRow(
-              icon: FontAwesomeIcons.coins,
-              label: '예산',
-              value: '보증금 $deposit만 / 월세 $minRent~$maxRent만',
-            ),
-            Gaps.v10(context),
-            _InfoRow(
-              icon: FontAwesomeIcons.calendar,
-              label: '입주 희망일',
-              value: moving,
-            ),
-            Gaps.v10(context),
-            _InfoRow(
-              icon: FontAwesomeIcons.solidClock,
-              label: '희망 계약',
-              value: contract,
-            ),
-            Gaps.v16(context),
-
-            const Text(
-              '자기소개',
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: Colors.black,
+            elevation: 0,
+            title: const Text(
+              '상세 보기',
               style: TextStyle(
-                fontSize: Sizes.size16,
-                fontWeight: FontWeight.w600,
+                fontSize: Sizes.size18,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            Gaps.v6(context),
-            Text(
-              (p.introduction ?? '').isEmpty ? '소개가 없습니다.' : p.introduction!,
-              style: const TextStyle(fontSize: Sizes.size14, height: 1.5),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(Sizes.size20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 제목
+                  Text(
+                    p.title ?? '제목 없음',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Gaps.v20(context),
+
+                  // 작성자
+                  FutureBuilder<AppUser?>(
+                    future: _authorFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (!snapshot.hasData || snapshot.data == null) {
+                        return const ListTile(
+                          leading: CircleAvatar(child: Icon(Icons.person_off)),
+                          title: Text('작성자 정보 없음'),
+                        );
+                      }
+                      final author = snapshot.data!;
+                      return ListTile(
+                        leading: CircleAvatar(
+                          radius: 24,
+                          backgroundImage: author.photoURL != null
+                              ? NetworkImage(author.photoURL!)
+                              : null,
+                          child: author.photoURL == null
+                              ? const Icon(Icons.person)
+                              : null,
+                        ),
+                        title: Text(
+                          author.displayName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const Text('프로필 보기'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          final uid = widget.post.authorId;
+                          if (uid == null || uid.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('작성자 UID를 찾을 수 없어요.'),
+                              ),
+                            );
+                            return;
+                          }
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => UserProfileView(targetUid: uid),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                  const Divider(height: Sizes.size40),
+
+                  const Text(
+                    "희망 조건",
+                    style: TextStyle(
+                      fontSize: Sizes.size20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Gaps.v16(context),
+
+                  _buildInfoRow(
+                    Icons.location_on_outlined,
+                    "희망 지역",
+                    wantAreas.isEmpty ? '-' : wantAreas,
+                  ),
+                  _buildInfoRow(
+                    Icons.home_outlined,
+                    "희망 구조",
+                    wantRoom.isEmpty ? '-' : wantRoom,
+                  ),
+                  _buildInfoRow(
+                    Icons.payment_outlined,
+                    "지불 방식",
+                    wantPay.isEmpty ? '-' : wantPay,
+                  ),
+                  _buildInfoRow(
+                    Icons.attach_money_outlined,
+                    "희망 예산",
+                    "보증금 ${deposit}만 / 월세 ${minRent}만 ~ ${maxRent}만",
+                    valueRight: true,
+                  ),
+                  _buildInfoRow(
+                    Icons.event_available_outlined,
+                    "입주 희망일",
+                    movingDate,
+                    valueRight: true,
+                  ),
+                  _buildInfoRow(
+                    Icons.article_outlined,
+                    "희망 계약 기간",
+                    contract,
+                    valueRight: true,
+                  ),
+
+                  const Divider(height: Sizes.size40),
+                  const Text(
+                    "소개글",
+                    style: TextStyle(
+                      fontSize: Sizes.size20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Gaps.v16(context),
+                  Text(
+                    widget.post.introduction ?? '작성된 소개글이 없습니다.',
+                    style: const TextStyle(fontSize: Sizes.size16, height: 1.5),
+                  ),
+                  Gaps.v20(context),
+                ],
+              ),
             ),
-            Gaps.v40(context),
-          ],
+          ),
+        ],
+      ),
+      bottomNavigationBar: BottomAppBar(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: Sizes.size6,
+            horizontal: Sizes.size20,
+          ),
+          child: ElevatedButton(
+            onPressed: _isOwner ? _goEdit : (_startingChat ? null : _startChat),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: Sizes.size8),
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              _isOwner ? '수정하기' : (_startingChat ? '연결 중...' : '채팅으로 연락하기'),
+              style: const TextStyle(
+                fontSize: Sizes.size18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ),
       ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        FaIcon(icon, size: Sizes.size14),
-        Gaps.h8(context),
-        Text(
-          '$label : ',
-          style: const TextStyle(
-            fontSize: Sizes.size14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: Sizes.size14),
-          ),
-        ),
-      ],
     );
   }
 }
