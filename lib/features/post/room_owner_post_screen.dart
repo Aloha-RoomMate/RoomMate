@@ -2,7 +2,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -14,12 +13,10 @@ import 'package:intl/intl.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
-import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/post/widgets/form_button.dart';
 
 class RoomOwnerPostScreen extends StatefulWidget {
@@ -33,7 +30,8 @@ class RoomOwnerPostScreen extends StatefulWidget {
 class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
   // ── controllers ────────────────────────────────────────────────────────────
   final _titleCtrl = TextEditingController();
-  final _addrCtrl = TextEditingController(); // 내부 입력(전체 주소)
+  final _roadAddrCtrl = TextEditingController(); // 도로명 주소
+  final _jibunAddrCtrl = TextEditingController(); // 지번 주소 (UI 표시용)
   final _depositCtrl = TextEditingController();
   final _rentCtrl = TextEditingController();
   final _manageFeeCtrl = TextEditingController();
@@ -51,9 +49,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
   // 현재 사용자
   final UserRepository _userRepository = UserRepository();
   AppUser? _me;
-
-  // ── 공개용 주소 라벨 상태(예: "철산동 부근", "강남역 부근") ─────────────────────
-  String? _publicAddrLabel;
 
   // ── Juso 검색 ───────────────────────────────────────────────────────────────
   static const String _jusoKey = "devU01TX0FVVEgyMDI1MDkxMTE3MzcyNzExNjE3NjI=";
@@ -124,7 +119,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
               ),
             );
 
-        // Firestore엔 "경로"를 저장(서명 URL 아님)
         uploadedPaths.add(storagePath);
       }
     } finally {
@@ -207,7 +201,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
   void _removeImageAt(int index) =>
       setState(() => _pickedImages.removeAt(index));
 
-  // ── VWorld 지오코딩 + 200m 랜덤 ────────────────────────────────────────────
   Future<Map<String, double>?> _addrToCoordinate(String address) async {
     const KEY = '859C0BAE-5962-3698-97E5-FE4089A6517A';
     final url = Uri.https('api.vworld.kr', '/req/address', {
@@ -261,44 +254,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
     };
   }
 
-  // ── 공개 라벨 생성기들 ─────────────────────────────────────────────────────
-  String _makePublicLabelFromJuso(Map<String, dynamic> j) {
-    final roadAddr = (j['roadAddr'] ?? '') as String;
-    final bdNm = (j['bdNm'] ?? '') as String; // 건물명
-    final rn = (j['rn'] ?? '') as String; // 도로명
-    final emdNm = (j['emdNm'] ?? '') as String; // 읍/면/동
-    final sggNm = (j['sggNm'] ?? '') as String; // 구/군
-
-    // 1) 역명(건물명/전체주소에 '…역')
-    for (final s in [bdNm, roadAddr]) {
-      final m = RegExp(r'([가-힣A-Za-z0-9]+역)').firstMatch(s);
-      if (m != null) return '${m.group(1)} 부근';
-    }
-    // 2) 도로명
-    if (rn.isNotEmpty) return '$rn 부근';
-    // 3) 읍/면/동/리/가
-    final m2 = RegExp(r'([가-힣A-Za-z0-9]+(?:동|읍|면|리|가))').firstMatch(roadAddr);
-    if (m2 != null) return '${m2.group(1)} 부근';
-    if (emdNm.isNotEmpty) return '$emdNm 부근';
-    // 4) 구/군
-    if (sggNm.isNotEmpty) return '$sggNm 부근';
-    return '부근';
-  }
-
-  String _derivePublicLabelFromText(String text) {
-    // 1) 역명
-    final m1 = RegExp(r'([가-힣A-Za-z0-9]+역)').firstMatch(text);
-    if (m1 != null) return '${m1.group(1)} 부근';
-    // 2) 도로명
-    final m2 = RegExp(r'([가-힣A-Za-z0-9]+(?:로|대로|길))').firstMatch(text);
-    if (m2 != null) return '${m2.group(1)} 부근';
-    // 3) 읍/면/동/리/가
-    final m3 = RegExp(r'([가-힣A-Za-z0-9]+(?:동|읍|면|리|가))').firstMatch(text);
-    if (m3 != null) return '${m3.group(1)} 부근';
-    return '부근';
-  }
-
-  // ── lifecycle ──────────────────────────────────────────────────────────────
   DateTime? _selectedMovingDate;
   bool _isPosting = false;
 
@@ -307,10 +262,10 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
     super.initState();
     _loadMe();
 
-    // 입력값 변경 시 버튼 상태/색 갱신
     for (final c in [
       _titleCtrl,
-      _addrCtrl,
+      _roadAddrCtrl,
+      _jibunAddrCtrl,
       _depositCtrl,
       _rentCtrl,
       _manageFeeCtrl,
@@ -328,12 +283,11 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       });
     }
 
-    // 수정 모드: 모델에 address가 없다면 addressLabel만 사용
     final p = widget.postToEdit;
     if (p != null) {
       _titleCtrl.text = p.title ?? '';
-      _addrCtrl.text = p.addressLabel ?? ''; // 내부 입력은 라벨로 초기화
-      _publicAddrLabel = p.addressLabel; // 공개 라벨 프리뷰
+      _roadAddrCtrl.text = p.roadAddress ?? '';
+      _jibunAddrCtrl.text = p.jibunAddress ?? '';
       _depositCtrl.text = (p.deposit ?? 0).toString();
       _rentCtrl.text = (p.rent ?? 0).toString();
       _manageFeeCtrl.text = (p.manageFee ?? 0).toString();
@@ -360,7 +314,8 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
   @override
   void dispose() {
     _titleCtrl.dispose();
-    _addrCtrl.dispose();
+    _roadAddrCtrl.dispose();
+    _jibunAddrCtrl.dispose();
     _depositCtrl.dispose();
     _rentCtrl.dispose();
     _manageFeeCtrl.dispose();
@@ -375,12 +330,11 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
     super.dispose();
   }
 
-  // ── time picker ────────────────────────────────────────────────────────────
   void _onTimePickerChanged(DateTime date) {
     _selectedMovingDate = date;
     _movingDateCtrl.text =
         "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-    if (mounted) setState(() {}); // 버튼 색 갱신
+    if (mounted) setState(() {});
   }
 
   Future<void> _onTimeFieldTap() async {
@@ -397,11 +351,11 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
     );
   }
 
-  // ── validators ─────────────────────────────────────────────────────────────
   bool _isNextAvailable() {
     final base =
         _titleCtrl.text.isNotEmpty &&
-        _addrCtrl.text.isNotEmpty &&
+        _roadAddrCtrl.text.isNotEmpty &&
+        _jibunAddrCtrl.text.isNotEmpty &&
         _depositCtrl.text.isNotEmpty &&
         _rentCtrl.text.isNotEmpty &&
         _manageFeeCtrl.text.isNotEmpty &&
@@ -418,7 +372,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
     return base && _me != null;
   }
 
-  // ── juso search ────────────────────────────────────────────────────────────
   Future<void> _searchAddress(String keyword) async {
     if (keyword.isEmpty) {
       setState(() {
@@ -459,20 +412,22 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
     }
   }
 
-  // ── save (작성 & 수정) ─────────────────────────────────────────────────────
   Future<void> _onSave() async {
     if (!_isNextAvailable() || _isPosting) return;
     setState(() => _isPosting = true);
 
     try {
-      // uid 확보(미로그인 대비)
       final auth = FirebaseAuth.instance;
       final user = auth.currentUser ?? (await auth.signInAnonymously()).user!;
       final uid = user.uid;
 
-      // 공통 필드
+      final roadAddress = _roadAddrCtrl.text.trim();
+      final jibunAddress = _jibunAddrCtrl.text.trim();
+
       final common = <String, dynamic>{
         'title': _titleCtrl.text,
+        'roadAddress': roadAddress,
+        'jibunAddress': jibunAddress,
         'deposit': int.tryParse(_depositCtrl.text) ?? 0,
         'rent': int.tryParse(_rentCtrl.text) ?? 0,
         'manageFee': int.tryParse(_manageFeeCtrl.text) ?? 0,
@@ -491,14 +446,11 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       final col = FirebaseFirestore.instance.collection('roomOwnerPosts');
 
       if (_isEdit) {
-        // ── 수정 모드 ────────────────────────────────────────────────────────
         final docId = widget.postToEdit!.postId!;
         final docRef = col.doc(docId);
 
-        final newAddress = _addrCtrl.text.trim();
-        if (newAddress.isNotEmpty) {
-          // 항상 최신 입력 기준으로 좌표/라벨 갱신 (모델에 address가 없으므로 비교 생략)
-          final center = await _addrToCoordinate(newAddress);
+        if (roadAddress.isNotEmpty) {
+          final center = await _addrToCoordinate(roadAddress);
           if (center != null) {
             final jitter = _randomizeCoord(center, 200.0);
             common['coordinate'] = GeoPoint(
@@ -506,11 +458,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
               jitter['longitude']!,
             );
           }
-          final publicLabel =
-              (_publicAddrLabel ?? _derivePublicLabelFromText(newAddress))
-                  .trim();
-          common['address'] = newAddress; // 내부 전체 주소 (문서에는 저장)
-          common['addressLabel'] = publicLabel; // 공개 ‘…부근’
         }
 
         await docRef.update({
@@ -518,7 +465,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
-        // 새로 선택한 이미지가 있다면 업로드 후 imageUrls append
         if (_pickedImages.isNotEmpty) {
           final newPaths = await _uploadAllImagesToSupabase(
             uid: uid,
@@ -551,50 +497,25 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
         return;
       }
 
-      // ── 작성 모드 ──────────────────────────────────────────────────────────
-      final center = await _addrToCoordinate(_addrCtrl.text);
+      final center = await _addrToCoordinate(roadAddress);
       if (center == null) {
         throw Exception('주소를 좌표로 변환하지 못했습니다.');
       }
       final jitter = _randomizeCoord(center, 200.0);
-
       final normalizedGender = _normalizeGender(_me?.gender);
 
-      // 공개 라벨 확정
-      final publicLabel =
-          (_publicAddrLabel ?? _derivePublicLabelFromText(_addrCtrl.text))
-              .trim();
-
-      // 문서 선 생성 (imageUrls 비움)
       final docRef = await col.add({
+        ...common,
         'authorId': _me?.uid ?? uid,
         'authorGender': normalizedGender ?? _me?.gender,
         'postType': 'roomOwner',
-        'title': _titleCtrl.text,
-        'address': _addrCtrl.text, // 내부 전체 주소 저장 (공개용 아님)
-        'addressLabel': publicLabel, // 공개용 라벨(…부근) ← 리스트/상세에서 이걸 사용
         'coordinate': GeoPoint(jitter['latitude']!, jitter['longitude']!),
-        'deposit': int.tryParse(_depositCtrl.text) ?? 0,
-        'rent': int.tryParse(_rentCtrl.text) ?? 0,
-        'manageFee': int.tryParse(_manageFeeCtrl.text) ?? 0,
-        'corFloor': int.tryParse(_corFloorCtrl.text) ?? 0,
-        'wholeFloor': int.tryParse(_wholeFloorCtrl.text) ?? 0,
-        'area': int.tryParse(_areaCtrl.text) ?? 0,
-        'toilet': int.tryParse(_toiletCtrl.text) ?? 0,
-        'minContract': int.tryParse(_minContractCtrl.text) ?? 0,
-        'maxContract': int.tryParse(_maxContractCtrl.text) ?? 0,
-        'introduction': _introductionCtrl.text,
-        'movingDate': _selectedMovingDate == null
-            ? null
-            : Timestamp.fromDate(_selectedMovingDate!),
         'imageUrls': <String>[],
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       final postId = docRef.id;
-
-      // 이미지 업로드 → imageUrls 업데이트
       final uploadedPaths = await _uploadAllImagesToSupabase(
         uid: uid,
         postId: postId,
@@ -625,7 +546,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
     }
   }
 
-  // ── UI ─────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final buttonText = _isEdit ? '수정 완료' : '다음';
@@ -635,7 +555,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
-          automaticallyImplyLeading: false, // ← 기본 뒤로가기 아이콘 숨김
+          automaticallyImplyLeading: false,
           elevation: 0,
           scrolledUnderElevation: 0,
           title: Text(
@@ -648,7 +568,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 제목
                 Text(
                   '제목을 입력해주세요!',
                   style: TextStyle(
@@ -671,7 +590,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 ),
                 Gaps.v48(context),
 
-                // 주소 안내
                 Text(
                   '주소를 입력해주세요!',
                   style: TextStyle(
@@ -681,7 +599,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 ),
                 Gaps.v2(context),
                 Text(
-                  '다른 유저에게는 상세주소 대신 “… 부근”으로 노출돼요.\n지도에는 실제 주소 반경 200m 내의 랜덤 위치로 표시돼요.',
+                  '다른 유저에게는 상세주소 대신 … 부근으로 노출돼요.\n지도에는 실제 주소 반경 200m 내의 랜덤 위치로 표시돼요.',
                   style: TextStyle(
                     fontSize: ResponsiveSizes.f(context, 14),
                     color: Colors.black87,
@@ -689,14 +607,13 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   ),
                 ),
                 Gaps.v12(context),
-                // 주소 입력/검색
                 Row(
                   children: [
                     Expanded(
                       child: TextField(
-                        controller: _addrCtrl,
+                        controller: _roadAddrCtrl,
                         decoration: InputDecoration(
-                          hintText: '도로명 주소 입력',
+                          hintText: '도로명 주소 입력 후 엔터',
                           border: OutlineInputBorder(),
                           hintStyle: TextStyle(
                             fontSize: ResponsiveSizes.f(context, 14),
@@ -706,41 +623,50 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                         ),
                         onSubmitted: (kw) async {
                           await _searchAddress(kw);
-                          if (_publicAddrLabel == null &&
-                              kw.trim().isNotEmpty) {
-                            setState(() {
-                              _publicAddrLabel = _derivePublicLabelFromText(
-                                kw.trim(),
-                              );
-                            });
-                          }
                         },
                       ),
                     ),
                   ],
                 ),
-                // 공개 라벨 미리보기
-                if ((_publicAddrLabel ?? '').isNotEmpty) ...[
-                  Gaps.v1(context),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.visibility_outlined,
-                        size: 16,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        "공개 표시는 ‘$_publicAddrLabel’ 로 보여집니다",
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                Builder(
+                  builder: (context) {
+                    final jibun = _jibunAddrCtrl.text.trim();
+                    if (jibun.isEmpty) return const SizedBox.shrink();
 
+                    final tempPost = RoomOwnerPost(
+                      authorId: '',
+                      jibunAddress: jibun,
+                    );
+                    final displayAddress = tempPost.getAddressLabel;
+
+                    if (displayAddress.isEmpty ||
+                        displayAddress == '주소 정보 없음' ||
+                        displayAddress == jibun) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.visibility_outlined,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "공개 표시는 ‘$displayAddress’ 로 보여집니다",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
                 Gaps.v2(context),
                 if (_pickedImages.isNotEmpty)
                   GridView.builder(
@@ -784,13 +710,11 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   ),
                 Gaps.v24(context),
 
-                // 검색 결과 리스트
                 SizedBox(
                   height: _addresses.isNotEmpty ? 300 : 0,
                   child: _buildResults(),
                 ),
                 Gaps.v12(context),
-                // 사진 업로드
                 Text(
                   '사진 업로드',
                   style: TextStyle(
@@ -818,7 +742,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 ),
                 Gaps.v40(context),
 
-                // 금액/정보
                 Row(
                   children: [
                     Expanded(
@@ -872,7 +795,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 ),
                 Gaps.v24(context),
 
-                // 층수
                 Row(
                   children: [
                     Expanded(
@@ -909,8 +831,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   ],
                 ),
                 Gaps.v24(context),
-
-                // 전용 면적 / 화장실 개수
                 Text(
                   '전용 면적 / 화장실 개수',
                   style: TextStyle(
@@ -956,7 +876,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 ),
                 Gaps.v24(context),
 
-                // 입주일
                 Text(
                   '입주가능일',
                   style: TextStyle(
@@ -985,7 +904,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 ),
                 Gaps.v24(context),
 
-                // 계약기간
                 Row(
                   children: [
                     Expanded(
@@ -1031,7 +949,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   ),
                 ),
                 Gaps.v24(context),
-                // 소개
                 TextField(
                   controller: _introductionCtrl,
                   minLines: null,
@@ -1050,7 +967,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 ),
                 Gaps.v24(context),
 
-                // 저장 버튼 (FormButton 유지)
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: canSubmit ? _onSave : null,
@@ -1076,7 +992,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
     );
   }
 
-  // ── 검색 결과 리스트 ───────────────────────────────────────────────────────
   Widget _buildResults() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -1089,10 +1004,9 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
           final address = _addresses[index] as Map<String, dynamic>;
           return GestureDetector(
             onTap: () {
-              final label = _makePublicLabelFromJuso(address);
               setState(() {
-                _addrCtrl.text = address['roadAddr'] ?? '';
-                _publicAddrLabel = label; // 공개 라벨 자동 세팅
+                _roadAddrCtrl.text = address['roadAddr'] ?? '';
+                _jibunAddrCtrl.text = address['jibunAddr'] ?? '';
                 _addresses = [];
               });
             },
