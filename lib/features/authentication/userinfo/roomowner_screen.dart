@@ -124,7 +124,6 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
           uid: FirebaseAuth.instance.currentUser!.uid,
           type: widget.userType,
           jobKinds: widget.jobKinds,
-          address: address,
           searchAreas: null,
         );
       } catch (e) {}

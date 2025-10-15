@@ -213,7 +213,6 @@ class _UserjobScreenState extends State<UserjobScreen>
         uid: authUser.uid,
         type: userType,
         jobKinds: jobKinds,
-        address: '',
       );
 
       if (!mounted) return;
@@ -230,7 +229,7 @@ class _UserjobScreenState extends State<UserjobScreen>
           );
         } else {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const SearcherScreen()),
+            MaterialPageRoute(builder: (_) => const HobbyScreen()),
           );
         }
       }
