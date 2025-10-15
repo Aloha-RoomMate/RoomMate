@@ -164,27 +164,25 @@ class _PostListViewState extends State<PostListView> {
 
   Future<List<Object>> _filterItems(List<Object> raw) async {
     final f = _filter.state;
-    if (!f.isActive) return raw;
-
-    List<Object> filtered = [];
-
-    // House filtering (only for RoomOwnerPost)
-    if (f.isHouseFilterActive && _isRoomOwnerList) {
-      for (final item in raw) {
-        if (item is RoomOwnerPost) {
-          if (_matchesHouse(item, f)) {
-            filtered.add(item);
-          }
-        }
-      }
-    } else {
-      filtered.addAll(raw);
+    if (!f.isActive) {
+      return raw;
     }
 
-    // Person filtering
+    List<Object> currentlyFiltered = List.from(raw);
+
+    // Apply house filter
+    if (f.isHouseFilterActive) {
+      if (_isRoomOwnerList) {
+        currentlyFiltered.retainWhere((item) => item is RoomOwnerPost && _matchesHouse(item, f));
+      } else { // This is the Searcher list
+        currentlyFiltered.retainWhere((item) => item is SearcherPost && _matchesSearcherHouseFilters(item, f));
+      }
+    }
+
+    // Apply person filter
     if (f.isPersonFilterActive) {
       List<Object> personFiltered = [];
-      for (final item in filtered) {
+      for (final item in currentlyFiltered) {
         String? authorId;
         if (item is RoomOwnerPost) {
           authorId = item.authorId;
@@ -199,10 +197,10 @@ class _PostListViewState extends State<PostListView> {
           }
         }
       }
-      return personFiltered;
+      currentlyFiltered = personFiltered;
     }
 
-    return filtered;
+    return currentlyFiltered;
   }
 
   bool _matchesHouse(RoomOwnerPost p, FeedFilterState f) {
@@ -225,6 +223,34 @@ class _PostListViewState extends State<PostListView> {
       final overlap = (a <= selMax) && (b >= selMin);
       if (!overlap) return false;
     }
+    return true;
+  }
+
+  bool _matchesSearcherHouseFilters(SearcherPost p, FeedFilterState f) {
+    // Deposit
+    if (f.depositMin != null && (p.deposit ?? 0) < f.depositMin!) return false;
+    if (f.depositMax != null && (p.deposit ?? 1 << 30) > f.depositMax!) return false;
+
+    // Rent
+    if (f.rentMin != null || f.rentMax != null) {
+      final searcherMinRent = p.minRent ?? 0;
+      final searcherMaxRent = p.maxRent ?? (1 << 30);
+      final filterMinRent = f.rentMin ?? 0;
+      final filterMaxRent = f.rentMax ?? (1 << 30);
+      final overlap = (searcherMinRent <= filterMaxRent) && (searcherMaxRent >= filterMinRent);
+      if (!overlap) return false;
+    }
+
+    // Contract Period
+    if (f.contractMin != null || f.contractMax != null) {
+      final searcherMinContract = p.minContract ?? 0;
+      final searcherMaxContract = p.maxContract ?? (1 << 30);
+      final filterMinContract = f.contractMin ?? 0;
+      final filterMaxContract = f.contractMax ?? (1 << 30);
+      final overlap = (searcherMinContract <= filterMaxContract) && (searcherMaxContract >= filterMinContract);
+      if (!overlap) return false;
+    }
+
     return true;
   }
 
