@@ -270,11 +270,13 @@ class _SearcherPostViewState extends State<SearcherPostView> {
                     Icons.home_outlined,
                     "희망 구조",
                     wantRoom.isEmpty ? '-' : wantRoom,
+                    valueRight: true,
                   ),
                   _buildInfoRow(
                     Icons.payment_outlined,
                     "지불 방식",
                     wantPay.isEmpty ? '-' : wantPay,
+                    valueRight: true,
                   ),
                   _buildInfoRow(
                     Icons.attach_money_outlined,
