@@ -141,7 +141,7 @@ class _SearcherPostContainerState extends State<SearcherPostContainer> {
                       height: lineH,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 20),
                   Row(
                     children: [
                       FaIcon(FontAwesomeIcons.coins, size: iconSizeS),
