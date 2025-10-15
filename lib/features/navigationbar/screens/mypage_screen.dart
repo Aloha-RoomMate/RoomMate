@@ -905,17 +905,17 @@ class _MiniOwnerPostTile extends StatelessWidget {
 
   String _price1() {
     final d = post.deposit ?? 0;
-    return '보증금 $d만';
+    return '보증금 $d';
   }
 
   String _price2() {
     final r = post.rent ?? 0;
     final m = post.manageFee ?? 0;
-    return m > 0 ? '월세 $r만 + 관 $m만' : '월세 $r만';
+    return m > 0 ? '월세 $r + 관 $m' : '월세 $r';
   }
 
   String _addrShort() {
-    final a = (post.addressLabel ?? '').trim();
+    final a = (post.roadAddress ?? '').trim();
     if (a.isEmpty) return '위치 비공개';
     return a.split('(').first.trim();
   }
@@ -1221,7 +1221,7 @@ class _MiniSearcherPostTile extends StatelessWidget {
     final lo = post.minRent ?? 0;
     final hi = post.maxRent ?? 0;
     final range = (lo > 0 && hi > 0) ? '$lo~$hi' : (hi > 0 ? '~$hi' : '$lo~');
-    return '보증금 $d만 / 월 $range만';
+    return '보증금 $d / 월 $range';
   }
 
   @override
