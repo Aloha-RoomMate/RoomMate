@@ -82,7 +82,7 @@ class _RoomOwnerPostContainerState extends State<RoomOwnerPostContainer> {
     final fsBody = ResponsiveSizes.f(context, 13);
 
     final post = widget.post;
-    final addr = post.addressLabel ?? '위치 비공개';
+    final addr = post.getAddressLabel;
     final rent = post.rent;
     final manage = post.manageFee;
     final deposit = post.deposit;
