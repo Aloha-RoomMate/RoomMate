@@ -317,8 +317,11 @@ class _FeedFilterBottomSheetState extends State<FeedFilterBottomSheet>
   }
 
   void _clear() {
-    FeedFilterController.instance.clear();
-    Navigator.pop(context);
+    setState(() {
+      _tmp = FeedFilterState(); // Reset temporary state
+      _minCtr.clear();
+      _maxCtr.clear();
+    });
   }
 
   @override
@@ -731,15 +734,17 @@ class _SingleChoiceChips extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: options
-          .map(
-            (opt) => ChoiceChip(
-              label: Text(opt),
-              selected: selected == opt,
-              onSelected: (v) {
-                if (v) onChanged(opt);
-              },
-            ),
-          )
+          .map((opt) => FilterChip(
+                label: Text(opt),
+                selected: selected == opt,
+                onSelected: (isSelected) {
+                  if (isSelected) {
+                    onChanged(opt);
+                  } else {
+                    onChanged('');
+                  }
+                },
+              ))
           .toList(),
     );
   }
