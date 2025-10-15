@@ -197,13 +197,6 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             pinned: true,
             backgroundColor: Theme.of(context).primaryColor,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                widget.post.title ?? '제목 없음',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
               background: imagePaths.isEmpty
                   ? Image.asset(
                       'assets/house.jpg',
@@ -290,6 +283,14 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    widget.post.title ?? '제목 없음',
+                    style: const TextStyle(
+                      fontSize: Sizes.size24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Gaps.v16(context),
                   FutureBuilder<AppUser?>(
                     future: _authorFuture,
                     builder: (context, snapshot) {
