@@ -1,6 +1,6 @@
 // features/post/room_owner_post_screen.dart
 import 'dart:convert';
-import 'dart:io';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -52,7 +52,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
   AppUser? _me;
 
   // Juso 검색
-  static const String _jusoKey = "devU01TX0FVVEgyMDI1MDkxMTE3MzcyNzExNjE3NjI=";
+  final String _jusoKey = dotenv.env['JUSO_API_KEY']!;
   List<dynamic> _addresses = [];
   bool _isLoading = false;
   String _errorMessage = '';

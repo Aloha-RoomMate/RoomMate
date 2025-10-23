@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:roommate/features/authentication/widgets/auth_gate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_web_frame/flutter_web_frame.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,8 +16,7 @@ void main() async {
 
   await Supabase.initialize(
     url: 'https://ilukkxdegjhncnvduphh.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsdWtreGRlZ2pobmNudmR1cGhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3Mjg1MDEsImV4cCI6MjA3NTMwNDUwMX0.6I7eiO-o3LBvQa9DxJYp1ONpqqfnuqUxMZad_IFmHug',
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
   runApp(const RoomMate());
