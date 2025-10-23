@@ -7,7 +7,7 @@ import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:roommate/class/chat_repository.dart';
 import 'package:roommate/features/chat/chat_screen.dart';
@@ -543,7 +543,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             ),
           ),
 
-          // 네이버 지도
+          // Google 지도
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -557,33 +557,22 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                       height: 240,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(Sizes.size10),
-                        child: NaverMap(
-                          options: NaverMapViewOptions(
-                            initialCameraPosition: NCameraPosition(
-                              target: NLatLng(lat, lng),
-                              zoom: 15,
-                            ),
-                            locationButtonEnable: false,
-                            consumeSymbolTapEvents: false,
-                            scrollGesturesEnable: true,
-                            zoomGesturesEnable: true,
-                            tiltGesturesEnable: false,
-                            rotationGesturesEnable: false,
-                            indoorEnable: false,
+                        child: GoogleMap(
+                          initialCameraPosition: CameraPosition(
+                            target: LatLng(lat, lng),
+                            zoom: 15,
                           ),
-                          onMapReady: (controller) async {
-                            final marker = NMarker(
-                              id: 'post_${widget.post.postId ?? 'unknown'}',
-                              position: NLatLng(lat, lng),
-                            );
-                            controller.addOverlay(marker);
-                            await controller.updateCamera(
-                              NCameraUpdate.scrollAndZoomTo(
-                                target: NLatLng(lat, lng),
-                                zoom: 15,
-                              ),
-                            );
+                          markers: {
+                            Marker(
+                              markerId: MarkerId('post_${widget.post.postId ?? 'unknown'}'),
+                              position: LatLng(lat, lng),
+                            ),
                           },
+                          myLocationButtonEnabled: false,
+                          scrollGesturesEnabled: true,
+                          zoomGesturesEnabled: true,
+                          tiltGesturesEnabled: false,
+                          rotateGesturesEnabled: false,
                         ),
                       ),
                     )
