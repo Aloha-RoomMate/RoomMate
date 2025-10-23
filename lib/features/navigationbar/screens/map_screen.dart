@@ -267,7 +267,10 @@ class _MapScreenState extends State<MapScreen> {
     if (_controller == null || _lockOverlayOps || _isAnimatingCamera) return;
 
     if (_ownerCache.isEmpty) {
-      final all = await _postRepo.fetchAllPosts(limit: 1000, myGender: _myGender);
+      final all = await _postRepo.fetchAllPosts(
+        limit: 1000,
+        myGender: _myGender,
+      );
       for (final p in all) {
         final id = p.postId ?? '';
         if (id.isEmpty) continue;
@@ -398,8 +401,11 @@ class _MapScreenState extends State<MapScreen> {
           Padding(
             padding: EdgeInsets.all(ResponsiveSizes.p(context, 8)),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 18)),
+              borderRadius: BorderRadius.circular(
+                ResponsiveSizes.p(context, 18),
+              ),
               child: GoogleMap(
+                webGestureHandling: WebGestureHandling.greedy,
                 initialCameraPosition: const CameraPosition(
                   target: LatLng(37.5665, 126.9780), // Seoul City Hall
                   zoom: 13.5,
@@ -433,11 +439,15 @@ class _MapScreenState extends State<MapScreen> {
               children: [
                 Gaps.v12(context),
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: ResponsiveSizes.p(context, 12)),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveSizes.p(context, 12),
+                  ),
                   child: Material(
                     color: Colors.white,
                     elevation: 4,
-                    borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 12)),
+                    borderRadius: BorderRadius.circular(
+                      ResponsiveSizes.p(context, 12),
+                    ),
                     shadowColor: Colors.black26,
                     child: TextField(
                       controller: _searchCtrl,
@@ -446,19 +456,35 @@ class _MapScreenState extends State<MapScreen> {
                       onSubmitted: _searchAndList,
                       decoration: InputDecoration(
                         hintText: '장소/주소 검색 :',
-                        hintStyle: TextStyle(color: Colors.black38, fontSize: ResponsiveSizes.f(context, 14)),
+                        hintStyle: TextStyle(
+                          color: Colors.black38,
+                          fontSize: ResponsiveSizes.f(context, 14),
+                        ),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: ResponsiveSizes.p(context, 14), vertical: ResponsiveSizes.p(context, 12)),
-                        prefixIcon: const Icon(Icons.search, color: Colors.black87),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: ResponsiveSizes.p(context, 14),
+                          vertical: ResponsiveSizes.p(context, 12),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.black87,
+                        ),
                         suffixIcon: IconButton(
                           icon: _loading
                               ? SizedBox(
                                   width: ResponsiveSizes.p(context, 20),
                                   height: ResponsiveSizes.p(context, 20),
-                                  child: const CircularProgressIndicator(strokeWidth: 2),
+                                  child: const CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
-                              : const Icon(Icons.arrow_forward, color: Colors.black87),
-                          onPressed: _loading ? null : () => _searchAndList(_searchCtrl.text),
+                              : const Icon(
+                                  Icons.arrow_forward,
+                                  color: Colors.black87,
+                                ),
+                          onPressed: _loading
+                              ? null
+                              : () => _searchAndList(_searchCtrl.text),
                           tooltip: '검색',
                         ),
                       ),
@@ -468,29 +494,48 @@ class _MapScreenState extends State<MapScreen> {
                 ),
                 if (_showSuggestionList)
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: ResponsiveSizes.p(context, 12), vertical: ResponsiveSizes.p(context, 8)),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveSizes.p(context, 12),
+                      vertical: ResponsiveSizes.p(context, 8),
+                    ),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(maxHeight: maxSuggestHeight),
                       child: Material(
                         color: Colors.white,
                         elevation: 4,
                         shadowColor: Colors.black26,
-                        borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 12)),
+                        borderRadius: BorderRadius.circular(
+                          ResponsiveSizes.p(context, 12),
+                        ),
                         child: ListView.separated(
                           padding: EdgeInsets.zero,
                           shrinkWrap: true,
                           itemCount: filteredSuggestions.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black12),
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1, color: Colors.black12),
                           itemBuilder: (context, index) {
                             final item = filteredSuggestions[index];
                             return ListTile(
                               dense: true,
-                              leading: const Icon(Icons.history, color: Colors.black54),
-                              title: Text(item, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.black87)),
+                              leading: const Icon(
+                                Icons.history,
+                                color: Colors.black54,
+                              ),
+                              title: Text(
+                                item,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.black87),
+                              ),
                               trailing: IconButton(
-                                icon: const Icon(Icons.close, color: Colors.black45),
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.black45,
+                                ),
                                 tooltip: '제거',
-                                onPressed: () => setState(() => _recentSearches.remove(item)),
+                                onPressed: () => setState(
+                                  () => _recentSearches.remove(item),
+                                ),
                               ),
                               onTap: () => _searchAndList(item),
                             );
@@ -516,8 +561,16 @@ class _MapScreenState extends State<MapScreen> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(ResponsiveSizes.p(context, 16))),
-                      boxShadow: [BoxShadow(blurRadius: ResponsiveSizes.p(context, 12), spreadRadius: ResponsiveSizes.p(context, 2), color: Colors.black.withOpacity(0.15))],
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(ResponsiveSizes.p(context, 16)),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          blurRadius: ResponsiveSizes.p(context, 12),
+                          spreadRadius: ResponsiveSizes.p(context, 2),
+                          color: Colors.black.withOpacity(0.15),
+                        ),
+                      ],
                     ),
                     child: CustomScrollView(
                       controller: scrollController,
@@ -526,34 +579,87 @@ class _MapScreenState extends State<MapScreen> {
                           child: InkWell(
                             onTap: _toggleSheet,
                             child: Padding(
-                              padding: EdgeInsets.all(ResponsiveSizes.p(context, 8)),
+                              padding: EdgeInsets.all(
+                                ResponsiveSizes.p(context, 8),
+                              ),
                               child: Column(
                                 children: [
                                   Container(
                                     width: ResponsiveSizes.p(context, 36),
                                     height: ResponsiveSizes.p(context, 4),
-                                    decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 2))),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black26,
+                                      borderRadius: BorderRadius.circular(
+                                        ResponsiveSizes.p(context, 2),
+                                      ),
+                                    ),
                                   ),
                                   Gaps.v8(context),
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Gaps.h8(context),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            Text('검색 결과 ${_results.length}개', style: TextStyle(fontSize: ResponsiveSizes.f(context, 14), fontWeight: FontWeight.w600, color: Colors.black87)),
+                                            Text(
+                                              '검색 결과 ${_results.length}개',
+                                              style: TextStyle(
+                                                fontSize: ResponsiveSizes.f(
+                                                  context,
+                                                  14,
+                                                ),
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.black87,
+                                              ),
+                                            ),
                                             if (_selectedPlace != null) ...[
                                               Gaps.v4(context),
-                                              Text(_selectedPlace!.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: ResponsiveSizes.f(context, 18), color: Colors.black87, fontWeight: FontWeight.w800)),
-                                              if (_selectedPlace!.displayAddress.isNotEmpty)
-                                                Text(_selectedPlace!.displayAddress, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: ResponsiveSizes.f(context, 12), color: Colors.black54)),
+                                              Text(
+                                                _selectedPlace!.title,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: ResponsiveSizes.f(
+                                                    context,
+                                                    18,
+                                                  ),
+                                                  color: Colors.black87,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                              if (_selectedPlace!
+                                                  .displayAddress
+                                                  .isNotEmpty)
+                                                Text(
+                                                  _selectedPlace!
+                                                      .displayAddress,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: ResponsiveSizes.f(
+                                                      context,
+                                                      12,
+                                                    ),
+                                                    color: Colors.black54,
+                                                  ),
+                                                ),
                                             ],
                                           ],
                                         ),
                                       ),
-                                      IconButton(tooltip: '접기/펼치기', icon: const Icon(Icons.unfold_more, color: Colors.black87), onPressed: _toggleSheet),
+                                      IconButton(
+                                        tooltip: '접기/펼치기',
+                                        icon: const Icon(
+                                          Icons.unfold_more,
+                                          color: Colors.black87,
+                                        ),
+                                        onPressed: _toggleSheet,
+                                      ),
                                     ],
                                   ),
                                 ],
@@ -561,16 +667,39 @@ class _MapScreenState extends State<MapScreen> {
                             ),
                           ),
                         ),
-                        const SliverToBoxAdapter(child: Divider(height: 1, color: Colors.black12)),
+                        const SliverToBoxAdapter(
+                          child: Divider(height: 1, color: Colors.black12),
+                        ),
                         SliverList.separated(
                           itemCount: _results.length,
-                          separatorBuilder: (_, __) => Divider(endIndent: ResponsiveSizes.p(context, 20), indent: ResponsiveSizes.p(context, 20), height: 0),
+                          separatorBuilder: (_, __) => Divider(
+                            endIndent: ResponsiveSizes.p(context, 20),
+                            indent: ResponsiveSizes.p(context, 20),
+                            height: 0,
+                          ),
                           itemBuilder: (context, i) {
                             final p = _results[i];
                             return ListTile(
-                              leading: CircleAvatar(backgroundColor: Colors.white, foregroundColor: Colors.black87, child: Text('${i + 1}')),
-                              title: Text(p.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.black87)),
-                              subtitle: Text(p.displayAddress, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.black87)),
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.black87,
+                                child: Text('${i + 1}'),
+                              ),
+                              title: Text(
+                                p.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              subtitle: Text(
+                                p.displayAddress,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.black87),
+                              ),
                               onTap: () => _onSearchMarkerTapped(p),
                             );
                           },
@@ -590,7 +719,11 @@ class _MapScreenState extends State<MapScreen> {
               onOpen: () {
                 final post = _selectedOwnerPost;
                 if (post == null) return;
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => RoomOwnerPostView(post: post)));
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => RoomOwnerPostView(post: post),
+                  ),
+                );
               },
               onChat: _startChatWithOwner,
             ),
@@ -598,7 +731,10 @@ class _MapScreenState extends State<MapScreen> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Padding(
-        padding: EdgeInsets.only(right: ResponsiveSizes.p(context, 6), bottom: ResponsiveSizes.p(context, 6)),
+        padding: EdgeInsets.only(
+          right: ResponsiveSizes.p(context, 6),
+          bottom: ResponsiveSizes.p(context, 6),
+        ),
         child: FloatingActionButton(
           onPressed: _showMarkerInfo,
           tooltip: '마커 안내',
@@ -622,5 +758,7 @@ class PlaceInfo {
     this.roadAddress,
   });
 
-  String get displayAddress => (roadAddress != null && roadAddress!.isNotEmpty) ? roadAddress! : (address ?? '');
+  String get displayAddress => (roadAddress != null && roadAddress!.isNotEmpty)
+      ? roadAddress!
+      : (address ?? '');
 }
