@@ -1,24 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:roommate/firebase_options.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:roommate/features/authentication/widgets/auth_gate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_web_frame/flutter_web_frame.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  await FlutterNaverMap().init(
-    clientId: '7j2w13vo27',
-    onAuthFailed: (ex) {
-      debugPrint(
-        '[NMAP AUTH FAIL] type=${ex.runtimeType} code=${ex.code} msg=${ex.message}',
-      );
-    },
   );
 
   await Supabase.initialize(
@@ -36,51 +28,60 @@ class RoomMate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const seedGreen = Color(0xFF16A34A); // 원하는 초록
-
     final scheme = ColorScheme.fromSeed(
       seedColor: seedGreen,
       brightness: Brightness.light,
     );
-    return MaterialApp(
-      title: 'RoomMate',
-      theme: ThemeData(
-        colorScheme: scheme,
-        scaffoldBackgroundColor: Colors.white,
-        primaryColor: Colors.green.shade600,
-        appBarTheme: const AppBarTheme(
-          foregroundColor: Colors.black,
-          backgroundColor: Colors.white,
-          elevation: 0,
-          titleTextStyle: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: Sizes.size18,
-            color: Colors.black,
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: const UnderlineInputBorder(),
-          enabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: scheme.outlineVariant),
-          ),
-          focusedBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: scheme.primary, width: 2),
-          ),
-          floatingLabelStyle: TextStyle(color: scheme.primary),
-        ),
+    return FlutterWebFrame(
+      builder: (context) {
+        return Card(
+          elevation: 12.0,
+          child: MaterialApp(
+            title: 'RoomMate',
+            theme: ThemeData(
+              colorScheme: scheme,
+              scaffoldBackgroundColor: Colors.white,
+              primaryColor: Colors.green.shade600,
+              appBarTheme: const AppBarTheme(
+                foregroundColor: Colors.black,
+                backgroundColor: Colors.white,
+                elevation: 0,
+                titleTextStyle: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: Sizes.size18,
+                  color: Colors.black,
+                ),
+              ),
+              inputDecorationTheme: InputDecorationTheme(
+                border: const UnderlineInputBorder(),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: scheme.outlineVariant),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: scheme.primary, width: 2),
+                ),
+                floatingLabelStyle: TextStyle(color: scheme.primary),
+              ),
 
-        // 진행바 색
-        progressIndicatorTheme: ProgressIndicatorThemeData(
-          color: scheme.primary,
-        ),
-        // BottomNavigationBar 색
-        bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          backgroundColor: scheme.surface,
-          selectedItemColor: scheme.primary,
-          unselectedItemColor: scheme.onSurfaceVariant,
-          type: BottomNavigationBarType.fixed,
-        ),
-      ),
-      home: const AuthGate(),
+              // 진행바 색
+              progressIndicatorTheme: ProgressIndicatorThemeData(
+                color: scheme.primary,
+              ),
+              // BottomNavigationBar 색
+              bottomNavigationBarTheme: BottomNavigationBarThemeData(
+                backgroundColor: scheme.surface,
+                selectedItemColor: scheme.primary,
+                unselectedItemColor: scheme.onSurfaceVariant,
+                type: BottomNavigationBarType.fixed,
+              ),
+            ),
+            home: const AuthGate(),
+          ),
+        );
+      },
+      maximumSize: Size(475.0, 812.0),
+      enabled: kIsWeb,
+      backgroundColor: Colors.white,
     );
   }
 }
