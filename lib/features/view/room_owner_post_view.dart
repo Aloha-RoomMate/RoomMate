@@ -112,8 +112,6 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
     );
   }
 
-
-
   Future<void> _startChat() async {
     if (_startingChat) return;
     final me = FirebaseAuth.instance.currentUser;
@@ -558,13 +556,16 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(Sizes.size10),
                         child: GoogleMap(
+                          webGestureHandling: WebGestureHandling.greedy,
                           initialCameraPosition: CameraPosition(
                             target: LatLng(lat, lng),
                             zoom: 15,
                           ),
                           markers: {
                             Marker(
-                              markerId: MarkerId('post_${widget.post.postId ?? 'unknown'}'),
+                              markerId: MarkerId(
+                                'post_${widget.post.postId ?? 'unknown'}',
+                              ),
                               position: LatLng(lat, lng),
                             ),
                           },
