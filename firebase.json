@@ -1,0 +1,42 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "roommate-ce085",
+          "appId": "1:909707662887:android:7a630deca2b73e4b02e002",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "roommate-ce085",
+          "configurations": {
+            "android": "1:909707662887:android:7a630deca2b73e4b02e002",
+            "ios": "1:909707662887:ios:0564e07e6b47aadb02e002",
+            "macos": "1:909707662887:ios:0564e07e6b47aadb02e002",
+            "web": "1:909707662887:web:baf7c8788239946402e002",
+            "windows": "1:909707662887:web:3847cf394a8bb30802e002"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ]
+}
