@@ -27,7 +27,7 @@ class FormButton extends StatelessWidget {
             fontSize: Sizes.size20,
             fontWeight: FontWeight.w400,
           ),
-          child: widget, // 로딩 동그라미 수정할라고 바꿈
+          child: Center(child: widget), // 로딩 동그라미 수정할라고 바꿈
         ),
       ),
     );
