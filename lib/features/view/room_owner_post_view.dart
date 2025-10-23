@@ -65,10 +65,13 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
 
   Future<List<String>> _signedUrls(List<String> paths) async {
     if (paths.isEmpty) return [];
-    final res = await _supabase.storage
-        .from(_bucket)
-        .createSignedUrls(paths, _urlTtl);
-    return res.map((e) => e.signedUrl).toList();
+    // createSignedUrls(복수) 대신 createSignedUrl(단수)를 병렬로 호출하는 것이 더 안정적임
+    final urls = await Future.wait(
+      paths.map(
+        (p) => _supabase.storage.from(_bucket).createSignedUrl(p, _urlTtl),
+      ),
+    );
+    return urls.where((u) => u.isNotEmpty).toList();
   }
 
   /// 제목 아래로 값이 감싸지며 내려가는 스택형 정보 행
