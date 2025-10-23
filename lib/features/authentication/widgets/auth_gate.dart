@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
-import 'package:roommate/features/authentication/userinfo/userjob_screen.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart'; // 메인 화면 위젯 import
 
 class AuthGate extends StatelessWidget {
@@ -30,8 +29,9 @@ class AuthGate extends StatelessWidget {
               // 필수 목록 다 했나 확인
               final isRegistered =
                   appUser?.userType?.jobKinds.isNotEmpty == true &&
+                  appUser?.birthYear != null &&
                   appUser?.gender != null &&
-                  appUser?.userType != null;
+                  appUser?.userType?.type != null;
 
               if (isRegistered) {
                 return const MainNavigation();
