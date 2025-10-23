@@ -2,19 +2,6 @@
 <html>
 
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
@@ -33,8 +20,60 @@
   <title>roommate</title>
   <link rel="manifest" href="manifest.json">
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDbjCI52r4rRspEg-a39uu6cF0_iPnkPJk"></script>
-  <!-- <meta name="google-signin-client_id"
-    content="909707662887-7fdgmn767bd15tei2a4j62784aquhqg5.apps.googleusercontent.com">-->
+   <meta name="google-signin-client_id"
+    content="909707662887-7fdgmn767bd15tei2a4j62784aquhqg5.apps.googleusercontent.com">
+
+    <script>
+  // 전역 JSONP 헬퍼: Promise<string> 반환
+  // 사용 예) __jsonpGetString("https://api.vworld.kr/...&format=jsonp")
+  window.__jsonpGetString = function (url) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var cb = 'jsonp_callback_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+        var sep = url.indexOf('?') >= 0 ? '&' : '?';
+        var full = url + sep + 'callback=' + cb;
+
+        // 콜백을 window에 등록
+        window[cb] = function (data) {
+          try {
+            // 데이터는 객체일 수도 문자열일 수도 있음 -> 문자열로 직렬화
+            var text = (typeof data === 'string') ? data : JSON.stringify(data);
+            resolve(text);
+          } catch (e) {
+            reject(e);
+          } finally {
+            // cleanup
+            delete window[cb];
+            if (script && script.parentNode) script.parentNode.removeChild(script);
+          }
+        };
+
+        // 스크립트 태그 생성 & 주입
+        var script = document.createElement('script');
+        script.src = full;
+        script.type = 'text/javascript';
+        script.async = true;
+        script.onerror = function () {
+          try { delete window[cb]; } catch (e) {}
+          reject(new Error('JSONP script load error'));
+        };
+        document.head.appendChild(script);
+
+        // 타임아웃(선택적): 8초 내 응답 없으면 실패
+        setTimeout(function () {
+          if (window[cb]) {
+            try { delete window[cb]; } catch (e) {}
+            if (script && script.parentNode) script.parentNode.removeChild(script);
+            reject(new Error('JSONP timeout'));
+          }
+        }, 8000);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  };
+</script>
+
 </head>
 
 <body>
