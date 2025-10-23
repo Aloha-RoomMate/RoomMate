@@ -151,10 +151,14 @@ class HobbyScreenState extends State<HobbyScreen> {
       if (!mounted) return;
 
       if (widget.returnAfterSave) {
-        Navigator.of(context).pop(true); // ✅ 수정모드: 마이페이지로 복귀
+        Navigator.of(context).pop(true); // 수정모드: 마이페이지로 복귀
       } else {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (context) => const MainNavigation()),
+        Navigator.of(context).pushAndRemoveUntil(
+          // 뒤로 가기 불가
+          MaterialPageRoute(
+            builder: (context) => const MainNavigation(),
+          ),
+          (Route<dynamic> route) => false, // false: 스택 다 비워라.
         );
       }
     } catch (e) {
