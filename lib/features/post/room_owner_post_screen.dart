@@ -50,13 +50,13 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
   final UserRepository _userRepository = UserRepository();
   AppUser? _me;
 
-  // ── Juso 검색 ───────────────────────────────────────────────────────────────
+  // Juso 검색
   static const String _jusoKey = "devU01TX0FVVEgyMDI1MDkxMTE3MzcyNzExNjE3NjI=";
   List<dynamic> _addresses = [];
   bool _isLoading = false;
   String _errorMessage = '';
 
-  // ── image pick & upload (Supabase) ─────────────────────────────────────────
+  // image pick & upload (Supabase)
   final _picker = ImagePicker();
   final List<XFile> _pickedImages = [];
   bool _uploadingImages = false;
@@ -64,9 +64,12 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
   static const String _bucket = 'RoomMate-image';
   final _supabase = Supabase.instance.client;
 
-  // ── 성별 정규화(동일 파일 내 헬퍼) ─────────────────────────────────────────
+  // 성별 정규화(동일 파일 내 헬퍼)
   static const Set<String> _maleTokens = {'male', '남성', '남자', 'm', 'M'};
   static const Set<String> _femaleTokens = {'female', '여성', '여자', 'f', 'F'};
+
+  final _vworldProxyBase =
+      'https://asia-northeast3-roommate-ce085.cloudfunctions.net/vworldGeocode';
 
   String? _normalizeGender(String? g) {
     if (g == null) return null;
@@ -202,33 +205,34 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       setState(() => _pickedImages.removeAt(index));
 
   Future<Map<String, double>?> _addrToCoordinate(String address) async {
-    const KEY = '859C0BAE-5962-3698-97E5-FE4089A6517A';
-    final url = Uri.https('api.vworld.kr', '/req/address', {
-      'service': 'address',
-      'request': 'getcoord',
-      'version': '2.0',
-      'crs': 'epsg:4326',
-      'address': address,
-      'refine': 'true',
-      'simple': 'false',
-      'format': 'json',
-      'type': 'road',
-      'key': KEY,
-    });
+    if (address.trim().isEmpty) return null;
+
+    final url = Uri.parse(
+      '$_vworldProxyBase?address=${Uri.encodeQueryComponent(address)}',
+    );
 
     try {
       final res = await http.get(url);
-      if (res.statusCode != 200) return null;
+      if (res.statusCode != 200) {
+        debugPrint('Proxy status: ${res.statusCode}');
+        debugPrint('Proxy body  : ${res.body}');
+        return null;
+      }
       final decoded = jsonDecode(res.body);
-      if (decoded['response']?['status'] == 'OK') {
+      // 정상 응답
+      if (decoded?['response']?['status'] == 'OK') {
         final p = decoded['response']['result']['point'];
         final lon = double.tryParse('${p['x']}');
         final lat = double.tryParse('${p['y']}');
         if (lat == null || lon == null) return null;
         return {'latitude': lat, 'longitude': lon};
       }
+      debugPrint('V-World: not OK -> $decoded');
       return null;
-    } catch (_) {
+    } catch (e, s) {
+      // 비정형 에러
+      debugPrint('Proxy fetch error: $e');
+      debugPrint('$s');
       return null;
     }
   }
@@ -460,6 +464,8 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
           }
         }
 
+        // 편집 시에는 이미지 추가/삭제 로직이 더 복잡하므로, 여기서는 새 이미지를 추가하는 기존 로직을 유지합니다.
+        // TODO: 이미지 삭제 및 순서 변경 기능 구현 필요
         await docRef.update({
           ...common,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -472,15 +478,9 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
           );
 
           if (newPaths.isNotEmpty) {
-            final snap = await docRef.get();
-            final exist =
-                (snap.data()?['imageUrls'] as List?)
-                    ?.map((e) => e.toString())
-                    .toList() ??
-                <String>[];
-            final merged = [...exist, ...newPaths];
+            // ArrayUnion을 사용하여 기존 배열에 새 항목을 원자적으로 추가
             await docRef.update({
-              'imageUrls': merged,
+              'imageUrls': FieldValue.arrayUnion(newPaths),
               'updatedAt': FieldValue.serverTimestamp(),
             });
           }
@@ -497,6 +497,16 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
         return;
       }
 
+      // 1. 게시물 ID를 클라이언트에서 미리 생성
+      final postId = col.doc().id;
+
+      // 2. 이미지를 먼저 업로드
+      final uploadedPaths = await _uploadAllImagesToSupabase(
+        uid: uid,
+        postId: postId,
+      );
+
+      // 3. 주소 변환 및 기타 정보 준비
       final center = await _addrToCoordinate(roadAddress);
       if (center == null) {
         throw Exception('주소를 좌표로 변환하지 못했습니다.');
@@ -504,29 +514,17 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       final jitter = _randomizeCoord(center, 200.0);
       final normalizedGender = _normalizeGender(_me?.gender);
 
-      final docRef = await col.add({
+      // 4. 모든 정보를 포함하여 문서를 한 번에 생성
+      await col.doc(postId).set({
         ...common,
         'authorId': _me?.uid ?? uid,
         'authorGender': normalizedGender ?? _me?.gender,
         'postType': 'roomOwner',
         'coordinate': GeoPoint(jitter['latitude']!, jitter['longitude']!),
-        'imageUrls': <String>[],
+        'imageUrls': uploadedPaths, // 업로드된 이미지 경로 사용
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
-      final postId = docRef.id;
-      final uploadedPaths = await _uploadAllImagesToSupabase(
-        uid: uid,
-        postId: postId,
-      );
-
-      if (uploadedPaths.isNotEmpty) {
-        await docRef.update({
-          'imageUrls': uploadedPaths,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -571,7 +569,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 Text(
                   '제목을 입력해주세요!',
                   style: TextStyle(
-                    fontSize: ResponsiveSizes.f(context, 28),
+                    fontSize: ResponsiveSizes.f(context, 24),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -593,7 +591,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 Text(
                   '주소를 입력해주세요!',
                   style: TextStyle(
-                    fontSize: ResponsiveSizes.f(context, 28),
+                    fontSize: ResponsiveSizes.f(context, 24),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -684,8 +682,8 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            File(_pickedImages[i].path),
+                          child: Image.network(
+                            _pickedImages[i].path,
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -718,7 +716,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 Text(
                   '사진 업로드',
                   style: TextStyle(
-                    fontSize: ResponsiveSizes.f(context, 28),
+                    fontSize: ResponsiveSizes.f(context, 24),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -834,7 +832,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 Text(
                   '전용 면적 / 화장실 개수',
                   style: TextStyle(
-                    fontSize: ResponsiveSizes.f(context, 28),
+                    fontSize: ResponsiveSizes.f(context, 24),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -879,7 +877,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 Text(
                   '입주가능일',
                   style: TextStyle(
-                    fontSize: ResponsiveSizes.f(context, 28),
+                    fontSize: ResponsiveSizes.f(context, 24),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -944,7 +942,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 Text(
                   '더 상세하게 알려주세요 !',
                   style: TextStyle(
-                    fontSize: ResponsiveSizes.f(context, 28),
+                    fontSize: ResponsiveSizes.f(context, 24),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
