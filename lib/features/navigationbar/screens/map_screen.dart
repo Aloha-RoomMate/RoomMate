@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_naver_map/flutter_naver_map.dart';
-import 'package:http/http.dart' as http;
-import 'package:proj4dart/proj4dart.dart' as proj4;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geocoding/geocoding.dart' as geocoding;
 
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
@@ -18,12 +16,6 @@ import 'package:roommate/features/chat/chat_screen.dart';
 
 import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/constants/gaps.dart';
-
-const _NCP_KEY_ID = 'udl4f25p0c';
-const _NCP_KEY = 'dNKTbZDrKK0ksqtoUEAldGQJL86c96pFgWqrGnKG';
-const _DEV_CLIENT_ID = 'GtXY6mLUVHuqtjYd9TQo';
-const _DEV_CLIENT_SECRET = 'RxLgj3LSvg';
-const Duration _httpTimeout = Duration(seconds: 7);
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -39,7 +31,6 @@ class _MapScreenState extends State<MapScreen> {
   RoomOwnerPost? _selectedOwnerPost;
   bool _showOwnerPreview = false;
 
-  String _baseQuery = '';
   bool _lockOverlayOps = false;
   bool _isAnimatingCamera = false;
 
@@ -49,18 +40,13 @@ class _MapScreenState extends State<MapScreen> {
   final _searchCtrl = TextEditingController(text: '');
   final _searchFocus = FocusNode();
 
-  NaverMapController? _controller;
+  GoogleMapController? _controller;
   bool _loading = false;
-  bool _zoomTo14OnNextIdle = false;
-
-  late final proj4.Projection _wgs84;
-  late final proj4.Projection _katec;
 
   final List<String> _recentSearches = [];
   List<PlaceInfo> _results = [];
   PlaceInfo? _selectedPlace;
-  final List<NMarker> _markers = [];
-  final Set<String> _relatedRegions = {};
+  Set<Marker> _searchMarkers = {};
 
   final DraggableScrollableController _sheetCtrl =
       DraggableScrollableController();
@@ -72,20 +58,13 @@ class _MapScreenState extends State<MapScreen> {
 
   final RoomOwnerPostRepository _postRepo = RoomOwnerPostRepository();
   final UserRepository _userRepository = UserRepository();
-  final Map<String, NMarker> _ownerMarkers = {};
+  Map<String, Marker> _ownerMarkers = {};
   Timer? _viewportDebounce;
   String? _myGender;
 
   @override
   void initState() {
     super.initState();
-    _wgs84 = proj4.Projection.get('EPSG:4326')!;
-    _katec = proj4.Projection.add(
-      'KATEC',
-      '+proj=tmerc +lat_0=38 +lon_0=128 +k=0.9999 '
-          '+x_0=400000 +y_0=600000 +ellps=bessel +units=m +no_defs '
-          '+towgs84=-115.80,474.99,674.11,1.16,-2.31,-1.63,6.43',
-    );
     _fetchUserGender();
   }
 
@@ -106,426 +85,181 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 
-  NLatLng _tm128ToLatLng(num mapx, num mapy) {
-    final tm = proj4.Point(x: mapx.toDouble(), y: mapy.toDouble());
-    final wgs = _katec.transform(_wgs84, tm);
-    return NLatLng(wgs.y, wgs.x);
-  }
-
-  NLatLng _localCoordsToLatLng(num mapx, num mapy) {
-    final x = mapx.toDouble();
-    final y = mapy.toDouble();
-    if (x.abs() >= 1e8 && y.abs() >= 1e8) {
-      final lon = x / 1e7;
-      final lat = y / 1e7;
-      return NLatLng(lat, lon);
-    }
-    return _tm128ToLatLng(x, y);
-  }
-
-  Future<http.Response?> _safeGet(
-    Uri uri, {
-    Map<String, String>? headers,
-  }) async {
-    try {
-      return await http.get(uri, headers: headers).timeout(_httpTimeout);
-    } on TimeoutException {
-      debugPrint('[HTTP] TIMEOUT: $uri');
-      return null;
-    } catch (e) {
-      debugPrint('[HTTP] ERROR: $uri -> $e');
-      return null;
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> _searchLocalList(
-    String keyword, {
-    int display = 20,
-  }) async {
-    final uri = Uri.https('openapi.naver.com', '/v1/search/local.json', {
-      'query': keyword,
-      'display': '$display',
-      'start': '1',
-      'sort': 'random',
-    });
-    final res = await _safeGet(
-      uri,
-      headers: {
-        'X-Naver-Client-Id': _DEV_CLIENT_ID,
-        'X-Naver-Client-Secret': _DEV_CLIENT_SECRET,
-        'Accept': 'application/json',
-      },
-    );
-    if (res == null || res.statusCode != 200) return [];
-    final items = (json.decode(res.body)['items'] as List?) ?? [];
-    return items.cast<Map<String, dynamic>>();
-  }
-
-  Future<_GeocodeResult?> _geocodeDetails(String query) async {
-    final hosts = [
-      'naveropenapi.apigw.ntruss.com',
-      'naveropenapi.apigw.fin-ntruss.com',
-    ];
-    for (final host in hosts) {
-      final uri = Uri.https(host, '/map-geocode/v2/geocode', {'query': query});
-      final res = await _safeGet(
-        uri,
-        headers: {
-          'X-NCP-APIGW-API-KEY-ID': _NCP_KEY_ID,
-          'X-NCP-APIGW-API-KEY': _NCP_KEY,
-          'Accept': 'application/json',
-        },
-      );
-      if (res == null) continue;
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        final list = (data['addresses'] as List?) ?? [];
-        if (list.isEmpty) continue;
-        final a = list.first as Map<String, dynamic>;
-        final lat = double.tryParse(a['y']?.toString() ?? '');
-        final lon = double.tryParse(a['x']?.toString() ?? '');
-        if (lat == null || lon == null) continue;
-        return _GeocodeResult(
-          pos: NLatLng(lat, lon),
-          roadAddress: (a['roadAddress'] as String?)?.trim(),
-          jibunAddress: (a['jibunAddress'] as String?)?.trim(),
-        );
-      }
-    }
-    return null;
-  }
-
-  String _stripHtml(String s) =>
-      s.replaceAll(RegExp(r'</?b>'), '').replaceAll('&amp;', '&');
-
-  String _extractRegion(String? addressOrRoad) {
-    if (addressOrRoad == null || addressOrRoad.trim().isEmpty) return '';
-    final parts = addressOrRoad.trim().split(RegExp(r'\s+'));
-    if (parts.length >= 2) return '${parts[0]} ${parts[1]}';
-    return parts.first;
-  }
-
-  Future<List<PlaceInfo>> _buildPlacesFromLocalItems(
-    List<Map<String, dynamic>> items,
-  ) async {
-    final List<PlaceInfo> list = [];
-    final seen = <String>{};
-
-    for (final m in items) {
-      final title = _stripHtml((m['title'] ?? '').toString());
-      final category = (m['category'] as String?)?.trim();
-      final tel = (m['telephone'] as String?)?.trim();
-      final road = (m['roadAddress'] as String?)?.trim();
-      final addr = (m['address'] as String?)?.trim();
-
-      NLatLng? pos;
-      final mx = double.tryParse(m['mapx']?.toString() ?? '');
-      final my = double.tryParse(m['mapy']?.toString() ?? '');
-      if (mx != null && my != null) {
-        pos = _localCoordsToLatLng(mx, my);
-      } else {
-        final chosen = (road != null && road.isNotEmpty) ? road : (addr ?? '');
-        if (chosen.isNotEmpty) {
-          final geo = await _geocodeDetails(chosen);
-          pos = geo?.pos;
-        }
-      }
-      if (pos == null) continue;
-
-      final key = '${title}_${pos.latitude}_${pos.longitude}';
-      if (!seen.add(key)) continue;
-
-      list.add(
-        PlaceInfo(
-          pos: pos,
-          title: title.isEmpty ? (road ?? addr ?? '알 수 없음') : title,
-          address: addr,
-          roadAddress: road,
-          tel: tel,
-          category: category,
-        ),
-      );
-    }
-    return list;
-  }
-
-  Future<void> _searchAndList(String raw, {bool refineByRegion = false}) async {
+  Future<void> _searchAndList(String raw) async {
     if (_controller == null) return;
-    final q = raw.trim();
-    if (q.isEmpty) return;
+    final query = raw.trim();
+    if (query.isEmpty) return;
 
+    _searchFocus.unfocus();
     setState(() {
       _loading = true;
       _selectedPlace = null;
+      _results.clear();
+      _searchMarkers.clear();
+      _showOwnerPreview = false;
     });
 
     try {
-      final items = await _searchLocalList(q, display: 20);
-      var places = await _buildPlacesFromLocalItems(items);
+      final locations = await geocoding.locationFromAddress(query);
+      if (!mounted) return;
 
-      if (places.isEmpty) {
-        final g = await _geocodeDetails(q) ?? await _geocodeDetails('서울 $q');
-        if (g != null) {
-          places = [
-            PlaceInfo(
-              pos: g.pos,
-              title: q,
-              address: g.jibunAddress,
-              roadAddress: g.roadAddress,
-            ),
-          ];
-        }
+      if (locations.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('검색 결과가 없습니다.')),
+        );
+        return;
       }
 
-      await _refreshMarkers(places);
-
-      final newRegions = places
-          .map((p) => _extractRegion(p.displayAddress))
-          .where((s) => s.isNotEmpty);
+      final places = <PlaceInfo>[];
+      final newMarkers = <Marker>{};
+      for (var i = 0; i < locations.length; i++) {
+        final loc = locations[i];
+        final place = PlaceInfo(
+          pos: LatLng(loc.latitude, loc.longitude),
+          title: query,
+        );
+        places.add(place);
+        newMarkers.add(
+          Marker(
+            markerId: MarkerId('search_$i'),
+            position: place.pos,
+            infoWindow: InfoWindow(title: place.title),
+            onTap: () => _onSearchMarkerTapped(place),
+          ),
+        );
+      }
 
       setState(() {
         _results = places;
-
-        if (refineByRegion) {
-          _relatedRegions.addAll(newRegions);
-        } else {
-          _relatedRegions
-            ..clear()
-            ..addAll(newRegions);
-          _baseQuery = q;
+        _searchMarkers = newMarkers;
+        if (places.isNotEmpty) {
+          _selectedPlace = places.first;
         }
-
-        _recentSearches.removeWhere((e) => e == q);
-        _recentSearches.insert(0, q);
+        _recentSearches.removeWhere((e) => e == query);
+        _recentSearches.insert(0, query);
         if (_recentSearches.length > 12) {
           _recentSearches.removeRange(12, _recentSearches.length);
         }
       });
 
       if (places.isNotEmpty) {
-        await _focusOnPlace(
-          places.first,
-          animateZoom: false,
-          collapseSheet: false,
+        await _focusOnPlace(places.first, animateZoom: true);
+      }
+      _animateSheet(_sheetMid);
+    } catch (e) {
+      debugPrint('[GEOCODING] ERROR: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('주소를 좌표로 변환하는 중 오류가 발생했습니다.')),
         );
       }
-
-      _searchFocus.unfocus();
-      _animateSheet(_sheetMid);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _refreshMarkers(List<PlaceInfo> places) async {
-    if (_controller == null) return;
-
-    for (final m in _markers) {
-      try {
-        if (m.isAdded) await _controller!.deleteOverlay(m.info);
-      } catch (_) {}
-    }
-    _markers.clear();
-
-    for (var i = 0; i < places.length; i++) {
-      final p = places[i];
-      final marker = NMarker(
-        id: 'pin_${i}_${p.pos.latitude}_${p.pos.longitude}',
-        position: p.pos,
-      );
-
-      marker.setOnTapListener((_) async {
-        if (_controller == null) return;
-        _lockOverlayOps = true;
-        _isAnimatingCamera = true;
-
-        setState(() {
-          _selectedPlace = p;
-          _selectedOwnerPost = null;
-          _showOwnerPreview = false;
-        });
-
-        await Future<void>.delayed(const Duration(milliseconds: 16));
-        final cu = (NCameraUpdate.scrollAndZoomTo(target: p.pos, zoom: 16)
-          ..setAnimation(duration: const Duration(milliseconds: 350)));
-        try {
-          await _controller!.updateCamera(cu);
-        } catch (_) {}
-
-        _isAnimatingCamera = false;
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-        _lockOverlayOps = false;
-      });
-
-      await _controller!.addOverlay(marker);
-      _markers.add(marker);
-    }
+  void _onSearchMarkerTapped(PlaceInfo place) {
+    setState(() {
+      _selectedPlace = place;
+      _selectedOwnerPost = null;
+      _showOwnerPreview = false;
+    });
+    _focusOnPlace(place, animateZoom: true);
   }
 
-  Future<void> _focusOnPlace(
-    PlaceInfo p, {
-    bool animateZoom = true,
-    bool collapseSheet = false,
-  }) async {
+  Future<void> _focusOnPlace(PlaceInfo p, {bool animateZoom = true}) async {
     if (_controller == null) return;
-    setState(() => _selectedPlace = p);
-
-    final cu = animateZoom
-        ? (NCameraUpdate.scrollAndZoomTo(target: p.pos, zoom: 16)
-            ..setAnimation(duration: const Duration(milliseconds: 350)))
-        : (NCameraUpdate.scrollAndZoomTo(target: p.pos)
-            ..setAnimation(duration: const Duration(milliseconds: 250)));
-    await _controller!.updateCamera(cu);
-
-    if (collapseSheet) _animateSheet(_sheetInit);
+    final zoom = await _controller!.getZoomLevel();
+    final cu = CameraUpdate.newCameraPosition(
+      CameraPosition(target: p.pos, zoom: animateZoom ? 15 : zoom),
+    );
+    await _controller!.animateCamera(cu);
   }
 
   void _animateSheet(double size) {
-    try {
-      _sheetCtrl.animateTo(
-        size,
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOutCubic,
-      );
-    } catch (_) {}
+    _sheetCtrl.animateTo(
+      size,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   void _toggleSheet() {
-    try {
-      final s = _sheetCtrl.size;
-      final target = (s <= _sheetMin + 0.02) ? _sheetMid : _sheetMin;
-      _animateSheet(target);
-    } catch (_) {
-      _animateSheet(_sheetMid);
-    }
+    final s = _sheetCtrl.size;
+    final target = (s <= _sheetMin + 0.02) ? _sheetMid : _sheetMin;
+    _animateSheet(target);
   }
 
   bool get _showSuggestionList =>
       _searchFocus.hasFocus && _recentSearches.isNotEmpty && !_loading;
 
-  Future<({double minLat, double minLng, double maxLat, double maxLng})?>
-  _getVisibleBounds() async {
-    final ctrl = _controller;
-    if (!mounted || ctrl == null) return null;
+  Future<LatLngBounds?> _getVisibleBounds() async {
+    if (!mounted || _controller == null) return null;
     try {
-      final b = await ctrl.getContentBounds(withPadding: true);
-      final lats = [b.northEast.latitude, b.southWest.latitude]..sort();
-      final lngs = [b.northEast.longitude, b.southWest.longitude]..sort();
-      return (
-        minLat: lats.first,
-        minLng: lngs.first,
-        maxLat: lats.last,
-        maxLng: lngs.last,
-      );
-    } catch (_) {
+      return await _controller!.getVisibleRegion();
+    } catch (e) {
+      debugPrint('[MAP] getVisibleBounds error: $e');
       return null;
     }
   }
 
   void _showMarkerInfo() {
-    final messenger = ScaffoldMessenger.of(context);
-    // 기존 스낵바가 있으면 숨기기
-    messenger.hideCurrentSnackBar();
-
-    // 시트가 올라와 있으면 그 높이만큼 띄워서 스낵바가 위에 보이게
-    final h = MediaQuery.of(context).size.height;
-    double sheetSize = 0.0;
-    try {
-      sheetSize = (_results.isNotEmpty) ? _sheetCtrl.size : 0.0;
-    } catch (_) {
-      sheetSize = 0.0;
-    }
-    final bottomMargin = 16.0 + (sheetSize * h);
-
-    messenger.showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.fromLTRB(16, 0, 16, bottomMargin),
-        duration: const Duration(seconds: 3),
-        content: const Text('마커는 실제 집에서 반경 200m 내에 랜덤으로 찍힌 부분입니다.'),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.fromLTRB(16, 0, 16, 80),
+          duration: Duration(seconds: 3),
+          content: Text('마커는 실제 집에서 반경 200m 내에 랜덤으로 찍힌 부분입니다.'),
+        ),
+      );
   }
 
   Future<void> _refreshOwnerMarkersForViewport() async {
     if (_controller == null || _lockOverlayOps || _isAnimatingCamera) return;
 
-    final cam = await _controller!.getCameraPosition();
-    if (cam.zoom < Z_ALL) return;
+    final zoom = await _controller!.getZoomLevel();
+    if (zoom < Z_ALL) {
+      // If zoomed out too far, show all markers from cache instead
+      await _showAllOwnerMarkersFromCache();
+      return;
+    }
 
     final bounds = await _getVisibleBounds();
     if (bounds == null) return;
 
     final posts = await _postRepo.fetchOwnerPostsInBounds(
-      minLat: bounds.minLat,
-      minLng: bounds.minLng,
-      maxLat: bounds.maxLat,
-      maxLng: bounds.maxLng,
+      minLat: bounds.southwest.latitude,
+      minLng: bounds.southwest.longitude,
+      maxLat: bounds.northeast.latitude,
+      maxLng: bounds.northeast.longitude,
       limit: 250,
       myGender: _myGender,
     );
 
+    final newMarkers = <String, Marker>{};
     for (final p in posts) {
       final id = p.postId ?? '';
       if (id.isEmpty) continue;
       _ownerCache[id] = p;
-    }
 
-    final neededIds = posts.map((p) => p.postId).whereType<String>().toSet();
-
-    for (final entry in _ownerMarkers.entries.toList()) {
-      if (!neededIds.contains(entry.key)) {
-        try {
-          if (entry.value.isAdded)
-            await _controller!.deleteOverlay(entry.value.info);
-        } catch (_) {}
-        _ownerMarkers.remove(entry.key);
-      }
-    }
-
-    for (final id in neededIds) {
-      if (_ownerMarkers.containsKey(id)) continue;
-      final p = _ownerCache[id]!;
       final gp = p.coordinate;
       if (gp == null) continue;
 
-      final marker = NMarker(
-        id: 'owner_$id',
-        position: NLatLng(gp.latitude, gp.longitude),
+      final markerId = MarkerId('owner_$id');
+      newMarkers[id] = Marker(
+        markerId: markerId,
+        position: LatLng(gp.latitude, gp.longitude),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        onTap: () => _onOwnerMarkerTapped(p),
       );
+    }
 
-      marker.setOnTapListener((_) async {
-        if (_controller == null) return;
-        _lockOverlayOps = true;
-        _isAnimatingCamera = true;
-
-        setState(() {
-          _selectedOwnerPost = p;
-          _showOwnerPreview = true;
-          _selectedPlace = null;
-          _selectedAuthor = null;
-        });
-
-        final uid = p.authorId;
-        if (uid != null && uid.isNotEmpty) {
-          _ensureAuthorLoaded(uid);
-        }
-
-        await Future<void>.delayed(const Duration(milliseconds: 16));
-        final target = NLatLng(gp.latitude, gp.longitude);
-        final cu = (NCameraUpdate.scrollAndZoomTo(target: target, zoom: 16)
-          ..setAnimation(duration: const Duration(milliseconds: 350)));
-        try {
-          await _controller!.updateCamera(cu);
-        } catch (_) {}
-
-        _isAnimatingCamera = false;
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-        _lockOverlayOps = false;
+    if (mounted) {
+      setState(() {
+        _ownerMarkers = newMarkers;
       });
-
-      await _controller!.addOverlay(marker);
-      _ownerMarkers[id] = marker;
     }
   }
 
@@ -533,7 +267,7 @@ class _MapScreenState extends State<MapScreen> {
     if (_controller == null || _lockOverlayOps || _isAnimatingCamera) return;
 
     if (_ownerCache.isEmpty) {
-      final all = await _postRepo.fetchAllPosts(limit: 1000, myGender: null);
+      final all = await _postRepo.fetchAllPosts(limit: 1000, myGender: _myGender);
       for (final p in all) {
         final id = p.postId ?? '';
         if (id.isEmpty) continue;
@@ -541,51 +275,60 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
 
+    final newMarkers = <String, Marker>{};
     for (final entry in _ownerCache.entries) {
       final id = entry.key;
-      if (_ownerMarkers.containsKey(id)) continue;
       final p = entry.value;
       final gp = p.coordinate;
       if (gp == null) continue;
 
-      final marker = NMarker(
-        id: 'owner_$id',
-        position: NLatLng(gp.latitude, gp.longitude),
+      newMarkers[id] = Marker(
+        markerId: MarkerId('owner_$id'),
+        position: LatLng(gp.latitude, gp.longitude),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        onTap: () => _onOwnerMarkerTapped(p),
       );
-
-      marker.setOnTapListener((_) async {
-        if (_controller == null) return;
-        _lockOverlayOps = true;
-        _isAnimatingCamera = true;
-
-        setState(() {
-          _selectedOwnerPost = p;
-          _showOwnerPreview = true;
-          _selectedPlace = null;
-          _selectedAuthor = null;
-        });
-
-        final uid = p.authorId;
-        if (uid != null && uid.isNotEmpty) {
-          _ensureAuthorLoaded(uid);
-        }
-
-        await Future<void>.delayed(const Duration(milliseconds: 16));
-        final target = NLatLng(gp.latitude, gp.longitude);
-        final cu = (NCameraUpdate.scrollAndZoomTo(target: target, zoom: 16)
-          ..setAnimation(duration: const Duration(milliseconds: 350)));
-        try {
-          await _controller!.updateCamera(cu);
-        } catch (_) {}
-
-        _isAnimatingCamera = false;
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-        _lockOverlayOps = false;
-      });
-
-      await _controller!.addOverlay(marker);
-      _ownerMarkers[id] = marker;
     }
+
+    if (mounted) {
+      setState(() {
+        _ownerMarkers = newMarkers;
+      });
+    }
+  }
+
+  void _onOwnerMarkerTapped(RoomOwnerPost post) async {
+    if (_controller == null) return;
+    _lockOverlayOps = true;
+    _isAnimatingCamera = true;
+
+    setState(() {
+      _selectedOwnerPost = post;
+      _showOwnerPreview = true;
+      _selectedPlace = null;
+      _searchMarkers.clear();
+    });
+
+    final uid = post.authorId;
+    if (uid != null && uid.isNotEmpty) {
+      _ensureAuthorLoaded(uid);
+    }
+
+    final gp = post.coordinate;
+    if (gp != null) {
+      final target = LatLng(gp.latitude, gp.longitude);
+      final zoom = await _controller!.getZoomLevel();
+      final cu = CameraUpdate.newCameraPosition(
+        CameraPosition(target: target, zoom: zoom < 15 ? 15 : zoom),
+      );
+      try {
+        await _controller!.animateCamera(cu);
+      } catch (_) {}
+    }
+
+    _isAnimatingCamera = false;
+    await Future.delayed(const Duration(milliseconds: 50));
+    _lockOverlayOps = false;
   }
 
   Future<void> _ensureAuthorLoaded(String uid) async {
@@ -596,11 +339,7 @@ class _MapScreenState extends State<MapScreen> {
 
     setState(() => _loadingAuthor = true);
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-      final user = AppUser.fromDoc(doc);
+      final user = await _userRepository.fetchUserById(uid);
       _userCache[uid] = user;
       if (!mounted) return;
       if (_selectedOwnerPost?.authorId == uid) {
@@ -647,10 +386,7 @@ class _MapScreenState extends State<MapScreen> {
     final filteredSuggestions = () {
       final key = _searchCtrl.text.trim();
       if (key.isEmpty) return _recentSearches;
-      final list = _recentSearches
-          .where((s) => s.contains(key))
-          .toList(growable: false);
-      return list.isEmpty ? _recentSearches : list;
+      return _recentSearches.where((s) => s.contains(key)).toList();
     }();
 
     final h = MediaQuery.of(context).size.height;
@@ -662,84 +398,46 @@ class _MapScreenState extends State<MapScreen> {
           Padding(
             padding: EdgeInsets.all(ResponsiveSizes.p(context, 8)),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(
-                ResponsiveSizes.p(context, 18),
-              ),
-              child: NaverMap(
-                onMapReady: (c) {
+              borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 18)),
+              child: GoogleMap(
+                initialCameraPosition: const CameraPosition(
+                  target: LatLng(37.5665, 126.9780), // Seoul City Hall
+                  zoom: 13.5,
+                ),
+                onMapCreated: (c) {
                   _controller = c;
                   _refreshOwnerMarkersForViewport();
                 },
-                onCameraChange: (reason, animated) {
-                  if (reason == NCameraUpdateReason.location ||
-                      reason == NCameraUpdateReason.control) {
-                    _zoomTo14OnNextIdle = true;
-                  }
-                },
-                onCameraIdle: () async {
-                  final ctrl0 = _controller;
-                  if (_zoomTo14OnNextIdle && ctrl0 != null) {
-                    _zoomTo14OnNextIdle = false;
-                    try {
-                      final pos = await ctrl0.getCameraPosition();
-                      final cu =
-                          NCameraUpdate.scrollAndZoomTo(
-                            target: pos.target,
-                            zoom: 14,
-                          )..setAnimation(
-                            duration: const Duration(milliseconds: 250),
-                          );
-                      if (mounted) await ctrl0.updateCamera(cu);
-                    } catch (_) {}
-                  }
-
+                onCameraIdle: () {
                   if (_lockOverlayOps || _isAnimatingCamera) return;
-
                   _viewportDebounce?.cancel();
                   _viewportDebounce = Timer(
-                    const Duration(milliseconds: 250),
-                    () async {
-                      if (!mounted) return;
-                      if (_lockOverlayOps || _isAnimatingCamera) return;
-                      final ctrl = _controller;
-                      if (ctrl == null) return;
-                      try {
-                        final cam = await ctrl.getCameraPosition();
-                        if (cam.zoom < Z_ALL) {
-                          await _showAllOwnerMarkersFromCache();
-                        } else {
-                          await _refreshOwnerMarkersForViewport();
-                        }
-                      } catch (_) {}
+                    const Duration(milliseconds: 400),
+                    () {
+                      if (mounted && !_lockOverlayOps && !_isAnimatingCamera) {
+                        _refreshOwnerMarkersForViewport();
+                      }
                     },
                   );
                 },
-                options: const NaverMapViewOptions(
-                  initialCameraPosition: NCameraPosition(
-                    target: NLatLng(37.5665, 126.9780),
-                    zoom: 13.5,
-                  ),
-                  locationButtonEnable: true,
-                ),
+                markers: _searchMarkers.union(_ownerMarkers.values.toSet()),
+                myLocationEnabled: true,
+                myLocationButtonEnabled: true,
+                zoomControlsEnabled: false,
               ),
             ),
           ),
-
           SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Gaps.v12(context),
                 Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: ResponsiveSizes.p(context, 12),
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: ResponsiveSizes.p(context, 12)),
                   child: Material(
                     color: Colors.white,
                     elevation: 4,
-                    borderRadius: BorderRadius.circular(
-                      ResponsiveSizes.p(context, 12),
-                    ),
+                    borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 12)),
                     shadowColor: Colors.black26,
                     child: TextField(
                       controller: _searchCtrl,
@@ -748,35 +446,19 @@ class _MapScreenState extends State<MapScreen> {
                       onSubmitted: _searchAndList,
                       decoration: InputDecoration(
                         hintText: '장소/주소 검색 :',
-                        hintStyle: TextStyle(
-                          color: Colors.black38,
-                          fontSize: ResponsiveSizes.f(context, 14),
-                        ),
+                        hintStyle: TextStyle(color: Colors.black38, fontSize: ResponsiveSizes.f(context, 14)),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: ResponsiveSizes.p(context, 14),
-                          vertical: ResponsiveSizes.p(context, 12),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.black87,
-                        ),
+                        contentPadding: EdgeInsets.symmetric(horizontal: ResponsiveSizes.p(context, 14), vertical: ResponsiveSizes.p(context, 12)),
+                        prefixIcon: const Icon(Icons.search, color: Colors.black87),
                         suffixIcon: IconButton(
                           icon: _loading
                               ? SizedBox(
                                   width: ResponsiveSizes.p(context, 20),
                                   height: ResponsiveSizes.p(context, 20),
-                                  child: const CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
+                                  child: const CircularProgressIndicator(strokeWidth: 2),
                                 )
-                              : const Icon(
-                                  Icons.arrow_forward,
-                                  color: Colors.black87,
-                                ),
-                          onPressed: _loading
-                              ? null
-                              : () => _searchAndList(_searchCtrl.text),
+                              : const Icon(Icons.arrow_forward, color: Colors.black87),
+                          onPressed: _loading ? null : () => _searchAndList(_searchCtrl.text),
                           tooltip: '검색',
                         ),
                       ),
@@ -784,51 +466,31 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   ),
                 ),
-
                 if (_showSuggestionList)
                   Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: ResponsiveSizes.p(context, 12),
-                      vertical: ResponsiveSizes.p(context, 8),
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: ResponsiveSizes.p(context, 12), vertical: ResponsiveSizes.p(context, 8)),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(maxHeight: maxSuggestHeight),
                       child: Material(
                         color: Colors.white,
                         elevation: 4,
                         shadowColor: Colors.black26,
-                        borderRadius: BorderRadius.circular(
-                          ResponsiveSizes.p(context, 12),
-                        ),
+                        borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 12)),
                         child: ListView.separated(
                           padding: EdgeInsets.zero,
                           shrinkWrap: true,
                           itemCount: filteredSuggestions.length,
-                          separatorBuilder: (_, __) =>
-                              const Divider(height: 1, color: Colors.black12),
+                          separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black12),
                           itemBuilder: (context, index) {
                             final item = filteredSuggestions[index];
                             return ListTile(
                               dense: true,
-                              leading: const Icon(
-                                Icons.history,
-                                color: Colors.black54,
-                              ),
-                              title: Text(
-                                item,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.black87),
-                              ),
+                              leading: const Icon(Icons.history, color: Colors.black54),
+                              title: Text(item, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.black87)),
                               trailing: IconButton(
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: Colors.black45,
-                                ),
+                                icon: const Icon(Icons.close, color: Colors.black45),
                                 tooltip: '제거',
-                                onPressed: () => setState(
-                                  () => _recentSearches.remove(item),
-                                ),
+                                onPressed: () => setState(() => _recentSearches.remove(item)),
                               ),
                               onTap: () => _searchAndList(item),
                             );
@@ -837,75 +499,10 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                     ),
                   ),
-
-                if (_relatedRegions.isNotEmpty)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: ResponsiveSizes.p(context, 12),
-                          vertical: ResponsiveSizes.p(context, 4),
-                        ),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxHeight: (h * 0.20).clamp(80.0, 140.0),
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            elevation: 2,
-                            shadowColor: Colors.black12,
-                            borderRadius: BorderRadius.circular(
-                              ResponsiveSizes.p(context, 12),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: ResponsiveSizes.p(context, 1),
-                                vertical: ResponsiveSizes.p(context, 1),
-                              ),
-                              child: SingleChildScrollView(
-                                child: Wrap(
-                                  spacing: ResponsiveSizes.p(context, 8),
-                                  runSpacing: ResponsiveSizes.p(context, 8),
-                                  children: _relatedRegions.take(12).map((
-                                    region,
-                                  ) {
-                                    final base = _baseQuery.isNotEmpty
-                                        ? _baseQuery
-                                        : _searchCtrl.text.trim();
-                                    final query = base.isEmpty
-                                        ? region
-                                        : '$base $region';
-                                    return ActionChip(
-                                      backgroundColor: Colors.white,
-                                      shape: const StadiumBorder(
-                                        side: BorderSide(color: Colors.black12),
-                                      ),
-                                      label: Text(
-                                        '# $region',
-                                        style: const TextStyle(
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      onPressed: () => _searchAndList(
-                                        query,
-                                        refineByRegion: true,
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
               ],
             ),
           ),
-
-          if (_results.isNotEmpty)
+          if (_results.isNotEmpty && !_showOwnerPreview)
             DraggableScrollableSheet(
               controller: _sheetCtrl,
               initialChildSize: _sheetInit,
@@ -919,16 +516,8 @@ class _MapScreenState extends State<MapScreen> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(ResponsiveSizes.p(context, 16)),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          blurRadius: ResponsiveSizes.p(context, 12),
-                          spreadRadius: ResponsiveSizes.p(context, 2),
-                          color: Colors.black.withOpacity(0.15),
-                        ),
-                      ],
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(ResponsiveSizes.p(context, 16))),
+                      boxShadow: [BoxShadow(blurRadius: ResponsiveSizes.p(context, 12), spreadRadius: ResponsiveSizes.p(context, 2), color: Colors.black.withOpacity(0.15))],
                     ),
                     child: CustomScrollView(
                       controller: scrollController,
@@ -937,90 +526,34 @@ class _MapScreenState extends State<MapScreen> {
                           child: InkWell(
                             onTap: _toggleSheet,
                             child: Padding(
-                              padding: EdgeInsets.only(
-                                top: ResponsiveSizes.p(context, 8),
-                                left: ResponsiveSizes.p(context, 12),
-                                right: ResponsiveSizes.p(context, 8),
-                                bottom: ResponsiveSizes.p(context, 8),
-                              ),
+                              padding: EdgeInsets.all(ResponsiveSizes.p(context, 8)),
                               child: Column(
                                 children: [
                                   Container(
                                     width: ResponsiveSizes.p(context, 36),
                                     height: ResponsiveSizes.p(context, 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black26,
-                                      borderRadius: BorderRadius.circular(
-                                        ResponsiveSizes.p(context, 2),
-                                      ),
-                                    ),
+                                    decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 2))),
                                   ),
                                   Gaps.v8(context),
                                   Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Gaps.h8(context),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              '검색 결과 ${_results.length}개',
-                                              style: TextStyle(
-                                                fontSize: ResponsiveSizes.f(
-                                                  context,
-                                                  14,
-                                                ),
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.black87,
-                                              ),
-                                            ),
+                                            Text('검색 결과 ${_results.length}개', style: TextStyle(fontSize: ResponsiveSizes.f(context, 14), fontWeight: FontWeight.w600, color: Colors.black87)),
                                             if (_selectedPlace != null) ...[
                                               Gaps.v4(context),
-                                              Text(
-                                                _selectedPlace!.title,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  fontSize: ResponsiveSizes.f(
-                                                    context,
-                                                    18,
-                                                  ),
-                                                  color: Colors.black87,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                              if (_selectedPlace!
-                                                  .displayAddress
-                                                  .isNotEmpty)
-                                                Text(
-                                                  _selectedPlace!
-                                                      .displayAddress,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    fontSize: ResponsiveSizes.f(
-                                                      context,
-                                                      12,
-                                                    ),
-                                                    color: Colors.black54,
-                                                  ),
-                                                ),
+                                              Text(_selectedPlace!.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: ResponsiveSizes.f(context, 18), color: Colors.black87, fontWeight: FontWeight.w800)),
+                                              if (_selectedPlace!.displayAddress.isNotEmpty)
+                                                Text(_selectedPlace!.displayAddress, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: ResponsiveSizes.f(context, 12), color: Colors.black54)),
                                             ],
                                           ],
                                         ),
                                       ),
-                                      IconButton(
-                                        tooltip: '접기/펼치기',
-                                        icon: const Icon(
-                                          Icons.unfold_more,
-                                          color: Colors.black87,
-                                        ),
-                                        onPressed: _toggleSheet,
-                                      ),
+                                      IconButton(tooltip: '접기/펼치기', icon: const Icon(Icons.unfold_more, color: Colors.black87), onPressed: _toggleSheet),
                                     ],
                                   ),
                                 ],
@@ -1028,85 +561,17 @@ class _MapScreenState extends State<MapScreen> {
                             ),
                           ),
                         ),
-                        const SliverToBoxAdapter(
-                          child: Divider(height: 1, color: Colors.black12),
-                        ),
+                        const SliverToBoxAdapter(child: Divider(height: 1, color: Colors.black12)),
                         SliverList.separated(
                           itemCount: _results.length,
-                          separatorBuilder: (_, __) => Divider(
-                            endIndent: ResponsiveSizes.p(context, 20),
-                            indent: ResponsiveSizes.p(context, 20),
-                            height: 0,
-                          ),
+                          separatorBuilder: (_, __) => Divider(endIndent: ResponsiveSizes.p(context, 20), indent: ResponsiveSizes.p(context, 20), height: 0),
                           itemBuilder: (context, i) {
                             final p = _results[i];
                             return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.black87,
-                                child: Text('${i + 1}'),
-                              ),
-                              title: Text(
-                                p.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (p.displayAddress.isNotEmpty)
-                                    Text(
-                                      p.displayAddress,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                  if ((p.tel ?? '').isNotEmpty)
-                                    Text(
-                                      p.tel!,
-                                      style: const TextStyle(
-                                        color: Colors.black54,
-                                      ),
-                                    ),
-                                  if ((p.category ?? '').isNotEmpty)
-                                    Text(
-                                      p.category!,
-                                      style: const TextStyle(
-                                        color: Colors.black54,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              onTap: () async {
-                                _lockOverlayOps = true;
-                                _isAnimatingCamera = true;
-                                await Future<void>.delayed(
-                                  const Duration(milliseconds: 16),
-                                );
-                                final cu =
-                                    (NCameraUpdate.scrollAndZoomTo(
-                                      target: p.pos,
-                                      zoom: 16,
-                                    )..setAnimation(
-                                      duration: const Duration(
-                                        milliseconds: 350,
-                                      ),
-                                    ));
-                                try {
-                                  await _controller?.updateCamera(cu);
-                                } catch (_) {}
-                                _isAnimatingCamera = false;
-                                await Future<void>.delayed(
-                                  const Duration(milliseconds: 50),
-                                );
-                                _lockOverlayOps = false;
-                              },
+                              leading: CircleAvatar(backgroundColor: Colors.white, foregroundColor: Colors.black87, child: Text('${i + 1}')),
+                              title: Text(p.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.black87)),
+                              subtitle: Text(p.displayAddress, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.black87)),
+                              onTap: () => _onSearchMarkerTapped(p),
                             );
                           },
                         ),
@@ -1116,7 +581,6 @@ class _MapScreenState extends State<MapScreen> {
                 );
               },
             ),
-
           if (_showOwnerPreview && _selectedOwnerPost != null)
             OwnerPreviewCard(
               post: _selectedOwnerPost!,
@@ -1126,28 +590,19 @@ class _MapScreenState extends State<MapScreen> {
               onOpen: () {
                 final post = _selectedOwnerPost;
                 if (post == null) return;
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => RoomOwnerPostView(post: post),
-                  ),
-                );
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => RoomOwnerPostView(post: post)));
               },
               onChat: _startChatWithOwner,
             ),
         ],
       ),
-
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Padding(
-        // 지형/기기별 약간 여백
-        padding: EdgeInsets.only(
-          right: ResponsiveSizes.p(context, 6),
-          bottom: ResponsiveSizes.p(context, 6),
-        ),
+        padding: EdgeInsets.only(right: ResponsiveSizes.p(context, 6), bottom: ResponsiveSizes.p(context, 6)),
         child: FloatingActionButton(
           onPressed: _showMarkerInfo,
           tooltip: '마커 안내',
-          child: const Icon(Icons.zoom_in), // 돋보기 + 아이콘
+          child: const Icon(Icons.info_outline),
         ),
       ),
     );
@@ -1155,35 +610,17 @@ class _MapScreenState extends State<MapScreen> {
 }
 
 class PlaceInfo {
-  final NLatLng pos;
+  final LatLng pos;
   final String title;
   final String? address;
   final String? roadAddress;
-  final String? tel;
-  final String? category;
 
   PlaceInfo({
     required this.pos,
     required this.title,
     this.address,
     this.roadAddress,
-    this.tel,
-    this.category,
   });
 
-  String get displayAddress => (roadAddress != null && roadAddress!.isNotEmpty)
-      ? roadAddress!
-      : (address ?? '');
-}
-
-class _GeocodeResult {
-  final NLatLng pos;
-  final String? roadAddress;
-  final String? jibunAddress;
-
-  const _GeocodeResult({
-    required this.pos,
-    this.roadAddress,
-    this.jibunAddress,
-  });
+  String get displayAddress => (roadAddress != null && roadAddress!.isNotEmpty) ? roadAddress! : (address ?? '');
 }
