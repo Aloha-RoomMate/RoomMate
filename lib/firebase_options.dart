@@ -59,4 +59,5 @@ class DefaultFirebaseOptions {
     projectId: 'roommate-ce085',
     storageBucket: 'roommate-ce085.firebasestorage.app',
   );
+
 }
