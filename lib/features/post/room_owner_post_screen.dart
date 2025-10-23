@@ -17,6 +17,7 @@ import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
+import 'package:roommate/net/jsonp_web.dart';
 import 'package:roommate/features/post/widgets/form_button.dart';
 
 class RoomOwnerPostScreen extends StatefulWidget {
@@ -67,9 +68,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
   // 성별 정규화(동일 파일 내 헬퍼)
   static const Set<String> _maleTokens = {'male', '남성', '남자', 'm', 'M'};
   static const Set<String> _femaleTokens = {'female', '여성', '여자', 'f', 'F'};
-
-  final _vworldProxyBase =
-      'https://asia-northeast3-roommate-ce085.cloudfunctions.net/vworldGeocode';
 
   String? _normalizeGender(String? g) {
     if (g == null) return null;
@@ -205,36 +203,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       setState(() => _pickedImages.removeAt(index));
 
   Future<Map<String, double>?> _addrToCoordinate(String address) async {
-    if (address.trim().isEmpty) return null;
-
-    final url = Uri.parse(
-      '$_vworldProxyBase?address=${Uri.encodeQueryComponent(address)}',
-    );
-
-    try {
-      final res = await http.get(url);
-      if (res.statusCode != 200) {
-        debugPrint('Proxy status: ${res.statusCode}');
-        debugPrint('Proxy body  : ${res.body}');
-        return null;
-      }
-      final decoded = jsonDecode(res.body);
-      // 정상 응답
-      if (decoded?['response']?['status'] == 'OK') {
-        final p = decoded['response']['result']['point'];
-        final lon = double.tryParse('${p['x']}');
-        final lat = double.tryParse('${p['y']}');
-        if (lat == null || lon == null) return null;
-        return {'latitude': lat, 'longitude': lon};
-      }
-      debugPrint('V-World: not OK -> $decoded');
-      return null;
-    } catch (e, s) {
-      // 비정형 에러
-      debugPrint('Proxy fetch error: $e');
-      debugPrint('$s');
-      return null;
-    }
+    return await addrToCoordinate(address);
   }
 
   Map<String, double> _randomizeCoord(
