@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:roommate/class/app_user.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/features/authentication/login/welcome_screen.dart';
 import 'package:roommate/features/authentication/widgets/auth_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
+import 'package:roommate/class/user_repository.dart';
+import 'package:roommate/features/navigationbar/main_navigation.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -35,11 +38,32 @@ class LoginScreen extends StatelessWidget {
 
       if (!context.mounted) return;
 
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => WelcomeScreen(),
-        ),
-      );
+      final userRepo = UserRepository();
+      final appUser = await userRepo.fetchMe();
+
+      final isRegistered =
+          appUser?.userType?.jobKinds.isNotEmpty == true &&
+          appUser?.birthYear != null &&
+          appUser?.gender != null &&
+          appUser?.userType != null;
+
+      if (context.mounted) {
+        if (isRegistered) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => const MainNavigation(),
+            ),
+            (route) => false,
+          );
+        } else {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => const WelcomeScreen(),
+            ),
+            (route) => false,
+          );
+        }
+      }
     } on FirebaseAuthException catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
