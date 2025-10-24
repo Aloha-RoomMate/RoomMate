@@ -5,7 +5,8 @@ library jsonp_web;
 import 'dart:async';
 import 'dart:convert' show jsonDecode;
 import 'dart:js_interop';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+const key = String.fromEnvironment('VWORLD_API_KEY', defaultValue: '');
 
 /// web/index.html 에서 정의한 전역 함수 시그니처
 /// JS: window.__jsonpGetString(url) -> Promise<string>
@@ -21,7 +22,6 @@ Future<String> jsonpGetString(String url) async {
 
 /// VWorld 주소 → 좌표 (JSONP 버전, Web 전용)
 Future<Map<String, double>?> addrToCoordinate(String address) async {
-  final key = dotenv.env['VWORLD_API_KEY']!;
   final params = <String, String>{
     'service': 'address',
     'request': 'getcoord',
