@@ -15,8 +15,11 @@ class RoomOwnerPost {
   /// 지도용 좌표
   final GeoPoint? coordinate;
 
-  /// 표시용 주소 라벨(예: "강북구 송중동 부근")
-  final String? addressLabel;
+  /// 도로명 주소
+  final String? roadAddress;
+
+  /// 지번 주소
+  final String? jibunAddress;
 
   // 금액/정보
   final int? deposit;
@@ -46,7 +49,8 @@ class RoomOwnerPost {
     this.title,
     this.coordinate,
     this.authorGender,
-    this.addressLabel,
+    this.roadAddress,
+    this.jibunAddress,
     this.deposit,
     this.rent,
     this.manageFee,
@@ -68,8 +72,9 @@ class RoomOwnerPost {
       'postType': postType,
       'title': title,
       'authorGender': authorGender,
-      'coordinate': coordinate, // GeoPoint
-      'addressLabel': addressLabel, // 사람이 읽는 주소(뷰에서 사용)
+      'coordinate': coordinate,
+      'roadAddress': roadAddress,
+      'jibunAddress': jibunAddress,
       'deposit': deposit,
       'rent': rent,
       'manageFee': manageFee,
@@ -101,7 +106,8 @@ class RoomOwnerPost {
       title: map['title'] as String? ?? '제목 없음',
       authorGender: map['authorGender'] as String?,
       coordinate: map['coordinate'] as GeoPoint?,
-      addressLabel: map['addressLabel'] as String?,
+      roadAddress: map['roadAddress'] as String? ?? map['addressLabel'] as String?,
+      jibunAddress: map['jibunAddress'] as String?,
       deposit: (map['deposit'] as num?)?.toInt(),
       rent: (map['rent'] as num?)?.toInt(),
       manageFee: (map['manageFee'] as num?)?.toInt(),
@@ -126,16 +132,20 @@ class RoomOwnerPost {
     return RoomOwnerPost.fromMap(doc.id, doc.data() ?? <String, dynamic>{});
   }
 
-  /// addressLabel을 기반으로 "XX동 부근"
+  /// jibunAddress를 기반으로 "XX동 부근"
   String get getAddressLabel {
-    final fullAddress = addressLabel;
+    final fullAddress = jibunAddress;
     if (fullAddress == null || fullAddress.isEmpty) {
+      return roadAddress ?? '주소 정보 없음';
+    }
+
+    final cleanedAddress = fullAddress.replaceAll(RegExp(r'\s*부근$'), '').trim();
+    if (cleanedAddress.isEmpty) {
       return '주소 정보 없음';
     }
 
-    // 1. 괄호 안의 동/읍/면 이름 추출
     final RegExp regExp = RegExp(r'\(([^)]+)\)');
-    final match = regExp.firstMatch(fullAddress);
+    final match = regExp.firstMatch(cleanedAddress);
     if (match != null) {
       final dongName = match.group(1);
       if (dongName != null &&
@@ -147,23 +157,22 @@ class RoomOwnerPost {
       }
     }
 
-    // 2. 괄호가 없는 경우, 공백으로 분리하여 동/읍/면 찾기
-    List<String> parts = fullAddress.split(' ');
+    List<String> parts = cleanedAddress.split(' ');
+
     for (String part in parts) {
       if (part.endsWith('동') ||
           part.endsWith('읍') ||
           part.endsWith('면') ||
+          part.endsWith('리') ||
           part.endsWith('가')) {
-        // '시'나 '구'로 끝나는 경우는 제외 (e.g. '강남구')
-        if (!part.endsWith('시') && !part.endsWith('구')) {
-          return '$part 부근';
-        }
+        return '$part 부근';
       }
     }
 
-    // 3. 못 찾았을 경우, 두 번째 조각(보통 '시' 또는 '구') 사용
-    if (parts.length > 1) {
-      return '${parts[1]} 부근';
+    for (String part in parts) {
+      if (part.endsWith('시') || part.endsWith('구')) {
+        return '$part 부근';
+      }
     }
 
     return '위치 정보 없음';

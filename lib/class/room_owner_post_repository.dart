@@ -168,12 +168,19 @@ class RoomOwnerPostRepository {
     required String uid,
     DocumentSnapshot? lastItem,
     int limit = 20,
+    String? authorGender,
   }) async {
     try {
       var q = _col
           .where('authorId', isEqualTo: uid)
           .orderBy('createdAt', descending: true)
           .limit(limit);
+
+      final tokens = _synonyms(authorGender);
+      if (tokens.isNotEmpty) {
+        q = q.where('authorGender', whereIn: tokens);
+      }
+
       if (lastItem != null) q = q.startAfterDocument(lastItem);
 
       final snap = await q.get();
@@ -191,6 +198,12 @@ class RoomOwnerPostRepository {
 
       // 🩹 폴백: 서버 정렬 없이 받아서 클라에서 createdAt desc 정렬
       var q = _col.where('authorId', isEqualTo: uid).limit(limit);
+
+      final tokens = _synonyms(authorGender);
+      if (tokens.isNotEmpty) {
+        q = q.where('authorGender', whereIn: tokens);
+      }
+
       if (lastItem != null) q = q.startAfterDocument(lastItem);
 
       final snap = await q.get();

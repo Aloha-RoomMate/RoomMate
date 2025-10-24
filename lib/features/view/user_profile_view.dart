@@ -136,7 +136,9 @@ class _UserProfileViewState extends State<UserProfileView> {
                       ),
                       Gaps.v8(context),
                       Text(
-                        user.displayName,
+                        user.birthYear != null
+                            ? '${user.displayName}-${user.birthYear}'
+                            : '${user.displayName} (생년월일 정보 없음)',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.titleMedium,
                         overflow: TextOverflow.ellipsis,
@@ -196,11 +198,31 @@ class _UserProfileViewState extends State<UserProfileView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         LabeldRow(
-                          label: "공용공간 :",
+                          label: "공용 공간 사용 선호도 :",
                           chips: [
                             if ((colivingPreference?.coSpace ?? '').isNotEmpty)
                               ChipButton(
                                 text: colivingPreference!.coSpace,
+                                isSelected: true,
+                              ),
+                          ],
+                        ),
+                        LabeldRow(
+                          label: "룸메이트와의 교류도 :",
+                          chips: [
+                            if ((colivingPreference?.interaction ?? '').isNotEmpty)
+                              ChipButton(
+                                text: colivingPreference!.interaction,
+                                isSelected: true,
+                              ),
+                          ],
+                        ),
+                        LabeldRow(
+                          label: "정리 정돈 습관 :",
+                          chips: [
+                            if ((colivingPreference?.cleanOption ?? '').isNotEmpty)
+                              ChipButton(
+                                text: colivingPreference!.cleanOption,
                                 isSelected: true,
                               ),
                           ],
@@ -346,6 +368,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                     title: "${user.displayName} 님의 게시글",
                     repo: _postRepo,
                     authorUid: widget.targetUid,
+                    authorGender: user.gender,
                   ),
 
                   Gaps.v24(context),
@@ -411,11 +434,13 @@ class _UserPostsSection extends StatefulWidget {
   final String title;
   final RoomOwnerPostRepository repo;
   final String authorUid;
+  final String? authorGender;
 
   const _UserPostsSection({
     required this.title,
     required this.repo,
     required this.authorUid,
+    this.authorGender,
   });
 
   @override
@@ -455,6 +480,7 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
     try {
       final result = await widget.repo.fetchUserPostsPaged(
         uid: widget.authorUid,
+        authorGender: widget.authorGender,
         limit: 20,
       );
       if (!mounted) return;
@@ -499,6 +525,7 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
     try {
       final result = await widget.repo.fetchUserPostsPaged(
         uid: widget.authorUid,
+        authorGender: widget.authorGender,
         lastItem: _lastDocument,
         limit: 20,
       );

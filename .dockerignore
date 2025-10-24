@@ -1,0 +1,15 @@
+.git
+.gitignore
+.android
+.ios
+.macos
+.windows
+.linux
+build/*
+!build/web/** 
+.dart_tool
+.packages
+pubspec.lock
+**/*.iml
+.idea
+.vscode

@@ -127,14 +127,12 @@ class UserRepository {
     required String uid,
     required String type,
     required String jobKinds, // 문자열 유지
-    required String address,
     List<String>? searchAreas,
   }) async {
     await _db.collection('users').doc(uid).set({
       'userType': {
         'type': type,
         'jobKinds': jobKinds,
-        'address': address,
         'searchAreas': searchAreas,
       },
       'updatedAt': FieldValue.serverTimestamp(),
@@ -182,12 +180,14 @@ class UserRepository {
     String? displayName,
     String? photoURL,
     String? gender,
+    int? birthYear,
   }) async {
     await _meDoc().set(
       {
         if (displayName != null) 'displayName': displayName,
         if (photoURL != null) 'photoURL': photoURL,
         if (gender != null) 'gender': gender,
+        if (birthYear != null) 'birthYear': birthYear,
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),

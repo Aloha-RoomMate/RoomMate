@@ -62,7 +62,7 @@ class _RoomOwnerPostContainerState extends State<RoomOwnerPostContainer> {
 
   String _fmtMan(int? v) {
     if (v == null) return '-';
-    return '${_numKo.format(v)}만';
+    return '${_numKo.format(v)}';
   }
 
   String _formatDate(DateTime? dt) {
@@ -82,11 +82,11 @@ class _RoomOwnerPostContainerState extends State<RoomOwnerPostContainer> {
     final fsBody = ResponsiveSizes.f(context, 13);
 
     final post = widget.post;
-    final addr = post.addressLabel ?? '위치 비공개';
+    final addr = post.getAddressLabel;
     final rent = post.rent;
     final manage = post.manageFee;
     final deposit = post.deposit;
-    final moveIn = _formatDate(post.movingDate?.toDate());
+    final createdAt = _formatDate(post.createdAt);
 
     return GestureDetector(
       onTap: _onTap,
@@ -144,29 +144,28 @@ class _RoomOwnerPostContainerState extends State<RoomOwnerPostContainer> {
                                 ),
                         ),
                       ),
-                      // 날짜 배지(선택)
-                      if (moveIn.isNotEmpty)
-                        Positioned(
-                          left: p8,
-                          bottom: p8,
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: p10,
-                              vertical: p8 * 0.6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.45),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              moveIn,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: fsBody * 0.9,
-                              ),
+                      // 날짜 배지(선택
+                      Positioned(
+                        left: p8,
+                        bottom: p8,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: p10,
+                            vertical: p8 * 0.6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.45),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            createdAt,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: fsBody * 0.9,
                             ),
                           ),
                         ),
+                      ),
                       // 페이지 인디케이터
                       if (urls.length > 1)
                         Positioned(

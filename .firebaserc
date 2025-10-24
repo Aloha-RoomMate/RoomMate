@@ -1,7 +1,5 @@
 {
   "projects": {
     "default": "roommate-ce085"
-  },
-  "targets": {},
-  "etags": {}
+  }
 }

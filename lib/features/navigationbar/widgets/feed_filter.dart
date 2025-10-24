@@ -3,48 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/class/app_user.dart';
 
-/// 어떤 피드에 필터를 적용할지
-enum FeedTarget { roomOwner, searcher }
-
-/// 정렬 기준 (거리순은 미사용)
-enum FeedSort {
-  newest,
-  oldest,
-  recommend, // (Owner가 Searcher 글 볼 때) 유저 추천
-  payMatch, // (확장용)
-  roomMatch, // (확장용)
-  distance, // (미사용)
-}
-
 /// 필터 스테이트 (모든 금액은 '만' 단위)
 class FeedFilterState {
-  final FeedTarget target; // 내부 유지(하위 호환), UI에선 외부 target 사용
-
-  // 공통(보증금/계약개월)
+  // 집 필터
   final int? depositMin;
   final int? depositMax;
   final int? contractMin; // 개월
   final int? contractMax; // 개월
-
-  // Owner 글용
   final int? rentMin;
   final int? rentMax;
   final int? manageMin;
   final int? manageMax;
 
-  // Searcher 글용(예산 범위와 겹침)
-  final int? searcherBudgetMin; // 사용자가 원하는 월세 최솟값
-  final int? searcherBudgetMax; // 사용자가 원하는 월세 최댓값
+  // 사람 필터
+  Coliving? colivingFilter;
 
-  // Searcher 글용(희망 조건)
-  final Set<String>? wantAreas; // 희망 지역
-  final Set<String>? wantRooms; // 희망 방 종류
-  final Set<String>? wantPays; // 희망 지불 구조
-
-  final FeedSort sort;
-
-  const FeedFilterState({
-    required this.target,
+  FeedFilterState({
     this.depositMin,
     this.depositMax,
     this.contractMin,
@@ -53,68 +27,33 @@ class FeedFilterState {
     this.rentMax,
     this.manageMin,
     this.manageMax,
-    this.searcherBudgetMin,
-    this.searcherBudgetMax,
-    this.wantAreas,
-    this.wantRooms,
-    this.wantPays,
-    this.sort = FeedSort.newest,
+    this.colivingFilter,
   });
 
-  /// 전체 활성(과거 호환). 화면에선 isActiveForTarget 사용 권장
-  bool get isActive {
-    final hasMoney =
-        depositMin != null ||
+  bool get isHouseFilterActive {
+    return depositMin != null ||
         depositMax != null ||
+        contractMin != null ||
+        contractMax != null ||
         rentMin != null ||
         rentMax != null ||
         manageMin != null ||
-        manageMax != null ||
-        searcherBudgetMin != null ||
-        searcherBudgetMax != null;
-
-    final hasContract = contractMin != null || contractMax != null;
-    final hasSearcherWants =
-        (wantAreas?.isNotEmpty ?? false) ||
-        (wantRooms?.isNotEmpty ?? false) ||
-        (wantPays?.isNotEmpty ?? false);
-
-    return hasMoney ||
-        hasContract ||
-        hasSearcherWants ||
-        sort != FeedSort.newest;
+        manageMax != null;
   }
 
-  /// 현재 보이는 목록의 타겟 기준으로 활성 여부 판단
-  bool isActiveForTarget(FeedTarget viewTarget) {
-    final hasCommon =
-        depositMin != null ||
-        depositMax != null ||
-        contractMin != null ||
-        contractMax != null;
-
-    if (viewTarget == FeedTarget.roomOwner) {
-      final hasOwner =
-          rentMin != null ||
-          rentMax != null ||
-          manageMin != null ||
-          manageMax != null;
-      final hasSort =
-          sort != FeedSort.newest; // owner에서 추천정렬은 노출 안 함(그냥 newest/oldest만)
-      return hasCommon || hasOwner || hasSort;
-    } else {
-      final hasBudget = searcherBudgetMin != null || searcherBudgetMax != null;
-      final hasWants =
-          (wantAreas?.isNotEmpty ?? false) ||
-          (wantRooms?.isNotEmpty ?? false) ||
-          (wantPays?.isNotEmpty ?? false);
-      final hasSort = sort != FeedSort.newest; // recommend 등
-      return hasCommon || hasBudget || hasWants || hasSort;
-    }
+  bool get isPersonFilterActive {
+    if (colivingFilter == null) return false;
+    return colivingFilter!.coSpace.isNotEmpty ||
+        colivingFilter!.interaction.isNotEmpty ||
+        colivingFilter!.bathroom.isNotEmpty ||
+        colivingFilter!.cleanOption.isNotEmpty ||
+        colivingFilter!.smoking == true ||
+        colivingFilter!.pet.isNotEmpty;
   }
+
+  bool get isActive => isHouseFilterActive || isPersonFilterActive;
 
   FeedFilterState copyWith({
-    FeedTarget? target,
     int? depositMin,
     int? depositMax,
     int? contractMin,
@@ -123,58 +62,29 @@ class FeedFilterState {
     int? rentMax,
     int? manageMin,
     int? manageMax,
-    int? searcherBudgetMin,
-    int? searcherBudgetMax,
-    Set<String>? wantAreas,
-    Set<String>? wantRooms,
-    Set<String>? wantPays,
-    FeedSort? sort,
-
-    // one-shot removal flags
+    Coliving? colivingFilter,
     bool removeDeposit = false,
     bool removeContract = false,
     bool removeRent = false,
     bool removeManage = false,
-    bool removeSearcherBudget = false,
-    bool clearWantAreas = false,
-    bool clearWantRooms = false,
-    bool clearWantPays = false,
-    bool resetSort = false,
+    bool clearColiving = false,
   }) {
     return FeedFilterState(
-      target: target ?? this.target,
-
       depositMin: removeDeposit ? null : (depositMin ?? this.depositMin),
       depositMax: removeDeposit ? null : (depositMax ?? this.depositMax),
-
       contractMin: removeContract ? null : (contractMin ?? this.contractMin),
       contractMax: removeContract ? null : (contractMax ?? this.contractMax),
-
       rentMin: removeRent ? null : (rentMin ?? this.rentMin),
       rentMax: removeRent ? null : (rentMax ?? this.rentMax),
-
       manageMin: removeManage ? null : (manageMin ?? this.manageMin),
       manageMax: removeManage ? null : (manageMax ?? this.manageMax),
-
-      searcherBudgetMin: removeSearcherBudget
+      colivingFilter: clearColiving
           ? null
-          : (searcherBudgetMin ?? this.searcherBudgetMin),
-      searcherBudgetMax: removeSearcherBudget
-          ? null
-          : (searcherBudgetMax ?? this.searcherBudgetMax),
-
-      wantAreas: clearWantAreas ? null : (wantAreas ?? this.wantAreas),
-      wantRooms: clearWantRooms ? null : (wantRooms ?? this.wantRooms),
-      wantPays: clearWantPays ? null : (wantPays ?? this.wantPays),
-
-      sort: resetSort ? FeedSort.newest : (sort ?? this.sort),
+          : (colivingFilter ?? this.colivingFilter),
     );
   }
 
-  static const FeedFilterState initial = FeedFilterState(
-    target: FeedTarget.roomOwner,
-    sort: FeedSort.newest,
-  );
+  static FeedFilterState initial = FeedFilterState();
 }
 
 /// 싱글턴 컨트롤러
@@ -190,22 +100,20 @@ class FeedFilterController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void clear(FeedTarget keepTarget) {
-    _state = FeedFilterState(target: keepTarget, sort: FeedSort.newest);
+  void clear() {
+    _state = FeedFilterState();
     notifyListeners();
   }
 }
 
 /// 상단 요약 Chips — 활성 조건이 없으면 렌더링하지 않음
 class FeedFilterChips extends StatelessWidget {
-  final FeedTarget target; // ← 현재 화면의 타겟
   final FeedFilterState state;
-  final VoidCallback onOpenSheet; // 외부 아이콘과 연결해도 됨(칩 자체로 열기 버튼은 없음)
+  final VoidCallback onOpenSheet;
   final VoidCallback onClear;
 
-  const FeedFilterChips({
+  FeedFilterChips({
     super.key,
-    required this.target,
     required this.state,
     required this.onOpenSheet,
     required this.onClear,
@@ -215,10 +123,10 @@ class FeedFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!state.isActiveForTarget(target)) return const SizedBox.shrink();
+    if (!state.isActive) return const SizedBox.shrink();
 
     final chips = <Widget>[
-      // 공통
+      // 집 필터
       if (state.depositMin != null || state.depositMax != null)
         InputChip(
           label: Text('보증금 ${_m(state.depositMin)}~${_m(state.depositMax)}'),
@@ -235,60 +143,74 @@ class FeedFilterChips extends StatelessWidget {
             state.copyWith(removeContract: true),
           ),
         ),
-
-      if (target == FeedTarget.roomOwner) ...[
-        if (state.rentMin != null || state.rentMax != null)
-          InputChip(
-            label: Text('월세 ${_m(state.rentMin)}~${_m(state.rentMax)}'),
-            onDeleted: () => FeedFilterController.instance.apply(
-              state.copyWith(removeRent: true),
-            ),
-          ),
-        if (state.manageMin != null || state.manageMax != null)
-          InputChip(
-            label: Text('관리비 ${_m(state.manageMin)}~${_m(state.manageMax)}'),
-            onDeleted: () => FeedFilterController.instance.apply(
-              state.copyWith(removeManage: true),
-            ),
-          ),
-      ] else ...[
-        if (state.searcherBudgetMin != null || state.searcherBudgetMax != null)
-          InputChip(
-            label: Text(
-              '예산 ${_m(state.searcherBudgetMin)}~${_m(state.searcherBudgetMax)}',
-            ),
-            onDeleted: () => FeedFilterController.instance.apply(
-              state.copyWith(removeSearcherBudget: true),
-            ),
-          ),
-        if (state.wantAreas?.isNotEmpty ?? false)
-          InputChip(
-            label: Text('지역 ${state.wantAreas!.join(", ")}'),
-            onDeleted: () => FeedFilterController.instance.apply(
-              state.copyWith(clearWantAreas: true),
-            ),
-          ),
-        if (state.wantRooms?.isNotEmpty ?? false)
-          InputChip(
-            label: Text('방종류 ${state.wantRooms!.join(", ")}'),
-            onDeleted: () => FeedFilterController.instance.apply(
-              state.copyWith(clearWantRooms: true),
-            ),
-          ),
-        if (state.wantPays?.isNotEmpty ?? false)
-          InputChip(
-            label: Text('지불 ${state.wantPays!.join(", ")}'),
-            onDeleted: () => FeedFilterController.instance.apply(
-              state.copyWith(clearWantPays: true),
-            ),
-          ),
-      ],
-
-      if (state.sort != FeedSort.newest)
+      if (state.rentMin != null || state.rentMax != null)
         InputChip(
-          label: Text(_sortLabel(state.sort)),
+          label: Text('월세 ${_m(state.rentMin)}~${_m(state.rentMax)}'),
           onDeleted: () => FeedFilterController.instance.apply(
-            state.copyWith(resetSort: true),
+            state.copyWith(removeRent: true),
+          ),
+        ),
+      if (state.manageMin != null || state.manageMax != null)
+        InputChip(
+          label: Text('관리비 ${_m(state.manageMin)}~${_m(state.manageMax)}'),
+          onDeleted: () => FeedFilterController.instance.apply(
+            state.copyWith(removeManage: true),
+          ),
+        ),
+
+      // 사람 필터
+      if (state.colivingFilter?.coSpace.isNotEmpty ?? false)
+        InputChip(
+          label: Text('공용공간: ${state.colivingFilter!.coSpace}'),
+          onDeleted: () => FeedFilterController.instance.apply(
+            state.copyWith(
+              colivingFilter: state.colivingFilter!.copyWith(coSpace: ""),
+            ),
+          ),
+        ),
+      if (state.colivingFilter?.interaction.isNotEmpty ?? false)
+        InputChip(
+          label: Text('교류: ${state.colivingFilter!.interaction}'),
+          onDeleted: () => FeedFilterController.instance.apply(
+            state.copyWith(
+              colivingFilter: state.colivingFilter!.copyWith(interaction: ""),
+            ),
+          ),
+        ),
+      if (state.colivingFilter?.cleanOption.isNotEmpty ?? false)
+        InputChip(
+          label: Text('정리정돈: ${state.colivingFilter!.cleanOption}'),
+          onDeleted: () => FeedFilterController.instance.apply(
+            state.copyWith(
+              colivingFilter: state.colivingFilter!.copyWith(cleanOption: ""),
+            ),
+          ),
+        ),
+      if (state.colivingFilter?.bathroom.isNotEmpty ?? false)
+        InputChip(
+          label: Text('화장실: ${state.colivingFilter!.bathroom}'),
+          onDeleted: () => FeedFilterController.instance.apply(
+            state.copyWith(
+              colivingFilter: state.colivingFilter!.copyWith(bathroom: ""),
+            ),
+          ),
+        ),
+      if (state.colivingFilter?.smoking == true)
+        InputChip(
+          label: const Text('흡연'),
+          onDeleted: () => FeedFilterController.instance.apply(
+            state.copyWith(
+              colivingFilter: state.colivingFilter!.copyWith(smoking: false),
+            ),
+          ),
+        ),
+      if (state.colivingFilter?.pet.isNotEmpty ?? false)
+        InputChip(
+          label: Text('반려동물: ${state.colivingFilter!.pet.join(", ")}'),
+          onDeleted: () => FeedFilterController.instance.apply(
+            state.copyWith(
+              colivingFilter: state.colivingFilter!.copyWith(pet: []),
+            ),
           ),
         ),
 
@@ -307,63 +229,18 @@ class FeedFilterChips extends StatelessWidget {
       child: Wrap(spacing: 8, runSpacing: 4, children: chips),
     );
   }
-
-  static String _sortLabel(FeedSort s) {
-    switch (s) {
-      case FeedSort.newest:
-        return '최신순';
-      case FeedSort.oldest:
-        return '오래된 순';
-      case FeedSort.recommend:
-        return '추천 순';
-      case FeedSort.payMatch:
-        return '지불 구조 매칭';
-      case FeedSort.roomMatch:
-        return '방 종류 매칭';
-      case FeedSort.distance:
-        return '거리순(미사용)';
-    }
-  }
 }
 
-/// 바텀시트(필터 편집 UI) — 현재 뷰의 타겟을 외부에서 받음
+/// 바텀시트(필터 편집 UI)
 class FeedFilterBottomSheet extends StatefulWidget {
-  final AppUser? me;
-  final FeedTarget target;
+  const FeedFilterBottomSheet({super.key});
 
-  /// Searcher 글에서 제공할 옵션 풀(현재 로드된 글 기준)
-  final List<String> areas;
-  final List<String> rooms;
-  final List<String> pays;
-
-  const FeedFilterBottomSheet({
-    super.key,
-    required this.me,
-    required this.target,
-    this.areas = const [],
-    this.rooms = const [],
-    this.pays = const [],
-  });
-
-  static Future<void> show(
-    BuildContext context,
-    AppUser? me, {
-    required FeedTarget target,
-    List<String> areas = const [],
-    List<String> rooms = const [],
-    List<String> pays = const [],
-  }) {
+  static Future<void> show(BuildContext context) {
     return showModalBottomSheet(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (_) => FeedFilterBottomSheet(
-        me: me,
-        target: target,
-        areas: areas,
-        rooms: rooms,
-        pays: pays,
-      ),
+      builder: (_) => const FeedFilterBottomSheet(),
     );
   }
 
@@ -371,7 +248,9 @@ class FeedFilterBottomSheet extends StatefulWidget {
   State<FeedFilterBottomSheet> createState() => _FeedFilterBottomSheetState();
 }
 
-class _FeedFilterBottomSheetState extends State<FeedFilterBottomSheet> {
+class _FeedFilterBottomSheetState extends State<FeedFilterBottomSheet>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   late FeedFilterState _tmp;
 
   // 슬라이더 기본 범위(만 단위)
@@ -383,27 +262,36 @@ class _FeedFilterBottomSheetState extends State<FeedFilterBottomSheet> {
   final _minCtr = TextEditingController();
   final _maxCtr = TextEditingController();
 
-  // Searcher 희망 멀티 선택(임시 보관)
-  late Set<String> _selAreas;
-  late Set<String> _selRooms;
-  late Set<String> _selPays;
+  // 공동생활 성향 옵션 (coliving_screen.dart 기반)
+  final _coSpaceOptions = ['활발', '중간', '거의 사용 안 함'];
+  final _interactionOptions = ['친하게', '적당히 거리두며', '거의 없이'];
+  final _cleanOptions = ['항상 제자리에 둬요', '대체로 정돈된 편이예요', '어지르는 편이예요'];
+  final _bathroomOptions = ['둔감해요', '보통이에요', '예민해요'];
+  final _petOptions = [
+    '없음',
+    '강아지',
+    '고양이',
+    '물고기',
+    '양서류',
+    '파충류',
+    '무척추동물(기타)',
+    '조류',
+  ];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     final current = FeedFilterController.instance.state;
-    _tmp = current; // target은 외부(widget.target)로 제어
+    _tmp = current;
 
     _minCtr.text = _tmp.contractMin?.toString() ?? '';
     _maxCtr.text = _tmp.contractMax?.toString() ?? '';
-
-    _selAreas = {...(_tmp.wantAreas ?? const <String>{})};
-    _selRooms = {...(_tmp.wantRooms ?? const <String>{})};
-    _selPays = {...(_tmp.wantPays ?? const <String>{})};
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _minCtr.dispose();
     _maxCtr.dispose();
     super.dispose();
@@ -419,44 +307,27 @@ class _FeedFilterBottomSheetState extends State<FeedFilterBottomSheet> {
     final minC = _toInt(_minCtr.text);
     final maxC = _toInt(_maxCtr.text);
 
-    // target은 바꾸지 않는다(현재 탭이 정의)
     var next = _tmp.copyWith(
       contractMin: minC,
       contractMax: maxC,
     );
-
-    if (widget.target == FeedTarget.searcher) {
-      next = next.copyWith(
-        wantAreas: _selAreas,
-        wantRooms: _selRooms,
-        wantPays: _selPays,
-      );
-    }
 
     FeedFilterController.instance.apply(next);
     Navigator.pop(context);
   }
 
   void _clear() {
-    FeedFilterController.instance.clear(widget.target);
-    Navigator.pop(context);
+    setState(() {
+      _tmp = FeedFilterState(); // Reset temporary state
+      _minCtr.clear();
+      _maxCtr.clear();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final p12 = ResponsiveSizes.p(context, 12);
     final fs16 = ResponsiveSizes.f(context, 16);
-
-    final myType = widget.me?.userType?.type ?? '';
-    final isOwner = myType == 'roomOwner';
-    // final isSearcher = myType.toLowerCase() == 'searcher';
-
-    final sortOptions = <FeedSort, String>{
-      FeedSort.newest: '최신순',
-      FeedSort.oldest: '오래된 순',
-      if (widget.target == FeedTarget.searcher && isOwner)
-        FeedSort.recommend: '유저 추천 순',
-    };
 
     return SafeArea(
       child: Padding(
@@ -466,200 +337,237 @@ class _FeedFilterBottomSheetState extends State<FeedFilterBottomSheet> {
           p12,
           p12 + MediaQuery.of(context).padding.bottom,
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: '집'),
+                Tab(text: '사람'),
+              ],
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.6,
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildHouseFilter(fs16),
+                      _buildPersonFilter(fs16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _clear,
+                    child: const Text('초기화'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _apply,
+                    child: const Text('적용'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHouseFilter(double fs16) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '보증금(만 단위)',
+            style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
+          ),
+          _RangeField(
+            min: _tmp.depositMin ?? 0,
+            max: _tmp.depositMax ?? _depositMaxCap,
+            cap: _depositMaxCap,
+            onChanged: (a, b) => setState(() {
+              _tmp = _tmp.copyWith(depositMin: a, depositMax: b);
+            }),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '월세(만 단위)',
+            style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
+          ),
+          _RangeField(
+            min: _tmp.rentMin ?? 0,
+            max: _tmp.rentMax ?? _rentMaxCap,
+            cap: _rentMaxCap,
+            onChanged: (a, b) => setState(() {
+              _tmp = _tmp.copyWith(rentMin: a, rentMax: b);
+            }),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '관리비(만 단위)',
+            style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
+          ),
+          _RangeField(
+            min: _tmp.manageMin ?? 0,
+            max: _tmp.manageMax ?? _manageMaxCap,
+            cap: _manageMaxCap,
+            onChanged: (a, b) => setState(() {
+              _tmp = _tmp.copyWith(manageMin: a, manageMax: b);
+            }),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '계약 기간(개월)',
+            style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Row(
             children: [
-              // 타겟 전환 UI 제거 — 현재 탭이 타겟을 결정
-              // 금액: 보증금
-              Text(
-                '보증금(만 단위)',
-                style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
-              ),
-              _RangeField(
-                min: _tmp.depositMin ?? 0,
-                max: _tmp.depositMax ?? _depositMaxCap,
-                cap: _depositMaxCap,
-                onChanged: (a, b) => setState(() {
-                  _tmp = _tmp.copyWith(depositMin: a, depositMax: b);
-                }),
-              ),
-              const SizedBox(height: 12),
-
-              // 타겟별 금액 슬라이더
-              if (widget.target == FeedTarget.roomOwner) ...[
-                Text(
-                  '월세(만 단위)',
-                  style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
-                ),
-                _RangeField(
-                  min: _tmp.rentMin ?? 0,
-                  max: _tmp.rentMax ?? _rentMaxCap,
-                  cap: _rentMaxCap,
-                  onChanged: (a, b) => setState(() {
-                    _tmp = _tmp.copyWith(rentMin: a, rentMax: b);
-                  }),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '관리비(만 단위)',
-                  style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
-                ),
-                _RangeField(
-                  min: _tmp.manageMin ?? 0,
-                  max: _tmp.manageMax ?? _manageMaxCap,
-                  cap: _manageMaxCap,
-                  onChanged: (a, b) => setState(() {
-                    _tmp = _tmp.copyWith(manageMin: a, manageMax: b);
-                  }),
-                ),
-              ] else ...[
-                Text(
-                  '희망 월세 예산(만 단위)',
-                  style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
-                ),
-                _RangeField(
-                  min: _tmp.searcherBudgetMin ?? 0,
-                  max: _tmp.searcherBudgetMax ?? _rentMaxCap,
-                  cap: _rentMaxCap,
-                  onChanged: (a, b) => setState(() {
-                    _tmp = _tmp.copyWith(
-                      searcherBudgetMin: a,
-                      searcherBudgetMax: b,
-                    );
-                  }),
-                ),
-                const SizedBox(height: 12),
-              ],
-
-              // 계약기간
-              Text(
-                '계약 기간(개월)',
-                style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _minCtr,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        hintText: '최소',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                    ),
+              Expanded(
+                child: TextField(
+                  controller: _minCtr,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    hintText: '최소',
+                    border: OutlineInputBorder(),
+                    isDense: true,
                   ),
-                  const SizedBox(width: 8),
-                  const Text('~'),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _maxCtr,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        hintText: '최대',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Searcher 희망 조건 멀티선택(옵션 있을 때만 표시)
-              if (widget.target == FeedTarget.searcher) ...[
-                if (widget.areas.isNotEmpty) ...[
-                  Text(
-                    '희망 지역',
-                    style: TextStyle(
-                      fontSize: fs16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _MultiChips(
-                    options: widget.areas,
-                    selected: _selAreas,
-                    onChanged: (s) => setState(() => _selAreas = s),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                if (widget.rooms.isNotEmpty) ...[
-                  Text(
-                    '희망 방 종류',
-                    style: TextStyle(
-                      fontSize: fs16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _MultiChips(
-                    options: widget.rooms,
-                    selected: _selRooms,
-                    onChanged: (s) => setState(() => _selRooms = s),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                if (widget.pays.isNotEmpty) ...[
-                  Text(
-                    '희망 지불 구조',
-                    style: TextStyle(
-                      fontSize: fs16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _MultiChips(
-                    options: widget.pays,
-                    selected: _selPays,
-                    onChanged: (s) => setState(() => _selPays = s),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              ],
-
-              // 정렬
-              Text(
-                '정렬',
-                style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              ...sortOptions.entries.map(
-                (e) => RadioListTile<FeedSort>(
-                  value: e.key,
-                  groupValue: _tmp.sort,
-                  onChanged: (v) => setState(() {
-                    if (v != null) _tmp = _tmp.copyWith(sort: v);
-                  }),
-                  title: Text(e.value),
-                  dense: true,
                 ),
               ),
-
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _clear,
-                      child: const Text('초기화'),
-                    ),
+              const SizedBox(width: 8),
+              const Text('~'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _maxCtr,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    hintText: '최대',
+                    border: OutlineInputBorder(),
+                    isDense: true,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _apply,
-                      child: const Text('적용'),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
-        ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPersonFilter(double fs16) {
+    _tmp.colivingFilter ??= const Coliving(
+      coSpace: '',
+      interaction: '',
+      bathroom: '',
+      cleanOption: '',
+      smoking: false,
+      pet: [],
+      mbti: '',
+    );
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '공용 공간 사용 선호도',
+            style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
+          ),
+          _SingleChoiceChips(
+            options: _coSpaceOptions,
+            selected: _tmp.colivingFilter!.coSpace,
+            onChanged: (s) => setState(() {
+              _tmp = _tmp.copyWith(
+                colivingFilter: _tmp.colivingFilter!.copyWith(coSpace: s),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '룸메이트와의 선호 교류 타입',
+            style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
+          ),
+          _SingleChoiceChips(
+            options: _interactionOptions,
+            selected: _tmp.colivingFilter!.interaction,
+            onChanged: (s) => setState(() {
+              _tmp = _tmp.copyWith(
+                colivingFilter: _tmp.colivingFilter!.copyWith(interaction: s),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '정리정돈 성향',
+            style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
+          ),
+          _SingleChoiceChips(
+            options: _cleanOptions,
+            selected: _tmp.colivingFilter!.cleanOption,
+            onChanged: (s) => setState(() {
+              _tmp = _tmp.copyWith(
+                colivingFilter: _tmp.colivingFilter!.copyWith(cleanOption: s),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '화장실 청결 민감도',
+            style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
+          ),
+          _SingleChoiceChips(
+            options: _bathroomOptions,
+            selected: _tmp.colivingFilter!.bathroom,
+            onChanged: (s) => setState(() {
+              _tmp = _tmp.copyWith(
+                colivingFilter: _tmp.colivingFilter!.copyWith(bathroom: s),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            title: Text(
+              '흡연 여부',
+              style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
+            ),
+            value: _tmp.colivingFilter!.smoking,
+            onChanged: (v) => setState(() {
+              _tmp = _tmp.copyWith(
+                colivingFilter: _tmp.colivingFilter!.copyWith(smoking: v),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '반려동물 여부',
+            style: TextStyle(fontSize: fs16, fontWeight: FontWeight.w600),
+          ),
+          _MultiChips(
+            options: _petOptions,
+            selected: _tmp.colivingFilter!.pet.toSet(),
+            onChanged: (s) => setState(() {
+              _tmp = _tmp.copyWith(
+                colivingFilter: _tmp.colivingFilter!.copyWith(pet: s.toList()),
+              );
+            }),
+          ),
+        ],
       ),
     );
   }
@@ -805,5 +713,61 @@ class _MultiChips extends StatelessWidget {
     ];
 
     return Wrap(spacing: 8, runSpacing: 8, children: chips);
+  }
+}
+
+/// 단일 선택 칩
+class _SingleChoiceChips extends StatelessWidget {
+  final List<String> options;
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  const _SingleChoiceChips({
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: options
+          .map((opt) => FilterChip(
+                label: Text(opt),
+                selected: selected == opt,
+                onSelected: (isSelected) {
+                  if (isSelected) {
+                    onChanged(opt);
+                  } else {
+                    onChanged('');
+                  }
+                },
+              ))
+          .toList(),
+    );
+  }
+}
+
+extension ColivingCopyWith on Coliving {
+  Coliving copyWith({
+    String? coSpace,
+    String? interaction,
+    String? bathroom,
+    String? cleanOption,
+    bool? smoking,
+    List<String>? pet,
+    String? mbti,
+  }) {
+    return Coliving(
+      coSpace: coSpace ?? this.coSpace,
+      interaction: interaction ?? this.interaction,
+      bathroom: bathroom ?? this.bathroom,
+      cleanOption: cleanOption ?? this.cleanOption,
+      smoking: smoking ?? this.smoking,
+      pet: pet ?? this.pet,
+      mbti: mbti ?? this.mbti,
+    );
   }
 }

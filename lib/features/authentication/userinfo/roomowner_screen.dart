@@ -7,8 +7,9 @@ import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
 import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-const _JUSO_KEY = "devU01TX0FVVEgyMDI1MDkxMTE3MzcyNzExNjE3NjI=";
+final String _JUSO_KEY = dotenv.env['JUSO_API_KEY']!;
 
 class RoomownerScreen extends StatefulWidget {
   final String userType;
@@ -124,7 +125,6 @@ class _RoomownerScreenState extends State<RoomownerScreen> {
           uid: FirebaseAuth.instance.currentUser!.uid,
           type: widget.userType,
           jobKinds: widget.jobKinds,
-          address: address,
           searchAreas: null,
         );
       } catch (e) {}

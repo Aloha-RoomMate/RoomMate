@@ -1,43 +1,69 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:roommate/class/app_user.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/features/authentication/login/welcome_screen.dart';
 import 'package:roommate/features/authentication/widgets/auth_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
+import 'package:roommate/class/user_repository.dart';
+import 'package:roommate/features/navigationbar/main_navigation.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
-  static const _webClientId =
-      '909707662887-ld8djjd1eqbdu7hcellh7689j3q1n9ik.apps.googleusercontent.com';
-
   Future<void> _signInWithGoogle(BuildContext context) async {
     try {
-      final google = GoogleSignIn(
-        scopes: const ['email'],
-        serverClientId: _webClientId,
-      );
-      final account = await google.signIn();
-      if (account == null) return;
+      if (kIsWeb) {
+        // 웹: 토큰 직접 다루지 말고 팝업으로
+        final provider = GoogleAuthProvider()
+          ..setCustomParameters({'prompt': 'select_account'});
+        await FirebaseAuth.instance.signInWithPopup(provider);
+      } else {
+        // 모바일
+        final googleUser = await GoogleSignIn(
+          scopes: ['email', 'profile'],
+        ).signIn();
+        if (googleUser == null) return;
 
-      final gauth = await account.authentication;
-      final idToken = gauth.idToken;
-      if (idToken == null) {
-        throw FirebaseAuthException(
-          code: 'missing-id-token',
-          message: 'No Google ID Token',
+        final gauth = await googleUser.authentication;
+        final credential = GoogleAuthProvider.credential(
+          idToken: gauth.idToken,
+          accessToken: gauth.accessToken,
         );
+        await FirebaseAuth.instance.signInWithCredential(credential);
       }
 
-      final credential = GoogleAuthProvider.credential(idToken: idToken);
-      await FirebaseAuth.instance.signInWithCredential(credential);
-
       if (!context.mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-      );
+
+      final userRepo = UserRepository();
+      final appUser = await userRepo.fetchMe();
+
+      final isRegistered =
+          appUser?.userType?.jobKinds.isNotEmpty == true &&
+          appUser?.birthYear != null &&
+          appUser?.gender != null &&
+          appUser?.userType != null;
+
+      if (context.mounted) {
+        if (isRegistered) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => const MainNavigation(),
+            ),
+            (route) => false,
+          );
+        } else {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => const WelcomeScreen(),
+            ),
+            (route) => false,
+          );
+        }
+      }
     } on FirebaseAuthException catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
@@ -85,9 +111,9 @@ class LoginScreen extends StatelessWidget {
               ),
               Gaps.v20(context),
               Text(
-                '나와 맞는 룸메이트 찾기',
+                '나에게 딱 맞는 룸메이트 찾기',
                 style: TextStyle(
-                  fontSize: ResponsiveSizes.f(context, 16),
+                  fontSize: ResponsiveSizes.f(context, 24),
                   fontWeight: FontWeight.w400,
                   color: Colors.black54,
                 ),

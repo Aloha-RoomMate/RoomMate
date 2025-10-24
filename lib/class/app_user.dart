@@ -7,6 +7,7 @@ class AppUser {
   final String displayName;
   final String? photoURL;
   final String? gender;
+  final int? birthYear;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DailyRhythm? dailyRhythm;
@@ -29,6 +30,7 @@ class AppUser {
     this.disease,
     this.introduction,
     this.gender,
+    this.birthYear,
     this.userType,
     this.hobby,
     this.userPass,
@@ -40,6 +42,7 @@ class AppUser {
     String? displayName,
     String? photoURL,
     String? gender,
+    int? birthYear,
     DateTime? createdAt,
     DateTime? updatedAt,
     UserType? userType, // ✅ 타입 수정
@@ -56,6 +59,7 @@ class AppUser {
       displayName: displayName ?? this.displayName,
       photoURL: photoURL ?? this.photoURL,
       gender: gender ?? this.gender,
+      birthYear: birthYear ?? this.birthYear,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       dailyRhythm: dailyRhythm ?? this.dailyRhythm,
@@ -87,6 +91,7 @@ class AppUser {
       photoURL: map['photoURL'] as String?,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
+      birthYear: map['birthYear'] as int?,
 
       dailyRhythm: DailyRhythm.fromMap(
         map['dailyRhythm'] as Map<String, dynamic>?,
@@ -122,6 +127,7 @@ class AppUser {
       'displayName': displayName,
       'photoURL': photoURL,
       'gender': gender,
+      'birthYear': birthYear,
       if (dailyRhythm != null) 'dailyRhythm': dailyRhythm!.toMap(),
       if (userType != null) 'userType': userType!.toMap(),
       if (coliving != null) 'coliving': coliving!.toMap(),
@@ -187,7 +193,6 @@ class UserType {
   final String jobKinds; // 문자열 고정
   final String? address;
   final List<String>? searchAreas;
-
   const UserType({
     required this.type,
     required this.jobKinds,
@@ -221,6 +226,7 @@ class Coliving {
   final String coSpace;
   final String interaction;
   final String bathroom;
+  final String cleanOption;
   final bool smoking;
   final List<String> pet;
   final String mbti;
@@ -229,6 +235,7 @@ class Coliving {
     required this.coSpace,
     required this.interaction,
     required this.bathroom,
+    required this.cleanOption,
     required this.smoking,
     required this.pet,
     required this.mbti,
@@ -238,6 +245,8 @@ class Coliving {
     'coSpace': coSpace,
     'interaction': interaction,
     'bathroom': bathroom,
+
+    'cleanOption': cleanOption,
     'smoking': smoking,
     'pet': pet,
     'mbti': mbti,
@@ -249,6 +258,7 @@ class Coliving {
       coSpace: map['coSpace'] as String? ?? "",
       interaction: map['interaction'] as String? ?? "",
       bathroom: map['bathroom'] as String? ?? "",
+      cleanOption: map['cleanOption'] as String? ?? "",
       smoking: map['smoking'] == true,
       pet: List<String>.from(map['pet'] ?? const []),
       mbti: map['mbti'] as String? ?? "",

@@ -7,7 +7,7 @@ import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
-import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:roommate/class/chat_repository.dart';
 import 'package:roommate/features/chat/chat_screen.dart';
@@ -65,10 +65,13 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
 
   Future<List<String>> _signedUrls(List<String> paths) async {
     if (paths.isEmpty) return [];
-    final res = await _supabase.storage
-        .from(_bucket)
-        .createSignedUrls(paths, _urlTtl);
-    return res.map((e) => e.signedUrl).toList();
+    // createSignedUrls(복수) 대신 createSignedUrl(단수)를 병렬로 호출하는 것이 더 안정적임
+    final urls = await Future.wait(
+      paths.map(
+        (p) => _supabase.storage.from(_bucket).createSignedUrl(p, _urlTtl),
+      ),
+    );
+    return urls.where((u) => u.isNotEmpty).toList();
   }
 
   /// 제목 아래로 값이 감싸지며 내려가는 스택형 정보 행
@@ -111,57 +114,6 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
       ),
     );
   }
-
-  // ───────────── “부근” 보정 로직 (풀주소 노출 방지) ─────────────
-  String _dongOnly(String? full) {
-    final s = (full ?? '').trim();
-    if (s.isEmpty) return '';
-
-    // 끝의 '부근' 표기 제거 후 처리
-    final cleaned = s.replaceAll(RegExp(r'\s*부근$'), '');
-    final tokens = cleaned.split(RegExp(r'\s+'));
-
-    String pick(String suffix) =>
-        tokens.firstWhere((e) => e.endsWith(suffix), orElse: () => '');
-
-    // 우선순위: 동 > 읍 > 면 > 리 > 가 > 구
-    final d = pick('동');
-    final eup = pick('읍');
-    final myeon = pick('면');
-    final ri = pick('리');
-    final ga = pick('가');
-    final gu = pick('구');
-
-    final cand = [d, eup, myeon, ri, ga, gu].firstWhere(
-      (e) => e.isNotEmpty,
-      orElse: () => '',
-    );
-
-    if (cand.isNotEmpty) return cand;
-
-    // 역명(강남역 등)
-    final st = RegExp(r'([가-힣A-Za-z0-9]+역)\b').firstMatch(cleaned)?.group(1);
-    if (st != null && st.isNotEmpty) return st;
-
-    // 도로명(…로/…대로/…길)
-    final road = RegExp(
-      r'([가-힣A-Za-z0-9]+(?:로|대로|길))',
-    ).firstMatch(cleaned)?.group(1);
-    if (road != null && road.isNotEmpty) return road;
-
-    // 그 외: 첫 토큰
-    return tokens.first;
-  }
-
-  String _labelWithNear(String? labelOrText) {
-    final base = (labelOrText ?? '').trim();
-    if (base.isEmpty) return '부근';
-    if (RegExp(r'부근$').hasMatch(base)) return base; // 이미 '부근'이면 그대로
-    final pick = _dongOnly(base);
-    if (pick.isEmpty) return '부근';
-    return '$pick 부근';
-  }
-  // ─────────────────────────────────────────────────────
 
   Future<void> _startChat() async {
     if (_startingChat) return;
@@ -239,8 +191,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
         .map((e) => e.toString())
         .toList();
 
-    // “철산동 부근” 등으로 보정된 표시용 라벨
-    final nearLabel = _labelWithNear(widget.post.addressLabel);
+    final nearLabel = widget.post.getAddressLabel;
 
     return Scaffold(
       body: CustomScrollView(
@@ -593,7 +544,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             ),
           ),
 
-          // 네이버 지도
+          // Google 지도
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -607,33 +558,25 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                       height: 240,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(Sizes.size10),
-                        child: NaverMap(
-                          options: NaverMapViewOptions(
-                            initialCameraPosition: NCameraPosition(
-                              target: NLatLng(lat, lng),
-                              zoom: 15,
-                            ),
-                            locationButtonEnable: false,
-                            consumeSymbolTapEvents: false,
-                            scrollGesturesEnable: true,
-                            zoomGesturesEnable: true,
-                            tiltGesturesEnable: false,
-                            rotationGesturesEnable: false,
-                            indoorEnable: false,
+                        child: GoogleMap(
+                          webGestureHandling: WebGestureHandling.greedy,
+                          initialCameraPosition: CameraPosition(
+                            target: LatLng(lat, lng),
+                            zoom: 15,
                           ),
-                          onMapReady: (controller) async {
-                            final marker = NMarker(
-                              id: 'post_${widget.post.postId ?? 'unknown'}',
-                              position: NLatLng(lat, lng),
-                            );
-                            controller.addOverlay(marker);
-                            await controller.updateCamera(
-                              NCameraUpdate.scrollAndZoomTo(
-                                target: NLatLng(lat, lng),
-                                zoom: 15,
+                          markers: {
+                            Marker(
+                              markerId: MarkerId(
+                                'post_${widget.post.postId ?? 'unknown'}',
                               ),
-                            );
+                              position: LatLng(lat, lng),
+                            ),
                           },
+                          myLocationButtonEnabled: false,
+                          scrollGesturesEnabled: true,
+                          zoomGesturesEnabled: true,
+                          tiltGesturesEnabled: false,
+                          rotateGesturesEnabled: false,
                         ),
                       ),
                     )

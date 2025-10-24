@@ -11,9 +11,6 @@ import 'package:roommate/features/navigationbar/widgets/feed_filter.dart';
 import 'package:roommate/features/navigationbar/widgets/room_owner_post_container.dart';
 import 'package:roommate/features/navigationbar/widgets/searcher_post_container.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
-
-// (옵션) 추천 정렬용
-import 'package:roommate/features/recommend/compatibility.dart';
 import 'package:roommate/class/app_user.dart';
 
 class PostListView extends StatefulWidget {
@@ -43,12 +40,7 @@ class _PostListViewState extends State<PostListView> {
   late final Future<void> _initialLoadFuture;
 
   final _filter = FeedFilterController.instance;
-  VoidCallback _filterListener = () {}; // ← late 이슈 방지: 기본 no-op
-
-  // Searcher 필터 옵션 풀(현재 로드 기준)
-  List<String> _areaPool = [];
-  List<String> _roomPool = [];
-  List<String> _payPool = [];
+  VoidCallback _filterListener = () {};
 
   bool get _isRoomOwnerList =>
       widget.postType.toLowerCase() == 'roomowner' ||
@@ -56,17 +48,13 @@ class _PostListViewState extends State<PostListView> {
       widget.postType.toLowerCase() == 'room-owner' ||
       widget.postType.toLowerCase() == 'room owner';
 
-  FeedTarget get _target =>
-      _isRoomOwnerList ? FeedTarget.roomOwner : FeedTarget.searcher;
-
   @override
   void initState() {
     super.initState();
     _initialLoadFuture = _waitAuthThenFetch();
     _scrollController.addListener(_onScroll);
 
-    // 필터 변경 시 항상 갱신(타겟은 화면이 결정)
-    _filterListener = () => _refresh();
+    _filterListener = () => setState(() {}); // Rebuild on filter change
     _filter.addListener(_filterListener);
   }
 
@@ -81,9 +69,7 @@ class _PostListViewState extends State<PostListView> {
   Future<void> _waitAuthThenFetch() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      await FirebaseAuth.instance.authStateChanges().firstWhere(
-        (u) => u != null,
-      );
+      await FirebaseAuth.instance.authStateChanges().firstWhere((u) => u != null);
     }
     _me = await _userRepository.fetchMe();
     _myGender = _me?.gender;
@@ -107,7 +93,6 @@ class _PostListViewState extends State<PostListView> {
         _lastDocument = res.lastDocument;
         _hasMore = res.posts.length == _pageSize;
         _isLoadingMore = false;
-        _rebuildSearcherPools(); // owner에서는 사실상 비움
       });
     } else {
       final res = await _searcherRepo.fetchPosts(
@@ -122,7 +107,6 @@ class _PostListViewState extends State<PostListView> {
         _lastDocument = res.lastDocument;
         _hasMore = res.posts.length == _pageSize;
         _isLoadingMore = false;
-        _rebuildSearcherPools();
       });
     }
   }
@@ -143,7 +127,6 @@ class _PostListViewState extends State<PostListView> {
         _lastDocument = res.lastDocument;
         _hasMore = res.posts.length == _pageSize;
         _isLoadingMore = false;
-        _rebuildSearcherPools();
       });
     } else {
       final res = await _searcherRepo.fetchPosts(
@@ -157,7 +140,6 @@ class _PostListViewState extends State<PostListView> {
         _lastDocument = res.lastDocument;
         _hasMore = res.posts.length == _pageSize;
         _isLoadingMore = false;
-        _rebuildSearcherPools();
       });
     }
   }
@@ -180,41 +162,48 @@ class _PostListViewState extends State<PostListView> {
     }
   }
 
-  // Searcher 글들의 옵션 풀 수집
-  void _rebuildSearcherPools() {
-    if (_isRoomOwnerList) {
-      _areaPool = [];
-      _roomPool = [];
-      _payPool = [];
-      return;
+  Future<List<Object>> _filterItems(List<Object> raw) async {
+    final f = _filter.state;
+    if (!f.isActive) {
+      return raw;
     }
-    final areas = <String>{};
-    final rooms = <String>{};
-    final pays = <String>{};
-    for (final it in _items) {
-      if (it is SearcherPost) {
-        for (final a in (it.wantArea ?? const <String>[])) {
-          final s = a.trim();
-          if (s.isNotEmpty) areas.add(s);
-        }
-        for (final r in (it.wantRoom ?? const <String>[])) {
-          final s = r.trim();
-          if (s.isNotEmpty) rooms.add(s);
-        }
-        for (final p in (it.wantPay ?? const <String>[])) {
-          final s = p.trim();
-          if (s.isNotEmpty) pays.add(s);
-        }
+
+    List<Object> currentlyFiltered = List.from(raw);
+
+    // Apply house filter
+    if (f.isHouseFilterActive) {
+      if (_isRoomOwnerList) {
+        currentlyFiltered.retainWhere((item) => item is RoomOwnerPost && _matchesHouse(item, f));
+      } else { // This is the Searcher list
+        currentlyFiltered.retainWhere((item) => item is SearcherPost && _matchesSearcherHouseFilters(item, f));
       }
     }
-    _areaPool = areas.toList()..sort();
-    _roomPool = rooms.toList()..sort();
-    _payPool = pays.toList()..sort();
+
+    // Apply person filter
+    if (f.isPersonFilterActive) {
+      List<Object> personFiltered = [];
+      for (final item in currentlyFiltered) {
+        String? authorId;
+        if (item is RoomOwnerPost) {
+          authorId = item.authorId;
+        } else if (item is SearcherPost) {
+          authorId = item.authorId;
+        }
+
+        if (authorId != null) {
+          final author = await _userRepository.fetchUserById(authorId);
+          if (author != null && _matchesPerson(author, f)) {
+            personFiltered.add(item);
+          }
+        }
+      }
+      currentlyFiltered = personFiltered;
+    }
+
+    return currentlyFiltered;
   }
 
-  // ───── 클라 필터/정렬 ─────
-
-  bool _matchesOwner(RoomOwnerPost p, FeedFilterState f) {
+  bool _matchesHouse(RoomOwnerPost p, FeedFilterState f) {
     if (f.depositMin != null && (p.deposit ?? 0) < f.depositMin!) return false;
     if (f.depositMax != null && (p.deposit ?? 1 << 30) > f.depositMax!)
       return false;
@@ -237,122 +226,55 @@ class _PostListViewState extends State<PostListView> {
     return true;
   }
 
-  bool _matchesSearcher(SearcherPost p, FeedFilterState f) {
+  bool _matchesSearcherHouseFilters(SearcherPost p, FeedFilterState f) {
+    // Deposit
     if (f.depositMin != null && (p.deposit ?? 0) < f.depositMin!) return false;
-    if (f.depositMax != null && (p.deposit ?? 1 << 30) > f.depositMax!)
-      return false;
+    if (f.depositMax != null && (p.deposit ?? 1 << 30) > f.depositMax!) return false;
 
-    if (f.searcherBudgetMin != null || f.searcherBudgetMax != null) {
-      final a = p.minRent ?? 0;
-      final b = p.maxRent ?? 1 << 30;
-      final selMin = f.searcherBudgetMin ?? 0;
-      final selMax = f.searcherBudgetMax ?? (1 << 30);
-      final overlap = (a <= selMax) && (b >= selMin);
+    // Rent
+    if (f.rentMin != null || f.rentMax != null) {
+      final searcherMinRent = p.minRent ?? 0;
+      final searcherMaxRent = p.maxRent ?? (1 << 30);
+      final filterMinRent = f.rentMin ?? 0;
+      final filterMaxRent = f.rentMax ?? (1 << 30);
+      final overlap = (searcherMinRent <= filterMaxRent) && (searcherMaxRent >= filterMinRent);
       if (!overlap) return false;
     }
 
+    // Contract Period
     if (f.contractMin != null || f.contractMax != null) {
-      final a = p.minContract ?? 0;
-      final b = p.maxContract ?? 1 << 30;
-      final selMin = f.contractMin ?? 0;
-      final selMax = f.contractMax ?? (1 << 30);
-      final overlap = (a <= selMax) && (b >= selMin);
+      final searcherMinContract = p.minContract ?? 0;
+      final searcherMaxContract = p.maxContract ?? (1 << 30);
+      final filterMinContract = f.contractMin ?? 0;
+      final filterMaxContract = f.contractMax ?? (1 << 30);
+      final overlap = (searcherMinContract <= filterMaxContract) && (searcherMaxContract >= filterMinContract);
       if (!overlap) return false;
-    }
-
-    // 희망 지역
-    if ((f.wantAreas?.isNotEmpty ?? false)) {
-      final areas = (p.wantArea ?? const <String>[])
-          .map((e) => e.trim())
-          .toSet();
-      if (areas.intersection(f.wantAreas!).isEmpty) return false;
-    }
-    // 희망 방 종류
-    if ((f.wantRooms?.isNotEmpty ?? false)) {
-      final rooms = (p.wantRoom ?? const <String>[])
-          .map((e) => e.trim())
-          .toSet();
-      if (rooms.intersection(f.wantRooms!).isEmpty) return false;
-    }
-    // 희망 지불 구조
-    if ((f.wantPays?.isNotEmpty ?? false)) {
-      final pays = (p.wantPay ?? const <String>[]).map((e) => e.trim()).toSet();
-      if (pays.intersection(f.wantPays!).isEmpty) return false;
     }
 
     return true;
   }
 
-  DateTime _createdAtOf(Object o) {
-    if (o is RoomOwnerPost)
-      return o.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-    if (o is SearcherPost)
-      return o.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-    return DateTime.fromMillisecondsSinceEpoch(0);
+  bool _matchesPerson(AppUser u, FeedFilterState f) {
+    final userColiving = u.coliving;
+    final filterColiving = f.colivingFilter;
+
+    if (userColiving == null || filterColiving == null) return true;
+
+    if (filterColiving.coSpace.isNotEmpty &&
+        userColiving.coSpace != filterColiving.coSpace) return false;
+    if (filterColiving.interaction.isNotEmpty &&
+        userColiving.interaction != filterColiving.interaction) return false;
+    if (filterColiving.cleanOption.isNotEmpty &&
+        userColiving.cleanOption != filterColiving.cleanOption) return false;
+    if (filterColiving.bathroom.isNotEmpty &&
+        userColiving.bathroom != filterColiving.bathroom) return false;
+    if (filterColiving.smoking && !userColiving.smoking) return false;
+    if (filterColiving.pet.isNotEmpty &&
+        !filterColiving.pet.any((p) => userColiving.pet.contains(p)))
+      return false;
+
+    return true;
   }
-
-  Future<List<Object>> _applyFilterAndSort(List<Object> raw) async {
-    final f = _filter.state;
-
-    // 1) 필터링
-    final filtered = <Object>[];
-    if (_isRoomOwnerList) {
-      for (final it in raw) {
-        if (it is RoomOwnerPost && _matchesOwner(it, f)) filtered.add(it);
-      }
-    } else {
-      for (final it in raw) {
-        if (it is SearcherPost && _matchesSearcher(it, f)) filtered.add(it);
-      }
-    }
-
-    // 2) 정렬 (거리순 제거)
-    switch (f.sort) {
-      case FeedSort.newest:
-        filtered.sort((a, b) => _createdAtOf(b).compareTo(_createdAtOf(a)));
-        break;
-      case FeedSort.oldest:
-        filtered.sort((a, b) => _createdAtOf(a).compareTo(_createdAtOf(b)));
-        break;
-      case FeedSort.recommend:
-        {
-          if (_isRoomOwnerList) break; // Owner글에는 추천정렬 없음
-          if (_me == null) break;
-          final scores = <String, double>{};
-          for (final it in filtered) {
-            if (it is SearcherPost && it.authorId != null) {
-              final other = await _userRepository.fetchUserById(it.authorId!);
-              if (other != null) {
-                final comp = scoreUsers(_me!, other);
-                final s =
-                    0.70 * comp.structSim +
-                    0.15 * comp.hobbySim +
-                    0.15 * comp.textSim;
-                scores[it.postId ?? it.authorId!] = s;
-              }
-            }
-          }
-          filtered.sort((a, b) {
-            double sa = 0, sb = 0;
-            if (a is SearcherPost)
-              sa = scores[a.postId ?? a.authorId ?? ''] ?? 0;
-            if (b is SearcherPost)
-              sb = scores[b.postId ?? b.authorId ?? ''] ?? 0;
-            return sb.compareTo(sa);
-          });
-        }
-        break;
-      case FeedSort.payMatch:
-      case FeedSort.roomMatch:
-      case FeedSort.distance:
-        // 미사용/확장용
-        break;
-    }
-
-    return filtered;
-  }
-
-  // ─────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -376,7 +298,7 @@ class _PostListViewState extends State<PostListView> {
         }
 
         return FutureBuilder<List<Object>>(
-          future: _applyFilterAndSort(_items),
+          future: _filterItems(_items),
           builder: (context, listSnap) {
             if (listSnap.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -395,7 +317,7 @@ class _PostListViewState extends State<PostListView> {
 
             final itemW =
                 (screenW - (outerPad * 2) - crossSpacing * (columns - 1)) /
-                columns;
+                    columns;
             final imageH = itemW / imageAspect;
 
             final fsBody = ResponsiveSizes.f(context, 13);
@@ -423,26 +345,16 @@ class _PostListViewState extends State<PostListView> {
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-                  // ✅ 현재 탭(Target) 기준으로 활성 조건이 있을 때만 칩 표시
-                  if (state.isActiveForTarget(_target))
+                  if (state.isActive)
                     SliverToBoxAdapter(
                       child: FeedFilterChips(
-                        target: _target,
                         state: state,
                         onOpenSheet: () {
-                          FeedFilterBottomSheet.show(
-                            context,
-                            _me,
-                            target: _target,
-                            areas: _areaPool,
-                            rooms: _roomPool,
-                            pays: _payPool,
-                          );
+                          FeedFilterBottomSheet.show(context);
                         },
-                        onClear: () => _filter.clear(_target),
+                        onClear: () => _filter.clear(),
                       ),
                     ),
-
                   SliverPadding(
                     padding: EdgeInsets.all(outerPad),
                     sliver: SliverGrid(
@@ -465,7 +377,6 @@ class _PostListViewState extends State<PostListView> {
                               item is SearcherPost) {
                             return SearcherPostContainer(
                               post: item,
-                              imageAspect: imageAspect,
                             );
                           }
                           return const SizedBox.shrink();

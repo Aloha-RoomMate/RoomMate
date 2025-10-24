@@ -1,17 +1,18 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/searcher_post.dart';
+import 'package:roommate/class/user_repository.dart'; // UserRepository 임포트
 import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/features/view/searcher_post_view.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SearcherPostContainer extends StatefulWidget {
-  final SearcherPost post;
-  final double imageAspect; // 가로/세로 비 (width/height)
+  final SearcherPost post; // 개별 post
+
   const SearcherPostContainer({
     super.key,
     required this.post,
-    this.imageAspect = 0.93, // ← 0.9에서 살짝 올려 높이 감소
   });
 
   @override
@@ -19,59 +20,59 @@ class SearcherPostContainer extends StatefulWidget {
 }
 
 class _SearcherPostContainerState extends State<SearcherPostContainer> {
-  static const String _bucket = 'RoomMate-image';
-  static const int _urlTtl = 1800;
-  static final _supabase = Supabase.instance.client;
-
-  late final Future<List<String>> _urlsFuture;
-  final PageController _pageCtrl = PageController();
-  int _page = 0;
+  AppUser? _author; // 작성자 저장할 변수
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _urlsFuture = _signedUrls(max: 3);
+    _fetchAuthor();
   }
 
-  @override
-  void dispose() {
-    _pageCtrl.dispose();
-    super.dispose();
+  Future<void> _fetchAuthor() async {
+    if (widget.post.authorId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    final repo = UserRepository();
+    final user = await repo.fetchUserById(
+      widget.post.authorId!,
+    ); // post의 authorid로 접근해서 작성자 정보 가져오기
+    if (mounted) {
+      setState(() {
+        _author = user;
+        _isLoading = false;
+      });
+    }
   }
 
-  void _onTap() {
+  void _onTap(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => SearcherPostView(post: widget.post)),
     );
   }
 
-  Future<List<String>> _signedUrls({int max = 3}) async {
-    final paths = widget.post.imageUrls ?? const <String>[];
-    if (paths.isEmpty) return [];
-    final take = paths.take(max).toList();
-    final urls = await Future.wait(
-      take.map(
-        (p) => _supabase.storage.from(_bucket).createSignedUrl(p, _urlTtl),
-      ),
-    );
-    return urls.where((u) => u.isNotEmpty).toList();
-  }
+  String _fmtDate(dynamic dateValue) {
+    DateTime? dt;
+    if (dateValue is DateTime) {
+      dt = dateValue;
+    } else if (dateValue is Timestamp) {
+      dt = dateValue.toDate();
+    }
 
-  String _fmtDate(dynamic ts) {
-    try {
-      final dt = (ts as dynamic).toDate?.call();
-      if (dt is DateTime) {
-        final y = dt.year.toString();
-        final m = dt.month.toString().padLeft(2, '0');
-        final d = dt.day.toString().padLeft(2, '0');
-        return '$y/$m/$d';
-      }
-    } catch (_) {}
+    if (dt != null) {
+      final y = dt.year.toString();
+      final m = dt.month.toString().padLeft(2, '0');
+      final d = dt.day.toString().padLeft(2, '0');
+      return '$y/$m/$d';
+    }
+
     return '';
   }
 
   @override
   Widget build(BuildContext context) {
+    final p1 = ResponsiveSizes.p(context, 1);
     final p8 = ResponsiveSizes.p(context, 8);
     final p10 = ResponsiveSizes.p(context, 10);
     final radius = ResponsiveSizes.p(context, 12);
@@ -80,8 +81,8 @@ class _SearcherPostContainerState extends State<SearcherPostContainer> {
     final fsBody = ResponsiveSizes.f(context, 13);
     final iconSizeS = ResponsiveSizes.f(context, 12);
 
-    const lineH = 1.15; // ← 고정 라인높이로 라인박스 흔들림 방지
-    final gap = p8 * 0.65; // ← 살짝 줄인 세로 간격
+    const lineH = 1.15;
+    final gap = p8 * 0.80;
 
     final p = widget.post;
     final title = (p.title ?? '').isEmpty ? '제목 없음' : p.title!;
@@ -91,10 +92,25 @@ class _SearcherPostContainerState extends State<SearcherPostContainer> {
     final deposit = p.deposit ?? 0;
     final minRent = p.minRent ?? 0;
     final maxRent = p.maxRent ?? 0;
-    final priceLine = '보증금 $deposit만 · 월세 $minRent~$maxRent만';
+    final priceLine = '$deposit/$minRent~$maxRent';
+    final createdAt = _fmtDate(p.createdAt);
+
+    final authorBirthYear = _author?.birthYear;
+    final authorSmoking = _author?.coliving?.smoking;
+
+    String authorInfo = '정보 없음';
+    if (_isLoading) {
+      authorInfo = '로딩 중...';
+    } else if (_author != null) {
+      final birthYear = authorBirthYear ?? '미입력';
+      final smoking = (authorSmoking == null)
+          ? '미입력'
+          : (authorSmoking ? '흡연' : '비흡연');
+      authorInfo = '$birthYear년생 / $smoking';
+    }
 
     return GestureDetector(
-      onTap: _onTap,
+      onTap: () => _onTap(context),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -108,119 +124,13 @@ class _SearcherPostContainerState extends State<SearcherPostContainer> {
           ],
         ),
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // 상단 스와이프 (aspect 조정됨)
-            AspectRatio(
-              aspectRatio: widget.imageAspect, // ← 0.93
-              child: FutureBuilder<List<String>>(
-                future: _urlsFuture,
-                builder: (context, snap) {
-                  final urls = snap.data ?? const <String>[];
-                  if (snap.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    );
-                  }
-                  if (urls.isEmpty) {
-                    return Image.asset('assets/house.jpg', fit: BoxFit.cover);
-                  }
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      PageView.builder(
-                        controller: _pageCtrl,
-                        onPageChanged: (i) => setState(() => _page = i),
-                        itemCount: urls.length,
-                        itemBuilder: (_, i) => Image.network(
-                          urls[i],
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Image.asset(
-                            'assets/house.jpg',
-                            fit: BoxFit.cover,
-                          ),
-                          loadingBuilder: (c, w, p) => p == null
-                              ? w
-                              : const Center(
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      // 날짜
-                      Positioned(
-                        left: p8,
-                        bottom: p8,
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: p10,
-                            vertical: p8 * 0.6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.45),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            moving.isEmpty ? '' : moving,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: fsBody * 0.9,
-                              height: lineH,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // 인디케이터
-                      if (urls.length > 1)
-                        Positioned(
-                          right: p8,
-                          bottom: p8,
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: p10 * 0.7,
-                              vertical: p8 * 0.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.35),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: List.generate(urls.length, (i) {
-                                final active = i == _page;
-                                return AnimatedContainer(
-                                  duration: const Duration(milliseconds: 220),
-                                  margin: EdgeInsets.symmetric(
-                                    horizontal: p8 * 0.25,
-                                  ),
-                                  width: active ? p8 * 1.2 : p8 * 0.9,
-                                  height: p8 * 0.9,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(
-                                      active ? 0.95 : 0.6,
-                                    ),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                );
-                              }),
-                            ),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ),
-
-            // 하단 텍스트 (정확히 3줄: 제목/가격/희망지역)
             Padding(
               padding: EdgeInsets.fromLTRB(p10, p10, p10, p10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1) 제목 (1줄)
                   Text(
                     title,
                     maxLines: 1,
@@ -231,41 +141,116 @@ class _SearcherPostContainerState extends State<SearcherPostContainer> {
                       height: lineH,
                     ),
                   ),
-                  SizedBox(height: gap),
-
-                  // 2) 예산 (1줄)
+                  const SizedBox(height: 20),
                   Row(
                     children: [
                       FaIcon(FontAwesomeIcons.coins, size: iconSizeS),
                       SizedBox(width: p8 * 0.75),
-                      Expanded(
-                        child: Text(
-                          priceLine,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: fsBody, height: lineH),
+                      Text(
+                        '희망 보증금/월세',
+                        style: TextStyle(
+                          fontSize: fsBody * 1.1,
+                          fontWeight: FontWeight.w600,
+                          height: lineH,
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: gap),
-
-                  // 3) 희망 지역 (1줄)
+                  const SizedBox(height: 4),
+                  Text(
+                    priceLine,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: fsBody, height: lineH),
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       FaIcon(FontAwesomeIcons.locationDot, size: iconSizeS),
                       SizedBox(width: p8 * 0.75),
-                      Expanded(
-                        child: Text(
-                          wantAreas.isEmpty ? '희망 지역: -' : '희망 지역: $wantAreas',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: fsBody, height: lineH),
+                      Text(
+                        '희망지역',
+                        style: TextStyle(
+                          fontSize: fsBody * 1.1,
+                          fontWeight: FontWeight.w600,
+                          height: lineH,
                         ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    wantAreas.isEmpty ? '-' : wantAreas,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: fsBody, height: lineH),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      FaIcon(FontAwesomeIcons.calendar, size: iconSizeS),
+                      SizedBox(width: p8 * 0.75),
+                      Text(
+                        '입주희망일',
+                        style: TextStyle(
+                          fontSize: fsBody * 1.1,
+                          fontWeight: FontWeight.w600,
+                          height: lineH,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    moving.isEmpty ? '-' : moving,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: fsBody, height: lineH),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      FaIcon(FontAwesomeIcons.person, size: iconSizeS),
+                      SizedBox(width: p8 * 0.75),
+                      Text(
+                        '입주 희망자',
+                        style: TextStyle(
+                          fontSize: fsBody * 1.1,
+                          fontWeight: FontWeight.w600,
+                          height: lineH,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    authorInfo,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: fsBody, height: lineH),
+                  ),
                 ],
+              ),
+            ),
+            Positioned(
+              right: p8,
+              bottom: p8,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: p10 * 0.7,
+                  vertical: p8 * 0.5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.35),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  createdAt,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: fsBody * 0.9,
+                  ),
+                ),
               ),
             ),
           ],
