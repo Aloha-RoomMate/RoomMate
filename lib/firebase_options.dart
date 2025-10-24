@@ -17,29 +17,17 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -52,11 +40,57 @@ class DefaultFirebaseOptions {
     }
   }
 
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyARQg5YpmUKRJt8wbebUxVYi9kmAk35YKU',
+    appId: '1:909707662887:web:baf7c8788239946402e002',
+    messagingSenderId: '909707662887',
+    projectId: 'roommate-ce085',
+    authDomain: 'roommate-ce085.firebaseapp.com',
+    storageBucket: 'roommate-ce085.firebasestorage.app',
+    measurementId: 'G-6TC6W7R76R',
+  );
+
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCja-bkvIOQ_J3nMOuXwC2ZHQrPMLrm-0U',
     appId: '1:909707662887:android:7a630deca2b73e4b02e002',
     messagingSenderId: '909707662887',
     projectId: 'roommate-ce085',
     storageBucket: 'roommate-ce085.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyAHD2EDGTODXTx8KKG7kfNDTNvuSUXWuwI',
+    appId: '1:909707662887:ios:0564e07e6b47aadb02e002',
+    messagingSenderId: '909707662887',
+    projectId: 'roommate-ce085',
+    storageBucket: 'roommate-ce085.firebasestorage.app',
+    androidClientId:
+        '909707662887-20r55ceq10oc92bradn9o6dp7dv44ouu.apps.googleusercontent.com',
+    iosClientId:
+        '909707662887-8kg5aidlop7iaq8qp01qpdf2ei4fhosd.apps.googleusercontent.com',
+    iosBundleId: 'com.example.roommate',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyAHD2EDGTODXTx8KKG7kfNDTNvuSUXWuwI',
+    appId: '1:909707662887:ios:0564e07e6b47aadb02e002',
+    messagingSenderId: '909707662887',
+    projectId: 'roommate-ce085',
+    storageBucket: 'roommate-ce085.firebasestorage.app',
+    androidClientId:
+        '909707662887-20r55ceq10oc92bradn9o6dp7dv44ouu.apps.googleusercontent.com',
+    iosClientId:
+        '909707662887-8kg5aidlop7iaq8qp01qpdf2ei4fhosd.apps.googleusercontent.com',
+    iosBundleId: 'com.example.roommate',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyARQg5YpmUKRJt8wbebUxVYi9kmAk35YKU',
+    appId: '1:909707662887:web:3847cf394a8bb30802e002',
+    messagingSenderId: '909707662887',
+    projectId: 'roommate-ce085',
+    authDomain: 'roommate-ce085.firebaseapp.com',
+    storageBucket: 'roommate-ce085.firebasestorage.app',
+    measurementId: 'G-YFK1DKYFM0',
   );
 }
