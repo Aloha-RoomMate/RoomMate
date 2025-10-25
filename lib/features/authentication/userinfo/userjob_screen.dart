@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
-import 'package:roommate/features/authentication/userinfo/searcher_screen.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/authentication/widgets/demand_button.dart';
