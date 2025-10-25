@@ -1,13 +1,17 @@
-name: Build & Push (stable) -> NHN Pipeline auto deploy
+name: Build & Push (stable+sha) -> NHN Pipeline auto deploy
 
 on:
   push:
-    branches: ['23-feature_jinhyun','master']   # 필요시 브랜치 수정
+    branches: ['23-feature_jinhyun','master']   # 필요시 수정
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/roommate-web
+  SHA_TAG: ${{ github.sha }}
 
 jobs:
   web-build-and-push:
@@ -33,10 +37,10 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      # 웹 번들 빌드 (경고 숨기려면 --no-wasm-dry-run 추가)
+      # 웹 번들 빌드 (서비스워커 비활성화 → 캐시 이슈 방지)
       - name: Build Flutter Web (release)
         run: |
-          flutter build web --release --no-wasm-dry-run \
+          flutter build web --release --no-wasm-dry-run --pwa-strategy=none \
             --dart-define=JUSO_API_KEY=${{ secrets.JUSO_API_KEY }} \
             --dart-define=VWORLD_API_KEY=${{ secrets.VWORLD_API_KEY }}
 
@@ -52,8 +56,9 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           logout: true
 
-      # Docker 이미지 빌드 & 푸시 (stable 태그)
-      - name: Build & Push image (stable)
+      # Docker 이미지 빌드 & 푸시 (stable + 커밋 SHA)
+      - name: Build & Push image (stable + sha)
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -61,6 +66,15 @@ jobs:
           # file: ./deploy/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/roommate-web:stable
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/roommate-web:stable
+          tags: |
+            ${{ env.IMAGE_NAME }}:stable
+            ${{ env.IMAGE_NAME }}:${{ env.SHA_TAG }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:stable
           cache-to: type=inline
+
+      - name: Show pushed digests (optional)
+        run: |
+          echo "stable digest:"
+          docker buildx imagetools inspect $IMAGE_NAME:stable | grep -m1 digest || true
+          echo "sha digest:"
+          docker buildx imagetools inspect $IMAGE_NAME:$SHA_TAG | grep -m1 digest || true
