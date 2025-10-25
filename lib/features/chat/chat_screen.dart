@@ -74,7 +74,18 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _commitComposing() {
+    final v = _msgCtrl.value;
+    if (v.composing.isValid) {
+      _msgCtrl.value = v.copyWith(
+        composing: TextRange.empty,
+        selection: TextSelection.collapsed(offset: v.text.length),
+      );
+    }
+  }
+
   Future<void> _sendMessage() async {
+    _commitComposing(); // ← 전송 직전에 조합 확정
     final text = _msgCtrl.text.trim();
     if (text.isEmpty) return;
     await _chatRepo.sendMessage(widget.chatRoomId, text);
@@ -354,14 +365,11 @@ class _ChatScreenState extends State<ChatScreen> {
                           onPressed: () => _quickSend(t),
                           backgroundColor: Colors.white,
                           side: const BorderSide(color: Colors.black12),
-                          shape: const StadiumBorder(), // ← 완전 알약 모양
-                          // 혹은: shape: RoundedRectangleBorder(
-                          //   borderRadius: BorderRadius.circular(24), // 원하는 반경으로 조절
-                          // ),
+                          shape: const StadiumBorder(),
                           labelPadding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 2,
-                          ), // 높이 늘려 더 둥글게 보이게
+                          ),
                         ),
                       ),
                     ),
@@ -463,27 +471,23 @@ class _BorderlessInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      textInputAction: TextInputAction.send,
       controller: controller,
       minLines: 1,
       maxLines: 4,
-      decoration: InputDecoration(
+      onSubmitted: (_) => onSubmitted?.call(), // ← 엔터 시 전송 연결(옵션)
+      decoration: const InputDecoration(
         hintText: '메시지를 입력하세요…',
-        // 밑줄 색상들
         enabledBorder: UnderlineInputBorder(
-          borderSide: BorderSide(
-            color: Colors.transparent,
-          ),
-        ),
-        focusedBorder: UnderlineInputBorder(
-          borderSide: BorderSide(
-            color: Colors.transparent,
-            width: 2,
-          ),
-        ),
-        disabledBorder: const UnderlineInputBorder(
           borderSide: BorderSide(color: Colors.transparent),
         ),
-        errorBorder: const UnderlineInputBorder(
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.transparent, width: 2),
+        ),
+        disabledBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.transparent),
+        ),
+        errorBorder: UnderlineInputBorder(
           borderSide: BorderSide(color: Colors.red),
         ),
       ),
@@ -494,7 +498,7 @@ class _BorderlessInput extends StatelessWidget {
 /// 메시지 버블
 /// - 내 메시지: 화면 오른쪽 정렬, 시간은 버블의 왼쪽
 /// - 상대 메시지: 화면 왼쪽 정렬, 시간은 버블의 오른쪽
-/// - 이모지/긴 텍스트는 가로 스크롤 가능
+/// - 긴 텍스트 자동 줄바꿈, 버블 최대 폭 제한(≈ 75%)
 class _MessageBubble extends StatelessWidget {
   final bool isMe;
   final String text;
@@ -512,23 +516,27 @@ class _MessageBubble extends StatelessWidget {
     final bubbleColor = isMe ? myColor : Colors.grey[200];
     final textColor = isMe ? Colors.white : Colors.black87;
 
-    final content = SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Text(
-        text,
-        softWrap: false,
-        overflow: TextOverflow.visible,
-        style: TextStyle(
-          fontSize: ResponsiveSizes.f(context, 16),
-          color: textColor,
-        ),
+    // 화면 폭 기준으로 버블의 최대 폭 제한 (채팅 UX 표준)
+    final maxBubbleWidth = MediaQuery.of(context).size.width * 0.78;
+
+    final content = Text(
+      text,
+      softWrap: true, // ✅ 자동 줄바꿈
+      overflow: TextOverflow.visible, // 긴 텍스트도 잘리지 않게
+      style: TextStyle(
+        fontSize: ResponsiveSizes.f(context, 16),
+        color: textColor,
       ),
     );
 
-    final bubble = Flexible(
+    final bubble = ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: maxBubbleWidth, // ✅ 버블 최대 폭 제한
+      ),
       child: Container(
-        margin: EdgeInsets.symmetric(vertical: ResponsiveSizes.p(context, 2)),
+        margin: EdgeInsets.symmetric(
+          vertical: ResponsiveSizes.p(context, 2),
+        ),
         padding: EdgeInsets.symmetric(
           vertical: ResponsiveSizes.p(context, 8),
           horizontal: ResponsiveSizes.p(context, 12),

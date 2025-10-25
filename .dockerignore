@@ -13,3 +13,5 @@ pubspec.lock
 **/*.iml
 .idea
 .vscode
+!build/web/
+!build/web/**
