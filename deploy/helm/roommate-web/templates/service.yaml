@@ -5,10 +5,10 @@ metadata:
   name: {{ .Values.app }}-svc
   namespace: {{ .Values.namespace }}
 spec:
-  type: {{ .Values.service.type | default "LoadBalancer" }}
+  type: {{ .Values.service.type }}
   selector:
     app: {{ .Values.app }}
   ports:
-    - port: {{ .Values.service.port | default 80 }}
+    - port: {{ .Values.service.port }}
       targetPort: 80
 {{- end }}

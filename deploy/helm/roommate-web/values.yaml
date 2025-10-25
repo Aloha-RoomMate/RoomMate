@@ -1,13 +1,12 @@
 app: roommate-web
 namespace: roommate
+replicaCount: 1
 
 image:
   repository: ozymandiaz421/roommate-web
   tag: stable
 
-replicaCount: 1
-
 service:
-  enabled: false     # 이미 'roommate-web-svc'가 있으니 기본은 비활성화
+  enabled: false
   type: LoadBalancer
   port: 80
