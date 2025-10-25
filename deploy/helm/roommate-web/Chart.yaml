@@ -1,0 +1,6 @@
+apiVersion: v2
+name: roommate-web
+description: Helm chart for roommate-web
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

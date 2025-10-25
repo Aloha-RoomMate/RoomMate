@@ -1,0 +1,14 @@
+{{- if .Values.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.app }}-svc
+  namespace: {{ .Values.namespace }}
+spec:
+  type: {{ .Values.service.type | default "LoadBalancer" }}
+  selector:
+    app: {{ .Values.app }}
+  ports:
+    - port: {{ .Values.service.port | default 80 }}
+      targetPort: 80
+{{- end }}
