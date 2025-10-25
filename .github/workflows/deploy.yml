@@ -1,18 +1,49 @@
-- name: Login to Docker Hub
-  uses: docker/login-action@v3
-  with:
-    username: ${{ secrets.DOCKERHUB_USERNAME }}
-    password: ${{ secrets.DOCKERHUB_TOKEN }}
+name: Build & Push (stable) -> NHN Pipeline auto deploy
 
-- name: Build Flutter Web
-  run: |
-    flutter build web --release \
-      --dart-define=JUSO_API_KEY=${{ secrets.JUSO_API_KEY }} \
-      --dart-define=VWORLD_API_KEY=${{ secrets.VWORLD_API_KEY }}
+on:
+  push:
+    branches: ['23-feature_jinhyun','master']   # 실제 브랜치명
+  workflow_dispatch:
 
-- name: Build & Push image (stable)
-  uses: docker/build-push-action@v6
-  with:
-    context: .
-    push: true
-    tags: ${{ secrets.DOCKERHUB_USERNAME }}/roommate-web:stable
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  web-build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.3"
+          channel: "stable"
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build Flutter Web (release)
+        run: |
+          flutter build web --release \
+            --dart-define=JUSO_API_KEY=${{ secrets.JUSO_API_KEY }} \
+            --dart-define=VWORLD_API_KEY=${{ secrets.VWORLD_API_KEY }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push image (stable)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # Dockerfile 위치가 루트가 아니면: file: ./deploy/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/roommate-web:stable
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/roommate-web:stable
+          cache-to: type=inline
