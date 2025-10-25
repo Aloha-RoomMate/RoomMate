@@ -7,9 +7,11 @@ import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/features/authentication/widgets/form_button.dart';
 import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-final String _JUSO_KEY = dotenv.env['JUSO_API_KEY']!;
+const _JUSO_KEY = String.fromEnvironment(
+  'JUSO_API_KEY',
+  defaultValue: '',
+);
 
 class RoomownerScreen extends StatefulWidget {
   final String userType;

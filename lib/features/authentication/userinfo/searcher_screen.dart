@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+const String _apiKey = String.fromEnvironment(
+  'JUSO_API_KEY',
+  defaultValue: '',
+);
 
 const List<String> kSeoulGu = [
   '강남구',
@@ -41,7 +45,6 @@ class SearcherScreen extends StatefulWidget {
 }
 
 class _SearcherScreenState extends State<SearcherScreen> {
-  final String _apiKey = dotenv.env['JUSO_API_KEY']!;
   final Map<String, List<String>> _dongCache = {};
   bool _isLoadingDongs = false;
   String _errorMessage = '';
