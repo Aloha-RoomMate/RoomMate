@@ -6,7 +6,7 @@ import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
-import 'package:roommate/features/chat/chatlist_screen.dart';
+import 'package:roommate/features/chat/chat_list_screen.dart';
 import 'package:roommate/features/navigationbar/screens/home_screen.dart';
 import 'package:roommate/features/navigationbar/screens/map_screen.dart';
 import 'package:roommate/features/navigationbar/screens/mypage_screen.dart';
