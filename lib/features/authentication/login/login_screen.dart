@@ -110,7 +110,7 @@ class LoginScreen extends StatelessWidget {
               ),
               Gaps.v20(context),
               Text(
-                '최고의 룸메이틀 찾아보세요 !',
+                '최고의 룸메이트를 찾아보세요 !',
                 style: TextStyle(
                   fontSize: ResponsiveSizes.f(context, 24),
                   fontWeight: FontWeight.w400,
