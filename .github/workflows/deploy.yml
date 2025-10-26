@@ -1,8 +1,8 @@
-name: Build & Push (stable+sha) -> trigger NHN Pipeline
+name: Build & Push (stable+sha)
 
 on:
   push:
-    branches: ['23-feature_jinhyun', 'master']   # 필요 시 조정
+    branches: ['23-feature_jinhyun', 'master']
   workflow_dispatch:
 
 permissions:
@@ -13,7 +13,7 @@ env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/roommate-web
 
 jobs:
-  build-push-deploy:
+  web-build-and-push:
     runs-on: ubuntu-latest
     concurrency:
       group: roommate-web-${{ github.ref }}
@@ -30,17 +30,20 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Flutter versions
+        run: |
+          flutter --version
+          dart --version
+
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Build Flutter Web (release, no PWA)
+      # 서비스워커 비활성화(캐시 꼬임 방지)
+      - name: Build Flutter Web (release)
         run: |
           flutter build web --release --no-wasm-dry-run --pwa-strategy=none \
             --dart-define=JUSO_API_KEY=${{ secrets.JUSO_API_KEY }} \
             --dart-define=VWORLD_API_KEY=${{ secrets.VWORLD_API_KEY }}
-          # 빌드 마커(커밋/UTC) 삽입 → 배포 후 파드에서 눈으로 확인 가능
-          echo "<!-- build $GITHUB_SHA $(date -u +%FT%TZ) -->" >> build/web/index.html
-          tail -n 2 build/web/index.html
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -63,7 +66,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          # Dockerfile이 루트가 아니면: file: ./deploy/Dockerfile
           platforms: linux/amd64
           push: true
           tags: |
@@ -73,18 +75,3 @@ jobs:
           cache-to: type=inline
           sbom: false
           provenance: false
-          # 처음 1~2회가 헷갈리면 아래 주석 해제해서 강캐시무효화 후 확인
-          # no-cache: true
-
-      # ★ NHN 파이프라인 자동 시작: TAG=SHORT_SHA 전달
-      - name: Trigger NHN Pipeline (TAG=SHA)
-        env:
-          NHN_PIPELINE_ENDPOINT: ${{ secrets.NHN_PIPELINE_ENDPOINT }} # 예: https://.../pipelines/<id>/start (NHN 콘솔에서 발급한 Webhook/API URL)
-          NHN_PIPELINE_TOKEN:    ${{ secrets.NHN_PIPELINE_TOKEN }}    # API 토큰
-          TAG:                   ${{ env.SHORT_SHA }}
-        run: |
-          curl -sS -X POST "$NHN_PIPELINE_ENDPOINT" \
-            -H "Authorization: Bearer $NHN_PIPELINE_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"parameters\": {\"TAG\": \"${TAG}\"}}"
-          echo "Triggered NHN Pipeline with TAG=${TAG}"

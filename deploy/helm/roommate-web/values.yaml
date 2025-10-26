@@ -4,9 +4,5 @@ replicaCount: 1
 
 image:
   repository: ozymandiaz421/roommate-web
-  tag: stable
-
-service:
-  enabled: false
-  type: LoadBalancer
-  port: 80
+  tag: stable          # ← 항상 stable
+  pullPolicy: Always   # ← 새 파드가 뜰 때 최신 stable을 매번 받게
