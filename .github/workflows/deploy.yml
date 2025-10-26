@@ -75,3 +75,38 @@ jobs:
           cache-to: type=inline
           sbom: false
           provenance: false
+
+              # kubectl 설치(원하는 버전 선택)
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.29.6'
+
+      # kubeconfig 파일로 복원
+      - name: Set kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          # 시크릿 내용(멀티라인 YAML)을 그대로 파일로 저장
+          echo "${{ secrets.NHN_KUBECONFIG }}" > ~/.kube/config
+
+      # 새 :stable 다이제스트로 강제 롤아웃 (스펙 변경 + 이미지 동일태그 재지정)
+      - name: Force rollout to pick new :stable digest
+        run: |
+          set -e
+          NS=roommate
+          DEP=roommate-web
+
+          # 1) 어노테이션 갱신(스펙 변경 → RS 생성 유도)
+          kubectl -n $NS annotate deploy/$DEP roll-ts="$(date +%s)" --overwrite
+
+          # 2) 같은 태그(stable)를 한 번 더 set-image 해 변경 이벤트 확실히 발생
+          kubectl -n $NS set image deploy/$DEP web=${{ env.IMAGE_NAME }}:stable --record
+
+          # 3) 롤아웃 완료 대기
+          kubectl -n $NS rollout status deploy/$DEP
+
+      # (선택) 연결 테스트
+      - name: Sanity check
+        run: |
+          kubectl -n roommate get pods -l app=roommate-web -o wide
+

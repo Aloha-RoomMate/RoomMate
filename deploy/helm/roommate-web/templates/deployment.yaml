@@ -13,8 +13,8 @@ spec:
       labels:
         app: {{ .Values.app }}
       annotations:
-        # ⬇️ 실행할 때마다 바뀌는 타임스탬프(롤아웃 트리거)
-        roll-ts: "{{ now | date "20060102T150405Z" }}"
+        # 매번 Bake 때마다 값이 달라져서 RS가 새로 생김 → 항상 롤아웃
+        roll-ts: "{{ now | unixEpoch }}"
     spec:
       containers:
         - name: web
