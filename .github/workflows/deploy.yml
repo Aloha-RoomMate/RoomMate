@@ -2,7 +2,7 @@ name: Build & Push (stable+sha) -> NHN Pipeline auto deploy
 
 on:
   push:
-    branches: ['23-feature_jinhyun','master']   # 필요시 수정
+    branches: ['23-feature_jinhyun', 'master']   # 필요하면 수정
   workflow_dispatch:
 
 permissions:
@@ -11,11 +11,13 @@ permissions:
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/roommate-web
-  SHA_TAG: ${{ github.sha }}
 
 jobs:
   web-build-and-push:
     runs-on: ubuntu-latest
+    concurrency:
+      group: roommate-web-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout
@@ -25,11 +27,11 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.35.7"   # Dart 3.8.x 포함
-          channel: "stable"
+          flutter-version: '3.35.7'   # Dart 3.8.x 포함
+          channel: stable
           cache: true
 
-      - name: Check Flutter/Dart versions
+      - name: Flutter versions
         run: |
           flutter --version
           dart --version
@@ -44,7 +46,7 @@ jobs:
             --dart-define=JUSO_API_KEY=${{ secrets.JUSO_API_KEY }} \
             --dart-define=VWORLD_API_KEY=${{ secrets.VWORLD_API_KEY }}
 
-      # Docker 빌드 준비 및 로그인
+      # buildx 준비 + Docker Hub 로그인
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -56,7 +58,14 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           logout: true
 
-      # Docker 이미지 빌드 & 푸시 (stable + 커밋 SHA)
+      # 커밋 SHA(짧은 형태) 만들기
+      - name: Compute tags
+        id: vars
+        run: |
+          echo "SHORT_SHA=${GITHUB_SHA::12}" >> $GITHUB_ENV
+          echo "short_sha=${GITHUB_SHA::12}" >> $GITHUB_OUTPUT
+
+      # 이미지 빌드 & 푸시 (stable + SHA)
       - name: Build & Push image (stable + sha)
         id: build
         uses: docker/build-push-action@v6
@@ -66,15 +75,21 @@ jobs:
           # file: ./deploy/Dockerfile
           platforms: linux/amd64
           push: true
+          # 항상 같은 stable + 매번 바뀌는 SHA(불변 태그)
           tags: |
             ${{ env.IMAGE_NAME }}:stable
-            ${{ env.IMAGE_NAME }}:${{ env.SHA_TAG }}
+            ${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:stable
           cache-to: type=inline
+          sbom: false
+          provenance: false
 
-      - name: Show pushed digests (optional)
+      # 로그용: 푸시된 다이제스트 출력
+      - name: Show pushed digests
         run: |
-          echo "stable digest:"
+          echo "IMAGE(stable) : $IMAGE_NAME:stable"
+          echo "IMAGE(sha)    : $IMAGE_NAME:$SHORT_SHA"
+          echo "DIGEST(stable):"
           docker buildx imagetools inspect $IMAGE_NAME:stable | grep -m1 digest || true
-          echo "sha digest:"
-          docker buildx imagetools inspect $IMAGE_NAME:$SHA_TAG | grep -m1 digest || true
+          echo "DIGEST(sha)   :"
+          docker buildx imagetools inspect $IMAGE_NAME:$SHORT_SHA | grep -m1 digest || true
