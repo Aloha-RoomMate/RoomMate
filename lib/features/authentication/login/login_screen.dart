@@ -110,9 +110,9 @@ class LoginScreen extends StatelessWidget {
               ),
               Gaps.v20(context),
               Text(
-                '이게 진짜 자동화',
+                '나와 찰떡의 룸메이트를 찾아보세요',
                 style: TextStyle(
-                  fontSize: ResponsiveSizes.f(context, 24),
+                  fontSize: ResponsiveSizes.f(context, 22),
                   fontWeight: FontWeight.w400,
                   color: Colors.black54,
                 ),
