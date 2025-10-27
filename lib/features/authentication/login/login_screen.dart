@@ -112,7 +112,7 @@ class LoginScreen extends StatelessWidget {
               Text(
                 '나와 찰떡의 룸메이트를 찾아보세요',
                 style: TextStyle(
-                  fontSize: ResponsiveSizes.f(context, 22),
+                  fontSize: ResponsiveSizes.f(context, 20),
                   fontWeight: FontWeight.w400,
                   color: Colors.black54,
                 ),

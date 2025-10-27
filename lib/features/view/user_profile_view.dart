@@ -11,7 +11,6 @@ import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
 import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
 import 'package:roommate/features/navigationbar/widgets/room_owner_post_container.dart';
-import 'package:roommate/features/view/widget/appbar_chip.dart';
 
 /// 상대방 프로필 화면
 ///  - 단건 get으로 사용자 프로필을 읽어옴 (Rules: get 허용)
@@ -54,11 +53,6 @@ class _UserProfileViewState extends State<UserProfileView> {
     }
   }
 
-  bool _looksStudent(AppUser u) {
-    final jk = (u.userType?.jobKinds ?? "").toLowerCase();
-    return jk.contains("대학생") || jk.contains("학생") || jk.contains("student");
-  }
-
   String _introText(AppUser u) {
     final any = u.introduction;
     if (any == null) return "";
@@ -88,7 +82,6 @@ class _UserProfileViewState extends State<UserProfileView> {
         final colivingPreference = user.coliving;
         final userTypeInfo = user.userType;
         final userHobby = user.hobby;
-        final isPass = (user.userPass?.pass ?? false);
 
         return Scaffold(
           appBar: AppBar(
@@ -96,14 +89,6 @@ class _UserProfileViewState extends State<UserProfileView> {
               "${user.displayName}의 프로필",
               style: const TextStyle(fontSize: Sizes.size24),
             ),
-            actions: [
-              if (isPass) const AppbarChip(text: 'PASS 인증', color: Colors.red),
-              if (_looksStudent(user)) ...[
-                Gaps.h4(context),
-                const AppbarChip(text: '대학생 인증', color: Colors.green),
-              ],
-            ],
-            actionsPadding: const EdgeInsets.only(right: Sizes.size8),
           ),
 
           body: Padding(
@@ -210,7 +195,8 @@ class _UserProfileViewState extends State<UserProfileView> {
                         LabeldRow(
                           label: "룸메이트와의 교류도 :",
                           chips: [
-                            if ((colivingPreference?.interaction ?? '').isNotEmpty)
+                            if ((colivingPreference?.interaction ?? '')
+                                .isNotEmpty)
                               ChipButton(
                                 text: colivingPreference!.interaction,
                                 isSelected: true,
@@ -220,7 +206,8 @@ class _UserProfileViewState extends State<UserProfileView> {
                         LabeldRow(
                           label: "정리 정돈 습관 :",
                           chips: [
-                            if ((colivingPreference?.cleanOption ?? '').isNotEmpty)
+                            if ((colivingPreference?.cleanOption ?? '')
+                                .isNotEmpty)
                               ChipButton(
                                 text: colivingPreference!.cleanOption,
                                 isSelected: true,
