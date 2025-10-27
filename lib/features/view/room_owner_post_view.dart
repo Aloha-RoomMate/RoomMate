@@ -177,6 +177,27 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
     );
   }
 
+  void _openGallery({
+    required List<String> urls,
+    required int initialIndex,
+  }) {
+    if (urls.isEmpty) return;
+    final String heroPrefix = 'post_${widget.post.postId ?? 'unknown'}_img_';
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: true,
+        pageBuilder: (_, __, ___) => FullscreenImageGallery(
+          urls: urls,
+          initialIndex: initialIndex,
+          heroPrefix: heroPrefix,
+        ),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final numberFormat = NumberFormat.decimalPattern();
@@ -193,6 +214,8 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
 
     final nearLabel = widget.post.getAddressLabel;
 
+    final String heroPrefix = 'post_${widget.post.postId ?? 'unknown'}_img_';
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -204,7 +227,6 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             surfaceTintColor: Colors.transparent,
             foregroundColor: Colors.black,
             elevation: 0,
-            // RoomOwnerPostView 의 SliverAppBar.flexibleSpace 교체
             flexibleSpace: FlexibleSpaceBar(
               background: imagePaths.isEmpty
                   ? Stack(
@@ -306,24 +328,34 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                                       ),
                                     ),
                                   ),
-                                  // 전경: 원본을 contain으로 중앙에 (안 잘림)
+                                  // 전경: 원본을 contain으로 중앙에 (안 잘림) + 탭 → 전체화면
                                   Center(
                                     child: FittedBox(
                                       fit: BoxFit.contain,
-                                      child: Image.network(
-                                        urls[i],
-                                        filterQuality: FilterQuality.high,
-                                        errorBuilder: (_, __, ___) =>
-                                            Image.asset(
-                                              'assets/house.jpg',
-                                              fit: BoxFit.contain,
-                                            ),
-                                        loadingBuilder: (c, w, p) => p == null
-                                            ? w
-                                            : const Center(
-                                                child:
-                                                    CircularProgressIndicator(),
-                                              ),
+                                      child: GestureDetector(
+                                        onTap: () => _openGallery(
+                                          urls: urls,
+                                          initialIndex: i,
+                                        ),
+                                        child: Hero(
+                                          tag: '$heroPrefix$i',
+                                          child: Image.network(
+                                            urls[i],
+                                            filterQuality: FilterQuality.high,
+                                            errorBuilder: (_, __, ___) =>
+                                                Image.asset(
+                                                  'assets/house.jpg',
+                                                  fit: BoxFit.contain,
+                                                ),
+                                            loadingBuilder: (c, w, p) =>
+                                                p == null
+                                                ? w
+                                                : const Center(
+                                                    child:
+                                                        CircularProgressIndicator(),
+                                                  ),
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -331,7 +363,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                               ),
                             ),
 
-                            // 기존 하단 도트 인디케이터 유지
+                            // 하단 도트 인디케이터
                             Positioned(
                               bottom: 12,
                               left: 0,
@@ -620,6 +652,155 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 전체 화면 이미지 갤러리
+/// - 좌우 스와이프
+/// - 핀치 줌(InteractiveViewer)
+/// - 우상단 X 버튼으로 닫기
+/// - Hero 애니메이션으로 자연스러운 전환
+class FullscreenImageGallery extends StatefulWidget {
+  final List<String> urls;
+  final int initialIndex;
+  final String heroPrefix;
+
+  const FullscreenImageGallery({
+    super.key,
+    required this.urls,
+    required this.initialIndex,
+    required this.heroPrefix,
+  });
+
+  @override
+  State<FullscreenImageGallery> createState() => _FullscreenImageGalleryState();
+}
+
+class _FullscreenImageGalleryState extends State<FullscreenImageGallery> {
+  late final PageController _controller;
+  late int _index;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex.clamp(0, widget.urls.length - 1);
+    _controller = PageController(initialPage: _index);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _close() => Navigator.of(context).pop();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _controller,
+            onPageChanged: (i) => setState(() => _index = i),
+            itemCount: widget.urls.length,
+            itemBuilder: (context, i) {
+              final url = widget.urls[i];
+              return Center(
+                child: Hero(
+                  tag: '${widget.heroPrefix}$i',
+                  child: InteractiveViewer(
+                    minScale: 1.0,
+                    maxScale: 4.0,
+                    child: Image.network(
+                      url,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.white70,
+                        size: 64,
+                      ),
+                      loadingBuilder: (c, w, p) =>
+                          p == null ? w : const CircularProgressIndicator(),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // 상단 그라데이션 + 닫기 버튼
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: true,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.35),
+                      Colors.transparent,
+                    ],
+                    stops: const [0, 0.25],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  top: Sizes.size10,
+                  right: Sizes.size10,
+                ),
+                child: ClipOval(
+                  child: Material(
+                    color: Colors.black54,
+                    child: IconButton(
+                      onPressed: _close,
+                      icon: const Icon(Icons.close_rounded),
+                      color: Colors.white,
+                      tooltip: '닫기',
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // 하단 인덱스 표시
+          Positioned(
+            bottom: 16,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${_index + 1} / ${widget.urls.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
