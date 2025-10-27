@@ -1,4 +1,5 @@
-name: Build & Push & Rollout (stable+sha)
+# .github/workflows/deploy.yml
+name: Build & Deploy (immutable digest)
 
 on:
   push:
@@ -10,49 +11,38 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/roommate-web
-  K8S_NAMESPACE: roommate
-  K8S_DEPLOYMENT: roommate-web
+  IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/roommate-web
+  NS: roommate
+  DEPLOYMENT: roommate-web
 
 jobs:
-  web-build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     concurrency:
       group: roommate-web-${{ github.ref }}
       cancel-in-progress: true
 
     steps:
-      # 0) 소스 가져오기
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 1) Flutter 세팅
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.7'   # Dart 3.8.x 포함
+          flutter-version: '3.35.7'
           channel: stable
           cache: true
-
-      - name: Flutter versions
-        run: |
-          flutter --version
-          dart --version
 
       - name: Flutter pub get
         run: flutter pub get
 
-      # 2) Flutter Web 빌드 (서비스워커 비활성화로 캐시 착시 방지)
+      # 서비스워커 비활성화 → 캐시 꼬임 방지
       - name: Build Flutter Web (release)
         run: |
-          set -e
           flutter build web --release --no-wasm-dry-run --pwa-strategy=none \
             --dart-define=JUSO_API_KEY=${{ secrets.JUSO_API_KEY }} \
             --dart-define=VWORLD_API_KEY=${{ secrets.VWORLD_API_KEY }}
-          # 배포 확인용 버전 파일(커밋/UTC 시각)
-          echo "${GITHUB_SHA} $(date -u +%Y-%m-%dT%H:%M:%SZ)" > build/web/version.txt
 
-      # 3) Docker 이미지 빌드/푸시
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -64,67 +54,65 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           logout: true
 
-      - name: Compute tags
-        id: vars
-        run: |
-          echo "SHORT_SHA=${GITHUB_SHA::12}" >> $GITHUB_ENV
-          echo "short_sha=${GITHUB_SHA::12}" >> $GITHUB_OUTPUT
-
-      - name: Build & Push image (stable + sha)
+      # stable + 커밋 SHA 두 개 모두 푸시
+      - name: Build & Push image
         uses: docker/build-push-action@v6
         with:
           context: .
-          # Dockerfile이 리포 루트가 아니면 아래 주석 해제 후 경로 수정
-          # file: ./deploy/Dockerfile
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:stable
-            ${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
-          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:stable
+            ${{ env.IMAGE }}:stable
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}:stable
           cache-to: type=inline
           sbom: false
           provenance: false
 
-      # 4) kubectl 세팅 + kubeconfig 복원
+      # 방금 푸시한 :stable 의 linux/amd64 다이제스트를 얻는다
+      - name: Resolve digest of :stable (linux/amd64)
+        id: digest
+        shell: bash
+        run: |
+          set -e
+          # 1) buildx imagetools 로 시도
+          if docker buildx imagetools inspect "${IMAGE}:stable" >/dev/null 2>&1; then
+            DIGEST=$(docker buildx imagetools inspect "${IMAGE}:stable" \
+              | sed -n '/Platform: linux\/amd64/,/Platform:/p' \
+              | awk '$1=="Digest:"{print $2; exit}')
+          fi
+          # 2) fallback: manifest inspect
+          if [ -z "${DIGEST:-}" ] && docker manifest inspect "${IMAGE}:stable" >/dev/null 2>&1; then
+            DIGEST=$(docker manifest inspect "${IMAGE}:stable" \
+              | awk '/"platform": *{/{p=0} /"architecture": *"amd64"/{p=1} p && /"digest": *"/{gsub(/[" ,]/,""); print $2; exit}')
+          fi
+          # 3) 마지막 fallback: pull 후 RepoDigests
+          if [ -z "${DIGEST:-}" ]; then
+            docker pull "${IMAGE}:stable" >/dev/null
+            DIGEST=$(docker image inspect "${IMAGE}:stable" --format='{{index .RepoDigests 0}}' | sed 's/.*@//')
+          fi
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "RESOLVED DIGEST: $DIGEST"
+
+      # kubectl 설치 & kubeconfig 주입
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
         with:
           version: 'v1.29.6'
 
-      - name: Set kubeconfig
-        env:
-          NHN_KUBECONFIG: ${{ secrets.NHN_KUBECONFIG }}
+      - name: Write kubeconfig
         run: |
-          set -e
           mkdir -p ~/.kube
-          # 멀티라인 시크릿 안전 저장 (개행 보존)
-          printf '%s' "$NHN_KUBECONFIG" > ~/.kube/config
+          echo "${{ secrets.NHN_KUBECONFIG }}" > ~/.kube/config
 
-      # 5) 강제 롤아웃 (같은 :stable이라도 RS 새로 생성)
-      - name: Force rollout to pick new :stable digest
-        env:
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
-          K8S_NAMESPACE: ${{ env.K8S_NAMESPACE }}
-          K8S_DEPLOYMENT: ${{ env.K8S_DEPLOYMENT }}
+      # 디플로이먼트에 '이미지@다이제스트'로 확정 배포 + 주석으로 변경 이력 남김
+      - name: Deploy by immutable digest
         run: |
           set -e
-          # 스펙 변경(어노테이션) + 동일태그로 set-image → 항상 변경 이벤트 발생
-          kubectl -n "$K8S_NAMESPACE" annotate deploy/"$K8S_DEPLOYMENT" roll-ts="$(date +%s)" --overwrite
-          kubectl -n "$K8S_NAMESPACE" set image deploy/"$K8S_DEPLOYMENT" web="$IMAGE_NAME:stable" --record
-          kubectl -n "$K8S_NAMESPACE" rollout status deploy/"$K8S_DEPLOYMENT"
-
-      # 6) 배포 검증(로그용): 파드의 이미지ID와 version.txt 출력
-      - name: Verify rollout (print imageID & version)
-        env:
-          K8S_NAMESPACE: ${{ env.K8S_NAMESPACE }}
-          K8S_DEPLOYMENT: ${{ env.K8S_DEPLOYMENT }}
-        run: |
-          set -e
-          echo "== PODs & image digests =="
-          kubectl -n "$K8S_NAMESPACE" get pods -l app="$K8S_DEPLOYMENT" \
-            -o jsonpath='{range .items[*]}{.metadata.name} -> {.status.containerStatuses[0].imageID}{"\n"}{end}'
-          echo
-          POD=$(kubectl -n "$K8S_NAMESPACE" get pods -l app="$K8S_DEPLOYMENT" -o jsonpath='{.items[0].metadata.name}')
-          echo "== Deployed version (from version.txt) =="
-          kubectl -n "$K8S_NAMESPACE" exec "$POD" -- sh -lc 'cat /usr/share/nginx/html/version.txt || true'
+          kubectl -n "${NS}" set image deploy/${DEPLOYMENT} \
+            web="${IMAGE}@${{ steps.digest.outputs.digest }}" --record
+          # 안전 겸사겸사 스펙 변화 보장(주석 변경)
+          kubectl -n "${NS}" annotate deploy/${DEPLOYMENT} \
+            ci-run="${GITHUB_RUN_ID}" --overwrite
+          kubectl -n "${NS}" rollout status deploy/${DEPLOYMENT}
+          echo "Deployed digest: ${{ steps.digest.outputs.digest }}"
