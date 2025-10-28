@@ -71,12 +71,12 @@ const List<String> kDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 // 파일 상단 import/const 아래 아무 곳에 추가
 enum MbtiCompat { none, red, yellow, green, blue }
 
-const Map<MbtiCompat, double> _mbtiBoostByTier = {
-  MbtiCompat.none: 0.00,
-  MbtiCompat.red: 0.00, // 페널티는 주지 않음(요청 취지상 +보너스만)
-  MbtiCompat.yellow: 0.01, // 살짝 보너스
-  MbtiCompat.green: 0.03, // 좋은 관계
-  MbtiCompat.blue: 0.06, // 천생연분
+const Map<MbtiCompat, int> _mbtiPointsByTier = {
+  MbtiCompat.none: 0, // 정보없음
+  MbtiCompat.red: 3, // 다시 생각
+  MbtiCompat.yellow: 5, // 반반
+  MbtiCompat.green: 7, // 좋은 관계
+  MbtiCompat.blue: 10, // 천생연분
 };
 
 MbtiCompat _mbtiCompatTier(String? a, String? b) {
@@ -229,23 +229,27 @@ bool _isSameAgeDecade(int? by1, int? by2) {
   return d1 == d2;
 }
 
+// 변경:
 class Compatibility {
   final double structSim;
   final double hobbySim;
   final double textSim;
+  final double mbtiSim; // 0~1 (0/3/5/7/10 → 0~1 정규화)
   final double score;
   final List<String> reasons;
   const Compatibility(
     this.structSim,
     this.hobbySim,
     this.textSim,
+    this.mbtiSim,
     this.score,
     this.reasons,
   );
 }
 
+// 변경:
 Compatibility scoreUsers(AppUser me, AppUser other) {
-  const wStruct = 0.70, wHobby = 0.25, wText = 0.05;
+  const wStruct = 0.70, wHobby = 0.10, wText = 0.10, wMbti = 0.10;
 
   final vMe = buildStructVector(me);
   final vOt = buildStructVector(other);
@@ -275,20 +279,19 @@ Compatibility scoreUsers(AppUser me, AppUser other) {
   // 기본 점수
   double score = wStruct * struct + wHobby * hobby + wText * text;
 
-  // ===== MBTI 보너스 추가 =====
+  // === MBTI 절대 점수(0~1) 산출 후 가중치 반영 ===
   final mbtiA = me.coliving?.mbti;
   final mbtiB = other.coliving?.mbti;
   final tier = _mbtiCompatTier(mbtiA, mbtiB);
-  final mbtiBonus = _mbtiBoostByTier[tier]!;
-  score = (score + mbtiBonus).clamp(0.0, 1.0);
+  final mbtiScore01 = _mbtiPointsByTier[tier]! / 10.0; // 0.0~1.0
+  score += wMbti * mbtiScore01;
 
   final reasons = <String>[];
   if (_isSameAgeDecade(me.birthYear, other.birthYear)) {
-    score = (score + 0.05).clamp(0.0, 1.0); // 동연령대 보너스(기존)
+    score = (score + 0.05).clamp(0.0, 1.0); // 동연령대 보너스(기존 유지)
     reasons.add("동연령대");
   }
 
-  // 기존 사유
   if (other.coliving?.smoking == false && me.coliving?.smoking == false) {
     reasons.add("비흡연 선호 일치");
   }
@@ -296,7 +299,7 @@ Compatibility scoreUsers(AppUser me, AppUser other) {
   if (struct >= 0.75) reasons.add("생활 패턴 유사");
   if (text >= 0.5) reasons.add("자기소개 톤 유사");
 
-  // MBTI 사유(좋음 이상일 때 노출)
+  // MBTI 사유(좋음 이상 일 때 노출)
   switch (tier) {
     case MbtiCompat.blue:
       reasons.add("MBTI 천생연분");
@@ -308,21 +311,30 @@ Compatibility scoreUsers(AppUser me, AppUser other) {
       break;
   }
 
-  return Compatibility(struct, hobby, text, score, reasons.take(3).toList());
+  return Compatibility(
+    struct,
+    hobby,
+    text,
+    mbtiScore01, // ⬅️ 새 필드
+    score.clamp(0.0, 1.0),
+    reasons.take(3).toList(),
+  );
 }
 
+// 변경:
 String explainCompatibility(Compatibility c) {
-  // 가중치와 부분 점수를 보기 좋게 표시
   final s = (c.structSim * 100).toStringAsFixed(1);
   final h = (c.hobbySim * 100).toStringAsFixed(1);
   final t = (c.textSim * 100).toStringAsFixed(1);
+  final m = (c.mbtiSim * 100).toStringAsFixed(1);
   final total = (c.score * 100).toStringAsFixed(0);
 
   // NOTE: 동연령대 보너스(+5%)는 총점에만 반영됩니다.
   return [
     '총점: $total%',
     '· 생활 패턴(70%): $s%',
-    '· 취미 겹침(25%): $h%',
-    '· 소개글 톤(5%): $t%',
+    '· 취미 겹침(10%): $h%',
+    '· 소개글 톤(10%): $t%',
+    '· MBTI 궁합(10%): $m%',
   ].join('\n');
 }

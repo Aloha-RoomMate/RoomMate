@@ -17,8 +17,9 @@ import 'package:roommate/features/view/user_profile_view.dart';
 /// 가중치
 /// ===============================
 const double kWStruct = 0.70; // 생활패턴
-const double kWHobby = 0.15; // 취미
-const double kWText = 0.15; // 소개글 톤
+const double kWHobby = 0.10; // 취미
+const double kWText = 0.10; // 소개글 톤
+const double kWMbti = 0.10; // MBTI 궁합
 
 // 틱톡 버튼 컬러 느낌(#FE2C55)
 const Color kAccentRed = Color(0xFFFE2C55);
@@ -139,6 +140,7 @@ class _UserListScreenState extends State<UserListScreen> {
                   ),
                   const SizedBox(height: 12),
 
+                  // 변경:
                   _MetricRow(
                     label: '생활패턴(가중치 ${_pct(kWStruct)})',
                     value: comp.structSim,
@@ -150,6 +152,10 @@ class _UserListScreenState extends State<UserListScreen> {
                   _MetricRow(
                     label: '자기소개 톤(가중치 ${_pct(kWText)})',
                     value: comp.textSim,
+                  ),
+                  _MetricRow(
+                    label: 'MBTI 궁합(가중치 ${_pct(kWMbti)})', // ⬅️ 추가
+                    value: comp.mbtiSim,
                   ),
                   const SizedBox(height: 12),
 

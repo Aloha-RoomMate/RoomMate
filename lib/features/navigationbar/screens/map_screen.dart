@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
-
+import 'package:http/http.dart' as http;
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
@@ -15,6 +16,11 @@ import 'package:roommate/features/chat/chat_screen.dart';
 
 import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/constants/gaps.dart';
+
+const _jusoKey = String.fromEnvironment(
+  'JUSO_API_KEY',
+  defaultValue: '',
+);
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -84,56 +90,157 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 
-  Future<void> _searchAndList(String raw) async {
+  // 클래스: _MapScreenState 안에 추가
+  Future<List<PlaceInfo>> _searchJusoPlaces(
+    String keyword, {
+    int maxResults = 10,
+  }) async {
+    if (_jusoKey.isEmpty) {
+      throw Exception('JUSO_API_KEY가 설정되어 있지 않습니다.');
+    }
+
+    // 1) JUSO API 호출
+    final url = Uri.https('www.juso.go.kr', '/addrlink/addrLinkApi.do', {
+      'confmKey': _jusoKey,
+      'currentPage': '1',
+      'countPerPage': '20',
+      'keyword': keyword,
+      'resultType': 'json',
+    });
+
+    final res = await http.get(url);
+    if (res.statusCode != 200) {
+      throw Exception('JUSO API 오류: ${res.statusCode}');
+    }
+
+    final decoded = jsonDecode(res.body);
+    final list = (decoded['results']?['juso'] as List?) ?? const [];
+
+    if (list.isEmpty) return const [];
+
+    // 2) 상위 N개만 좌표 변환(도로명 우선, 없으면 지번)
+    final targets = list.take(maxResults).cast<Map>().toList();
+
+    Future<PlaceInfo?> one(Map j) async {
+      final road = (j['roadAddr'] as String?)?.trim() ?? '';
+      final jibun = (j['jibunAddr'] as String?)?.trim() ?? '';
+      final query = road.isNotEmpty ? road : jibun;
+      if (query.isEmpty) return null;
+
+      try {
+        final locs = await geocoding.locationFromAddress(query);
+        if (locs.isEmpty) return null;
+        final loc = locs.first;
+        return PlaceInfo(
+          pos: LatLng(loc.latitude, loc.longitude),
+          title: road.isNotEmpty ? road : jibun, // 리스트 타이틀은 도로명 우선
+          address: jibun,
+          roadAddress: road,
+        );
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final placed = await Future.wait(targets.map(one));
+    // 좌표 변환 성공분만 리턴
+    return placed.whereType<PlaceInfo>().toList();
+  }
+
+  Future<void> _searchAddress(String keyword) async {
     if (_controller == null) return;
-    final query = raw.trim();
+    final query = keyword.trim();
     if (query.isEmpty) return;
 
     _searchFocus.unfocus();
     setState(() {
       _loading = true;
-      _selectedPlace = null;
       _results.clear();
       _searchMarkers.clear();
       _showOwnerPreview = false;
+      _selectedPlace = null;
     });
 
     try {
-      final locations = await geocoding.locationFromAddress(query);
+      if (_jusoKey.isEmpty) {
+        throw Exception('JUSO_API_KEY가 설정되어 있지 않습니다.');
+      }
+
+      // 1) JUSO API 호출 (RoomOwnerPost와 동일한 파라미터)
+      final url = Uri.https('www.juso.go.kr', '/addrlink/addrLinkApi.do', {
+        'confmKey': _jusoKey,
+        'currentPage': '1',
+        'countPerPage': '20',
+        'keyword': query,
+        'resultType': 'json',
+      });
+
+      final resp = await http.get(url);
+      if (resp.statusCode != 200) {
+        throw Exception('API 서버 오류: ${resp.statusCode}');
+      }
+      final decoded = jsonDecode(resp.body);
+      final jusoList = (decoded['results']?['juso'] as List?) ?? const [];
+
+      if (jusoList.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('검색 결과가 없습니다.')),
+          );
+        }
+        return;
+      }
+
+      // 2) 검색 결과(도로명/지번) → 지오코딩 → PlaceInfo로 변환
+      final places = <PlaceInfo>[];
+      for (final item in jusoList.take(20).cast<Map>()) {
+        final road = (item['roadAddr'] as String?)?.trim() ?? '';
+        final jibun = (item['jibunAddr'] as String?)?.trim() ?? '';
+        final q = road.isNotEmpty ? road : jibun;
+        if (q.isEmpty) continue;
+
+        try {
+          final locs = await geocoding.locationFromAddress(q);
+          if (locs.isEmpty) continue;
+          final loc = locs.first;
+          places.add(
+            PlaceInfo(
+              pos: LatLng(loc.latitude, loc.longitude),
+              title: road.isNotEmpty ? road : jibun, // 리스트/마커 타이틀
+              address: jibun,
+              roadAddress: road,
+            ),
+          );
+        } catch (_) {
+          // 좌표 변환 실패 항목은 스킵
+        }
+      }
+
       if (!mounted) return;
 
-      if (locations.isEmpty) {
+      if (places.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('검색 결과가 없습니다.')),
+          const SnackBar(content: Text('좌표 변환 가능한 결과가 없습니다.')),
         );
         return;
       }
 
-      final places = <PlaceInfo>[];
-      final newMarkers = <Marker>{};
-      for (var i = 0; i < locations.length; i++) {
-        final loc = locations[i];
-        final place = PlaceInfo(
-          pos: LatLng(loc.latitude, loc.longitude),
-          title: query,
-        );
-        places.add(place);
-        newMarkers.add(
+      // 3) 마커/리스트 적용 + 카메라 이동
+      final newMarkers = <Marker>{
+        for (var i = 0; i < places.length; i++)
           Marker(
             markerId: MarkerId('search_$i'),
-            position: place.pos,
-            infoWindow: InfoWindow(title: place.title),
-            onTap: () => _onSearchMarkerTapped(place),
+            position: places[i].pos,
+            infoWindow: InfoWindow(title: places[i].title),
+            onTap: () => _onSearchMarkerTapped(places[i]),
           ),
-        );
-      }
+      };
 
       setState(() {
         _results = places;
         _searchMarkers = newMarkers;
-        if (places.isNotEmpty) {
-          _selectedPlace = places.first;
-        }
+        _selectedPlace = places.first;
+
         _recentSearches.removeWhere((e) => e == query);
         _recentSearches.insert(0, query);
         if (_recentSearches.length > 12) {
@@ -141,15 +248,13 @@ class _MapScreenState extends State<MapScreen> {
         }
       });
 
-      if (places.isNotEmpty) {
-        await _focusOnPlace(places.first, animateZoom: true);
-      }
+      await _focusOnPlace(places.first, animateZoom: true);
       _animateSheet(_sheetMid);
     } catch (e) {
-      debugPrint('[GEOCODING] ERROR: $e');
+      debugPrint('[JUSO SEARCH] $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('주소를 좌표로 변환하는 중 오류가 발생했습니다.')),
+          SnackBar(content: Text('주소 검색 중 오류가 발생했습니다.\n$e')),
         );
       }
     } finally {
@@ -456,7 +561,7 @@ class _MapScreenState extends State<MapScreen> {
                       controller: _searchCtrl,
                       focusNode: _searchFocus,
                       textInputAction: TextInputAction.search,
-                      onSubmitted: _searchAndList,
+                      onSubmitted: _searchAddress,
                       decoration: InputDecoration(
                         hintText: '장소/주소 검색 :',
                         hintStyle: TextStyle(
@@ -492,7 +597,7 @@ class _MapScreenState extends State<MapScreen> {
                                 ),
                           onPressed: _loading
                               ? null
-                              : () => _searchAndList(_searchCtrl.text),
+                              : () => _searchAddress(_searchCtrl.text),
                           tooltip: '검색',
                         ),
                       ),
@@ -545,7 +650,7 @@ class _MapScreenState extends State<MapScreen> {
                                   () => _recentSearches.remove(item),
                                 ),
                               ),
-                              onTap: () => _searchAndList(item),
+                              onTap: () => _searchAddress(item),
                             );
                           },
                         ),
