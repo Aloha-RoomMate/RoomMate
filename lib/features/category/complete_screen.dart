@@ -12,9 +12,17 @@ class CompleteScreen extends StatefulWidget {
 }
 
 class _CompleteScreenState extends State<CompleteScreen> {
+  /// ✅ 실제 바텀네비 탭 순서에 맞게 인덱스를 설정하세요.
+  /// 예) 0=홈, 1=지도, 2=글쓰기, 3=마이페이지(일반적으로 마지막) → 3
+  static const int kMyPageTabIndex = 3;
+
   void _onNextTap() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainNavigation()),
+    // ✅ 스택 전체 제거 후 메인으로 진입, 마이페이지 탭 선택
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const MainNavigation(initialIndex: kMyPageTabIndex),
+      ),
+      (route) => false,
     );
   }
 
@@ -39,12 +47,11 @@ class _CompleteScreenState extends State<CompleteScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 12),
-                  // 본문: 가운데 정렬
                   Expanded(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // 완성 아이콘
+                        // 아이콘
                         Container(
                           width: 96,
                           height: 96,
@@ -77,7 +84,6 @@ class _CompleteScreenState extends State<CompleteScreen> {
                       ],
                     ),
                   ),
-                  // 버튼: 기존 FormButton “형태 그대로” 사용
                   GestureDetector(
                     onTap: _onNextTap,
                     child: const FormButton(

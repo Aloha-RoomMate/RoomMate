@@ -112,7 +112,7 @@ class FeedFilterChips extends StatelessWidget {
   final VoidCallback onOpenSheet;
   final VoidCallback onClear;
 
-  FeedFilterChips({
+  const FeedFilterChips({
     super.key,
     required this.state,
     required this.onOpenSheet,
@@ -254,8 +254,8 @@ class _FeedFilterBottomSheetState extends State<FeedFilterBottomSheet>
   late FeedFilterState _tmp;
 
   // 슬라이더 기본 범위(만 단위)
-  static const int _depositMaxCap = 5000;
-  static const int _rentMaxCap = 400;
+  static const int _depositMaxCap = 1000;
+  static const int _rentMaxCap = 200;
   static const int _manageMaxCap = 80;
 
   // 계약기간 입력
@@ -330,56 +330,59 @@ class _FeedFilterBottomSheetState extends State<FeedFilterBottomSheet>
     final fs16 = ResponsiveSizes.f(context, 16);
 
     return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          p12,
-          p12,
-          p12,
-          p12 + MediaQuery.of(context).padding.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(text: '집'),
-                Tab(text: '사람'),
-              ],
-            ),
-            Flexible(
-              child: SingleChildScrollView(
-                child: SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.6,
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildHouseFilter(fs16),
-                      _buildPersonFilter(fs16),
-                    ],
+      child: ColoredBox(
+        color: Colors.white,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            p12,
+            p12,
+            p12,
+            p12 + MediaQuery.of(context).padding.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: '집'),
+                  Tab(text: '사람'),
+                ],
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.6,
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildHouseFilter(fs16),
+                        _buildPersonFilter(fs16),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _clear,
-                    child: const Text('초기화'),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _clear,
+                      child: const Text('초기화'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: _apply,
-                    child: const Text('적용'),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _apply,
+                      child: const Text('적용'),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -627,16 +630,18 @@ class _RangeFieldState extends State<_RangeField> {
         RangeSlider(
           min: 0,
           max: widget.cap.toDouble(),
-          divisions: widget.cap,
+          divisions: widget.cap ~/ 5,
           values: _values,
           labels: RangeLabels(
             '${_values.start.round()}만',
             '${_values.end.round()}만',
           ),
           onChanged: (v) => setState(() {
-            _values = v;
-            _a.text = v.start.round().toString();
-            _b.text = v.end.round().toString();
+            final s = ((v.start / 5).round() * 5).toDouble();
+            final e = ((v.end / 5).round() * 5).toDouble();
+            _values = RangeValues(s, e);
+            _a.text = s.toInt().toString();
+            _b.text = e.toInt().toString();
             _emit();
           }),
         ),
@@ -734,17 +739,19 @@ class _SingleChoiceChips extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: options
-          .map((opt) => FilterChip(
-                label: Text(opt),
-                selected: selected == opt,
-                onSelected: (isSelected) {
-                  if (isSelected) {
-                    onChanged(opt);
-                  } else {
-                    onChanged('');
-                  }
-                },
-              ))
+          .map(
+            (opt) => FilterChip(
+              label: Text(opt),
+              selected: selected == opt,
+              onSelected: (isSelected) {
+                if (isSelected) {
+                  onChanged(opt);
+                } else {
+                  onChanged('');
+                }
+              },
+            ),
+          )
           .toList(),
     );
   }

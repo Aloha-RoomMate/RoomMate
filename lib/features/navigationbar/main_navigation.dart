@@ -1,3 +1,4 @@
+// lib/features/navigationbar/main_navigation.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,7 +17,17 @@ import 'package:roommate/features/post/searcher_post_screen.dart';
 import 'package:roommate/features/recommend/userlist_screen.dart';
 
 class MainNavigation extends StatefulWidget {
-  const MainNavigation({super.key});
+  const MainNavigation({
+    super.key,
+    this.initialIndex = 0,
+    this.openMyPageOnStart = false, // ✅ Complete 이후 자동으로 마이페이지 열고 싶을 때 true
+  });
+
+  /// 시작 탭 인덱스 (0~4)
+  final int initialIndex;
+
+  /// 첫 진입 시 마이페이지를 바로 push로 띄울지 여부
+  final bool openMyPageOnStart;
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -25,7 +36,6 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   AppUser? _currentUser;
   final UserRepository _userRepository = UserRepository();
-
   late final StreamSubscription<AppUser?> _userSubscription;
 
   final List<String> _appBarTitles = [
@@ -36,18 +46,30 @@ class _MainNavigationState extends State<MainNavigation> {
     '채팅',
   ];
 
-  int _selectedIndex = 0;
+  late int _selectedIndex;
 
   @override
   void initState() {
     super.initState();
+
+    // 초기 탭 인덱스 보정
+    _selectedIndex = (widget.initialIndex >= 0 && widget.initialIndex <= 4)
+        ? widget.initialIndex
+        : 0;
+
+    // 내 정보 구독
     _userSubscription = _userRepository.watchMe().listen((user) {
-      if (mounted) {
-        setState(() {
-          _currentUser = user;
-        });
-      }
+      if (!mounted) return;
+      setState(() => _currentUser = user);
     });
+
+    // 첫 진입 시 마이페이지 자동 오픈 옵션 처리
+    if (widget.openMyPageOnStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _onMypageTap(_currentUser);
+      });
+    }
   }
 
   @override
@@ -57,9 +79,7 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   void _onNavTab(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
   }
 
   Widget _scaledIcon(IconData data, int itemIndex) {
@@ -76,9 +96,11 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
-  void _goMyPage() {
+  void _goMyPage({bool blocked = true}) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => MypageScreen(isBlocked: true)),
+      MaterialPageRoute(
+        builder: (_) => MypageScreen(isBlocked: blocked),
+      ),
     );
   }
 
@@ -99,7 +121,7 @@ class _MainNavigationState extends State<MainNavigation> {
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              _goMyPage();
+              _goMyPage(blocked: true);
             },
             child: const Text('마이페이지로 이동'),
           ),
@@ -119,16 +141,16 @@ class _MainNavigationState extends State<MainNavigation> {
         MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
       return;
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const MypageScreen(isBlocked: false),
-        ),
-      );
     }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const MypageScreen(isBlocked: false),
+      ),
+    );
   }
 
   PreferredSizeWidget? _buildAppBar() {
+    // 추천/글쓰기 탭에서는 앱바 숨김
     if (_selectedIndex == 1 || _selectedIndex == 2) return null;
 
     final title = _appBarTitles[_selectedIndex];
@@ -138,9 +160,7 @@ class _MainNavigationState extends State<MainNavigation> {
       actions.add(
         IconButton(
           tooltip: '필터',
-          onPressed: () {
-            FeedFilterBottomSheet.show(context);
-          },
+          onPressed: () => FeedFilterBottomSheet.show(context),
           icon: const FaIcon(FontAwesomeIcons.filter),
         ),
       );
@@ -200,6 +220,8 @@ class _MainNavigationState extends State<MainNavigation> {
         child: BottomNavigationBar(
           onTap: (i) {
             HapticFeedback.selectionClick();
+
+            // 가운데 '글 쓰기' 탭 접근 제어
             if (i == 2) {
               if (_currentUser == null) {
                 _toast('로그인이 만료되었습니다.');
@@ -236,12 +258,13 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget build(BuildContext context) {
     final body = IndexedStack(
       index: _selectedIndex,
-      children: [
+      children: const [
         HomeScreen(),
         UserListScreen(),
-        _currentUser?.userType?.type == "roomOwner"
-            ? const RoomOwnerPostScreen()
-            : const SearcherPostScreen(),
+        // 글쓰기 탭은 유저 타입에 따라 분기할 수도 있지만,
+        // IndexedStack 내에서는 빌드 시점에 타입 접근이 번거로우므로
+        // 아래와 같이 두 화면 중 하나를 선택하는 래퍼를 둔다.
+        _PostEntryDecider(),
         MapScreen(),
         ChatListScreen(),
       ],
@@ -251,6 +274,31 @@ class _MainNavigationState extends State<MainNavigation> {
       appBar: _buildAppBar(),
       body: body,
       bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+}
+
+/// 글쓰기 탭에서 유저 타입에 따라 화면 분기
+class _PostEntryDecider extends StatelessWidget {
+  const _PostEntryDecider();
+
+  @override
+  Widget build(BuildContext context) {
+    // UserRepository는 상위에서 이미 사용 중이므로 여기서도 재사용
+    final repo = UserRepository();
+
+    return FutureBuilder<AppUser?>(
+      future: repo.fetchMe(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final me = snapshot.data!;
+        final isOwner = (me.userType?.type ?? '').toLowerCase().contains(
+          'owner',
+        );
+        return isOwner ? RoomOwnerPostScreen() : const SearcherPostScreen();
+      },
     );
   }
 }

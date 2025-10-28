@@ -427,8 +427,12 @@ class _MapScreenState extends State<MapScreen> {
                 },
                 markers: _searchMarkers.union(_ownerMarkers.values.toSet()),
                 myLocationEnabled: true,
-                myLocationButtonEnabled: true,
+
+                // ✅ 지도 기본 컨트롤 제거
+                myLocationButtonEnabled: false,
                 zoomControlsEnabled: false,
+                compassEnabled: false,
+                mapToolbarEnabled: false,
               ),
             ),
           ),
@@ -442,7 +446,7 @@ class _MapScreenState extends State<MapScreen> {
                     horizontal: ResponsiveSizes.p(context, 12),
                   ),
                   child: Material(
-                    color: Colors.white,
+                    color: Colors.white, // 박스 배경
                     elevation: 4,
                     borderRadius: BorderRadius.circular(
                       ResponsiveSizes.p(context, 12),
@@ -453,13 +457,20 @@ class _MapScreenState extends State<MapScreen> {
                       focusNode: _searchFocus,
                       textInputAction: TextInputAction.search,
                       onSubmitted: _searchAndList,
+                      // ✅ 밑줄 제거 & 박스만 보이게
                       decoration: InputDecoration(
                         hintText: '장소/주소 검색 :',
                         hintStyle: TextStyle(
                           color: Colors.black38,
                           fontSize: ResponsiveSizes.f(context, 14),
                         ),
+                        isDense: true,
+                        // 박스는 바깥 Material로 처리하므로 내부 보더는 없음
                         border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
                         contentPadding: EdgeInsets.symmetric(
                           horizontal: ResponsiveSizes.p(context, 14),
                           vertical: ResponsiveSizes.p(context, 12),
@@ -734,10 +745,14 @@ class _MapScreenState extends State<MapScreen> {
           right: ResponsiveSizes.p(context, 6),
           bottom: ResponsiveSizes.p(context, 6),
         ),
-        child: FloatingActionButton(
+        // ✅ 아주 작은 FAB 사용
+        child: FloatingActionButton.small(
+          focusColor: Colors.white,
+          backgroundColor: Colors.white,
+          foregroundColor: Theme.of(context).primaryColor,
           onPressed: _showMarkerInfo,
           tooltip: '마커 안내',
-          child: const Icon(Icons.info_outline),
+          child: const Icon(Icons.info_outline, size: 16),
         ),
       ),
     );

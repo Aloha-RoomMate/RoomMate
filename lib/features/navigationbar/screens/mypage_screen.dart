@@ -1,29 +1,31 @@
-// ⬇️ 기존 파일 전체 (returnAfterSave 핸드오프 + then 리프레시)
+// ⬇️ MypageScreen 전체: 웹/모바일 겸용 프로필 이미지 업로드(Supabase) + 표시(signed URL)
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:roommate/class/app_user.dart';
-import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
+import 'package:roommate/class/searcher_post.dart';
+import 'package:roommate/class/searcher_post_repository.dart';
+import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/authentication/login/login_screen.dart';
 import 'package:roommate/features/authentication/userinfo/hobby_screen.dart';
 import 'package:roommate/features/authentication/userinfo/userjob_screen.dart';
-import 'package:roommate/features/category/daily_rythm_screen.dart';
-import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
-import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
-import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/features/category/coliving_screen.dart';
+import 'package:roommate/features/category/daily_rythm_screen.dart';
 import 'package:roommate/features/category/disease_screen.dart';
 import 'package:roommate/features/category/introduction_screen.dart';
+import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
+import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
 import 'package:roommate/features/view/room_owner_post_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:roommate/class/searcher_post.dart';
-import 'package:roommate/class/searcher_post_repository.dart';
 
 class MypageScreen extends StatefulWidget {
   const MypageScreen({super.key, required this.isBlocked});
@@ -39,7 +41,17 @@ class _MypageScreenState extends State<MypageScreen> {
   final _postRepo = RoomOwnerPostRepository();
   final _searcherRepo = SearcherPostRepository();
 
-  File? _profileImage;
+  // ===== 프로필 이미지 상태 =====
+  File? _profileImage; // 모바일 로컬 미리보기
+  Uint8List? _profileBytes; // 웹 로컬 미리보기
+  bool _isUploadingAvatar = false;
+  String?
+  _avatarPath; // Supabase Storage 경로 (FireStore users/{uid}.profileImagePath)
+  static const String _bucket = 'RoomMate-image';
+  final _supa = Supabase.instance.client;
+
+  // ===== 기타 =====
+  final _picker = ImagePicker();
 
   String _fmtHm(int? minutes, {bool use12h = false}) {
     if (minutes == null) return "-";
@@ -62,29 +74,162 @@ class _MypageScreenState extends State<MypageScreen> {
 
   Future<AppUser?> _getMyData() async => _repo.fetchMe();
 
+  // ====== 아바타 업로드/표시 유틸 ======
+  String _guessMime(String ext) {
+    switch (ext.toLowerCase()) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+        return 'image/heic';
+      case 'jpg':
+      case 'jpeg':
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  Future<void> _uploadAndSaveAvatar(XFile file) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다.')),
+      );
+      return;
+    }
+
+    setState(() => _isUploadingAvatar = true);
+    try {
+      final uid = user.uid;
+      final ext = (file.name.split('.').last);
+      final filename = "${DateTime.now().millisecondsSinceEpoch}.$ext";
+      final path = "avatars/$uid/$filename";
+
+      final bytes = await file.readAsBytes();
+      await _supa.storage
+          .from(_bucket)
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: _guessMime(ext),
+              upsert: false,
+              cacheControl: '3600',
+            ),
+          );
+
+      // Firestore에 경로 저장(merge)
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'profileImagePath': path,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // 상태 갱신
+      setState(() {
+        _avatarPath = path;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('프로필 사진이 업로드되었습니다.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('업로드 실패: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isUploadingAvatar = false);
+    }
+  }
+
+  Future<String?> _avatarSignedUrl() async {
+    final path = _avatarPath;
+    if (path == null || path.isEmpty) return null;
+    try {
+      // 30분 TTL
+      return await _supa.storage.from(_bucket).createSignedUrl(path, 1800);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _getPhotoLibraryImage() async {
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-    );
-    if (picked == null) return;
-    if (!mounted) return;
-    setState(() => _profileImage = File(picked.path));
+    try {
+      final picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+
+      if (kIsWeb) {
+        final bytes = await picked.readAsBytes();
+        setState(() {
+          _profileBytes = bytes;
+          _profileImage = null;
+        });
+      } else {
+        setState(() {
+          _profileImage = File(picked.path);
+          _profileBytes = null;
+        });
+      }
+
+      await _uploadAndSaveAvatar(picked);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이미지를 불러오지 못했어요.')),
+      );
+    }
   }
 
   Future<void> _getCameraImage() async {
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.camera,
-      imageQuality: 85,
-    );
-    if (picked == null) return;
-    if (!mounted) return;
-    setState(() => _profileImage = File(picked.path));
+    try {
+      final picked = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+
+      if (kIsWeb) {
+        final bytes = await picked.readAsBytes();
+        setState(() {
+          _profileBytes = bytes;
+          _profileImage = null;
+        });
+      } else {
+        setState(() {
+          _profileImage = File(picked.path);
+          _profileBytes = null;
+        });
+      }
+
+      await _uploadAndSaveAvatar(picked);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('카메라에서 이미지를 가져오지 못했어요.')),
+      );
+    }
   }
 
   Future<void> _getBasicProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
     if (!mounted) return;
-    setState(() => _profileImage = null);
+    setState(() {
+      _profileImage = null;
+      _profileBytes = null;
+      _avatarPath = null;
+    });
+
+    if (user != null) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'profileImagePath': FieldValue.delete(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {}
+    }
   }
 
   Future<void> _showBottomSheet() async {
@@ -154,7 +299,36 @@ class _MypageScreenState extends State<MypageScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _loadMeAndAvatarPath();
+  }
+
+  Future<void> _loadMeAndAvatarPath() async {
+    final me = await _repo.fetchMe();
+    String? path;
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? me?.uid;
+      if (uid != null) {
+        final snap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .get();
+        path = snap.data()?['profileImagePath'] as String?;
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      // me는 FutureBuilder에서 다시 부르므로 여기선 avatarPath만 세팅
+      _avatarPath = path;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // 모든 섹션의 라벨 폭 통일
+    final double labelColW = 140.0;
+
     return FutureBuilder<AppUser?>(
       future: _getMyData(),
       builder: (context, snapshot) {
@@ -174,6 +348,72 @@ class _MypageScreenState extends State<MypageScreen> {
         final userTypeInfo = me.userType ?? me.userType;
 
         final intro = me.introduction?.toString() ?? "";
+
+        // ===== 아바타 위젯 =====
+        Widget avatar(double radius) {
+          return FutureBuilder<String?>(
+            future: (_profileImage == null && _profileBytes == null)
+                ? _avatarSignedUrl()
+                : Future<String?>.value(null),
+            builder: (context, snap) {
+              ImageProvider? provider;
+              if (_profileBytes != null) {
+                provider = MemoryImage(_profileBytes!);
+              } else if (!kIsWeb && _profileImage != null) {
+                provider = FileImage(_profileImage!);
+              } else if (snap.hasData && (snap.data?.isNotEmpty ?? false)) {
+                provider = NetworkImage(snap.data!);
+              }
+
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CircleAvatar(
+                    radius: radius,
+                    backgroundColor: Colors.grey.shade200,
+                    backgroundImage: provider,
+                    child: provider == null
+                        ? Icon(
+                            Icons.person,
+                            size: ResponsiveSizes.p(context, 48),
+                            color: Colors.grey.shade600,
+                          )
+                        : null,
+                  ),
+                  Positioned(
+                    right: -4,
+                    bottom: -4,
+                    child: FloatingActionButton.small(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      heroTag: 'editAvatar',
+                      onPressed: _showBottomSheet,
+                      child: const Icon(Icons.photo_camera),
+                    ),
+                  ),
+                  if (_isUploadingAvatar)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.25),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          );
+        }
 
         return Scaffold(
           key: _scaffoldKey,
@@ -196,9 +436,9 @@ class _MypageScreenState extends State<MypageScreen> {
             email: me.email ?? '',
             onOpenProfileSheet: _showBottomSheet,
             onSignOut: _signOut,
-            parentContext: context,
+            parentContext: _scaffoldKey.currentContext ?? context,
             onEdited: () {
-              if (mounted) setState(() {});
+              if (mounted) setState(() {}); // 수정 후 리프레시
             },
           ),
           body: Padding(
@@ -214,38 +454,7 @@ class _MypageScreenState extends State<MypageScreen> {
                       padding: EdgeInsets.zero,
                       children: [
                         Gaps.v12(context),
-                        Center(
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              CircleAvatar(
-                                radius: ResponsiveSizes.p(context, 60),
-                                backgroundColor: Colors.grey.shade200,
-                                backgroundImage: _profileImage != null
-                                    ? FileImage(_profileImage!)
-                                    : null,
-                                child: _profileImage == null
-                                    ? Icon(
-                                        Icons.person,
-                                        size: ResponsiveSizes.p(context, 48),
-                                        color: Colors.grey.shade600,
-                                      )
-                                    : null,
-                              ),
-                              Positioned(
-                                right: -4,
-                                bottom: -4,
-                                child: FloatingActionButton.small(
-                                  backgroundColor: Colors.transparent,
-                                  elevation: 0,
-                                  heroTag: 'editAvatar',
-                                  onPressed: _showBottomSheet,
-                                  child: const Icon(Icons.photo_camera),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        Center(child: avatar(ResponsiveSizes.p(context, 60))),
                         Gaps.v2(context),
                         Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -269,13 +478,14 @@ class _MypageScreenState extends State<MypageScreen> {
                         ),
                         Column(
                           children: [
-                            // 생활 패턴 (이름 통일)
+                            // 생활 패턴
                             AccordionWidget(
                               title: "생활 패턴",
                               content: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   LabeldRow(
+                                    labelWidth: labelColW,
                                     label: "출근일",
                                     chips: [
                                       for (final day
@@ -285,6 +495,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                     ],
                                   ),
                                   LabeldRow(
+                                    labelWidth: labelColW,
                                     label: "주중 시간",
                                     chips: [
                                       if (userDailyRhythm?.weekAwakeMins !=
@@ -307,14 +518,14 @@ class _MypageScreenState extends State<MypageScreen> {
                               ),
                             ),
 
-                            // 공동 생활 성향 (이름 통일)
+                            // 공동 생활 성향
                             AccordionWidget(
                               title: "공동 생활 성향",
                               content: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   LabeldRow(
-                                    labelWidth: 140,
+                                    labelWidth: labelColW,
                                     label: "공용 공간 선호",
                                     chips: [
                                       if ((colivingPreference?.coSpace ?? '')
@@ -326,7 +537,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                     ],
                                   ),
                                   LabeldRow(
-                                    labelWidth: 140,
+                                    labelWidth: labelColW,
                                     label: "교류도",
                                     chips: [
                                       if ((colivingPreference?.interaction ??
@@ -339,7 +550,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                     ],
                                   ),
                                   LabeldRow(
-                                    labelWidth: 140,
+                                    labelWidth: labelColW,
                                     label: "정리 정돈",
                                     chips: [
                                       if ((colivingPreference?.cleanOption ??
@@ -352,7 +563,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                     ],
                                   ),
                                   LabeldRow(
-                                    labelWidth: 140,
+                                    labelWidth: labelColW,
                                     label: "화장실",
                                     chips: [
                                       if ((colivingPreference?.bathroom ?? '')
@@ -364,6 +575,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                     ],
                                   ),
                                   LabeldRow(
+                                    labelWidth: labelColW,
                                     label: "MBTI",
                                     chips: [
                                       if ((colivingPreference?.mbti ?? '')
@@ -375,6 +587,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                     ],
                                   ),
                                   LabeldRow(
+                                    labelWidth: labelColW,
                                     label: "반려동물",
                                     chips:
                                         (colivingPreference?.pet ??
@@ -388,6 +601,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                             .toList(),
                                   ),
                                   LabeldRow(
+                                    labelWidth: labelColW,
                                     label: "흡연",
                                     chips: [
                                       if (colivingPreference?.smoking != null)
@@ -403,13 +617,14 @@ class _MypageScreenState extends State<MypageScreen> {
                               ),
                             ),
 
-                            // 취미/관심 (이름 통일)
+                            // 취미/관심 (얕은 구분선 포함)
                             AccordionWidget(
                               title: "취미/관심",
                               content: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   LabeldRow(
+                                    labelWidth: labelColW,
                                     label: "최애 음식",
                                     chips:
                                         (userHobby?.foodLike ??
@@ -422,7 +637,18 @@ class _MypageScreenState extends State<MypageScreen> {
                                             )
                                             .toList(),
                                   ),
+                                  Divider(
+                                    height: ResponsiveSizes.p(context, 14),
+                                    thickness: 0.6,
+                                    color: Colors.black12,
+                                    indent: ResponsiveSizes.p(
+                                      context,
+                                      labelColW,
+                                    ),
+                                    endIndent: ResponsiveSizes.p(context, 8),
+                                  ),
                                   LabeldRow(
+                                    labelWidth: labelColW,
                                     label: "관심사",
                                     chips:
                                         (userHobby?.interestLike ??
@@ -435,7 +661,18 @@ class _MypageScreenState extends State<MypageScreen> {
                                             )
                                             .toList(),
                                   ),
+                                  Divider(
+                                    height: ResponsiveSizes.p(context, 14),
+                                    thickness: 0.6,
+                                    color: Colors.black12,
+                                    indent: ResponsiveSizes.p(
+                                      context,
+                                      labelColW,
+                                    ),
+                                    endIndent: ResponsiveSizes.p(context, 8),
+                                  ),
                                   LabeldRow(
+                                    labelWidth: labelColW,
                                     label: "운동",
                                     chips:
                                         (userHobby?.sportLike ??
@@ -452,7 +689,7 @@ class _MypageScreenState extends State<MypageScreen> {
                               ),
                             ),
 
-                            // 자기소개 (동일 UI)
+                            // 자기소개
                             AccordionWidget(
                               title: "자기소개",
                               content: Container(
@@ -562,7 +799,7 @@ class _MyPageEndDrawer extends StatelessWidget {
 
     showModalBottomSheet<void>(
       context: parentContext,
-      useRootNavigator: true,
+      useRootNavigator: false,
       useSafeArea: true,
       showDragHandle: true,
       shape: RoundedRectangleBorder(
@@ -582,20 +819,18 @@ class _MyPageEndDrawer extends StatelessWidget {
             title: Text(title),
             subtitle: subtitle == null ? null : Text(subtitle),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
+            onTap: () async {
               Navigator.pop(sheetCtx);
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                Navigator.of(parentContext, rootNavigator: true)
-                    .push(MaterialPageRoute(builder: (_) => screenFactory()))
-                    .then((res) {
-                      if (res == true) {
-                        onEdited();
-                        ScaffoldMessenger.of(parentContext).showSnackBar(
-                          const SnackBar(content: Text('저장되었습니다.')),
-                        );
-                      }
-                    });
-              });
+              await Future.microtask(() {});
+              final res = await Navigator.of(parentContext).push(
+                MaterialPageRoute(builder: (_) => screenFactory()),
+              );
+              if (res == true) {
+                onEdited();
+                ScaffoldMessenger.of(parentContext).showSnackBar(
+                  const SnackBar(content: Text('저장되었습니다.')),
+                );
+              }
             },
           );
         }
@@ -846,7 +1081,6 @@ class _MyOwnerPostsSectionState extends State<_MyOwnerPostsSection> {
 
   @override
   Widget build(BuildContext context) {
-    final boxColor = Theme.of(context).primaryColor.withOpacity(0.06);
     final radius = ResponsiveSizes.p(context, 18);
     final h = MediaQuery.of(context).size.height;
     final boxHeight = (h * 0.60).clamp(
@@ -927,7 +1161,6 @@ class _MyOwnerPostsSectionState extends State<_MyOwnerPostsSection> {
   }
 }
 
-/// 3열 그리드용 미니 타일 (썸네일 + 간단 정보)
 class _MiniOwnerPostTile extends StatelessWidget {
   _MiniOwnerPostTile({required this.post});
 
@@ -989,7 +1222,6 @@ class _MiniOwnerPostTile extends StatelessWidget {
         onTap: () => _openDetail(context),
         child: Column(
           children: [
-            // 썸네일(위쪽 라운드)
             Expanded(
               child: FutureBuilder<String?>(
                 future: _firstSignedUrl(),
@@ -1025,8 +1257,6 @@ class _MiniOwnerPostTile extends StatelessWidget {
                 },
               ),
             ),
-
-            // ⬇️ 텍스트 영역만 흰색 + 아래 라운드
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -1045,7 +1275,6 @@ class _MiniOwnerPostTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 주소 (최대 1줄)
                     Text(
                       _addrShort(),
                       maxLines: 1,
@@ -1293,7 +1522,6 @@ class _MiniSearcherPostTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 제목
             Text(
               (post.title ?? '제목 없음'),
               maxLines: 2,
@@ -1301,7 +1529,6 @@ class _MiniSearcherPostTile extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             SizedBox(height: ResponsiveSizes.p(context, 6)),
-            // 위치
             Row(
               children: [
                 const Icon(Icons.place_outlined, size: 14),
@@ -1320,7 +1547,6 @@ class _MiniSearcherPostTile extends StatelessWidget {
               ],
             ),
             SizedBox(height: ResponsiveSizes.p(context, 4)),
-            // 비용
             Row(
               children: [
                 const Icon(Icons.payments_outlined, size: 14),

@@ -1,4 +1,4 @@
-// features/category/introduction_screen.dart
+// lib/features/category/introduction_screen.dart
 import 'package:flutter/material.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/user_repository.dart';
@@ -41,48 +41,44 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     }
   }
 
+  Future<void> _save() async {
+    final introduction = Introduction(introduction: _controller.text);
+    await UserRepository().setIntroduction(introduction);
+  }
+
   void _onNextTap() async {
-    if (_introduction.length >= 50 && _introduction.length <= 300) {
-      try {
-        setState(() {
-          _isSending = true;
-        });
-        final introduction = Introduction(introduction: _controller.text);
+    final len = _introduction.length;
+    if (len < 50 || len > 300) return;
 
-        await UserRepository().setIntroduction(introduction);
+    try {
+      setState(() => _isSending = true);
+      await _save();
 
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저장 성공')),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('저장 성공')),
+      );
+
+      if (widget.returnAfterSave) {
+        // ✅ 마이페이지에서 "수정" 모드로 들어온 경우: 저장 후 마이페이지로 복귀(pop(true))
+        Navigator.of(context).pop(true);
+      } else {
+        // ✅ 온보딩 플로우: Complete 화면으로 교체(pushReplacement)
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const CompleteScreen()),
         );
-
-        setState(() {
-          _isSending = false;
-        });
-
-        if (widget.returnAfterSave) {
-          Navigator.of(context).pop(true); // ✅ 수정 모드
-        } else {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const CompleteScreen()),
-          );
-        }
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('데이터 저장 중 에러 발생')),
-        );
-      } finally {
-        if (mounted) {
-          _isSending = false;
-        }
       }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('데이터 저장 중 에러 발생')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
-  void _onScaffoldTap() {
-    FocusScope.of(context).unfocus();
-  }
+  void _onScaffoldTap() => FocusScope.of(context).unfocus();
 
   @override
   void dispose() {
@@ -137,7 +133,8 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                   child: FormButton(
                     enabled:
                         _introduction.length >= 50 &&
-                        _introduction.length <= 300,
+                        _introduction.length <= 300 &&
+                        !_isSending,
                     widget: _isSending
                         ? const Center(
                             child: CircularProgressIndicator(
