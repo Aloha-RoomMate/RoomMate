@@ -240,7 +240,15 @@ class FeedFilterBottomSheet extends StatefulWidget {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (_) => const FeedFilterBottomSheet(),
+      builder: (_) => Theme(
+        data: Theme.of(context).copyWith(
+          bottomSheetTheme: const BottomSheetThemeData(
+            dragHandleColor: Colors.white, // ← 잡는부분(드래그 핸들) 색상
+            dragHandleSize: Size(44, 5), // ←(선택) 크기
+          ),
+        ),
+        child: const FeedFilterBottomSheet(),
+      ),
     );
   }
 

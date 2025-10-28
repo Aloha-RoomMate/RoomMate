@@ -11,6 +11,8 @@ import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
 import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
 import 'package:roommate/features/navigationbar/widgets/room_owner_post_container.dart';
+import 'package:roommate/features/view/room_owner_post_view.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// 상대방 프로필 화면
 ///  - 단건 get으로 사용자 프로필을 읽어옴 (Rules: get 허용)
@@ -552,6 +554,7 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
         children: [
           header,
           Gaps.v8(context),
+          // ⬇️ replace the SizedBox(...) inside _UserPostsSectionState.build()
           SizedBox(
             height: boxHeight,
             child: _isLoading
@@ -560,27 +563,175 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
                 ? noAccess()
                 : RefreshIndicator(
                     onRefresh: _refresh,
-                    child: ListView.builder(
+                    child: GridView.builder(
                       controller: _scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                            childAspectRatio: 0.78,
+                          ),
                       itemCount: _posts.length + (_hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
-                        if (index == _posts.length) {
-                          return _isLoadingMore
-                              ? const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 16),
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                )
-                              : const SizedBox.shrink();
+                        if (index >= _posts.length) {
+                          return const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          );
                         }
-                        return RoomOwnerPostContainer(post: _posts[index]);
+                        return _MiniOwnerPostTile(post: _posts[index]);
                       },
                     ),
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ⬇️ add this new tile widget (place it under _UserPostsSectionState)
+class _MiniOwnerPostTile extends StatelessWidget {
+  const _MiniOwnerPostTile({required this.post});
+  final RoomOwnerPost post;
+
+  static const String _bucket = 'RoomMate-image';
+  static const int _urlTtl = 1800; // 30분
+  static final _supa = Supabase.instance.client;
+
+  Future<String?> _firstSignedUrl() async {
+    final paths = post.imageUrls ?? const <String>[];
+    if (paths.isEmpty) return null;
+    try {
+      final url = await _supa.storage
+          .from(_bucket)
+          .createSignedUrl(paths.first, _urlTtl);
+      return url.isEmpty ? null : url;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _addrShort() {
+    final a = (post.roadAddress ?? '').trim();
+    if (a.isEmpty) return '위치 비공개';
+    return a.split('(').first.trim();
+  }
+
+  String _price1() {
+    final d = post.deposit ?? 0;
+    return '보증금 $d';
+  }
+
+  String _price2() {
+    final r = post.rent ?? 0;
+    final m = post.manageFee ?? 0;
+    return m > 0 ? '월세 $r + 관 $m' : '월세 $r';
+  }
+
+  void _openDetail(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => RoomOwnerPostView(post: post)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const double radius = 12;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: () => _openDetail(context),
+        child: Column(
+          children: [
+            Expanded(
+              child: FutureBuilder<String?>(
+                future: _firstSignedUrl(),
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    );
+                  }
+                  final url = snap.data;
+                  if (url == null || url.isEmpty) {
+                    return Image.asset(
+                      'assets/house.jpg',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    );
+                  }
+                  return Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    errorBuilder: (_, __, ___) => Image.asset(
+                      'assets/house.jpg',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    ),
+                    loadingBuilder: (c, w, p) => p == null
+                        ? w
+                        : const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                  );
+                },
+              ),
+            ),
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(radius),
+                ),
+              ),
+              child: const SizedBox.shrink(),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _addrShort(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _price1(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF424242),
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _price2(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF616161),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

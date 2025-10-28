@@ -84,14 +84,13 @@ class _MainNavigationState extends State<MainNavigation> {
 
   Widget _scaledIcon(IconData data, int itemIndex) {
     final isSelected = _selectedIndex == itemIndex;
-    return SizedBox(
-      width: 24,
-      height: 24,
+    return Center(
+      // ← 아이콘 영역 전체에서 정확히 가운데 정렬
       child: AnimatedScale(
         scale: isSelected ? 1.15 : 1.0,
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        child: FaIcon(data),
+        child: FaIcon(data, size: 22), // SizedBox 제거(위로 붙는 현상 방지)
       ),
     );
   }
@@ -248,6 +247,9 @@ class _MainNavigationState extends State<MainNavigation> {
           selectedItemColor: cs.primary,
           unselectedItemColor: cs.onSurfaceVariant,
           showUnselectedLabels: true,
+          // ⬇️ 아이콘 크기 통일
+          selectedIconTheme: const IconThemeData(size: 23),
+          unselectedIconTheme: const IconThemeData(size: 21),
           items: navItems,
         ),
       ),

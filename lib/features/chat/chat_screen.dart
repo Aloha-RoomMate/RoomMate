@@ -1,4 +1,3 @@
-// lib/features/chat/chat_screen.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -55,6 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
           });
     }
 
+    // 방이 없으면 아무 것도 하지 않음(= 빈 방 생성 방지)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _chatRepo.markChatRead(widget.chatRoomId);
     });
@@ -85,10 +85,10 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendMessage() async {
-    _commitComposing(); // ← 전송 직전에 조합 확정
+    _commitComposing(); // 전송 직전 조합 확정
     final text = _msgCtrl.text.trim();
     if (text.isEmpty) return;
-    await _chatRepo.sendMessage(widget.chatRoomId, text);
+    await _chatRepo.sendMessage(widget.chatRoomId, text); // 여기서 방 생성/갱신까지
     _msgCtrl.clear();
     Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
   }
@@ -142,7 +142,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return GestureDetector(
       onTap: _onScaffoldTap,
       child: Scaffold(
-        // ───────── AppBar: 왼쪽 정렬, 큰 아바타 ─────────
+        // ───────── AppBar ─────────
         appBar: AppBar(
           scrolledUnderElevation: 0,
           centerTitle: false,
@@ -151,7 +151,7 @@ class _ChatScreenState extends State<ChatScreen> {
             stream: chatDocStream,
             builder: (context, snap) {
               Timestamp? lastSeenPartner;
-              if (snap.hasData) {
+              if (snap.hasData && snap.data!.exists) {
                 final map = snap.data!.data() ?? const <String, dynamic>{};
                 final ls = (map['lastSeenAt'] as Map?) ?? {};
                 lastSeenPartner = ls[widget.partnerUid] as Timestamp?;
@@ -194,8 +194,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       Row(
                         children: [
                           if (active)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 4),
+                            const Padding(
+                              padding: EdgeInsets.only(right: 4),
                               child: Icon(
                                 Icons.circle,
                                 size: 8,
@@ -242,7 +242,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
                   final docs = snapshot.data!.docs;
 
-                  // 최신 메시지가 상대 메시지면 읽음 처리
+                  // 최신 메시지가 상대 메시지면 바로 읽음 처리(리스트 뱃지 0으로)
                   if (docs.isNotEmpty) {
                     final last = docs.last;
                     final d = last.data();
@@ -475,7 +475,7 @@ class _BorderlessInput extends StatelessWidget {
       controller: controller,
       minLines: 1,
       maxLines: 4,
-      onSubmitted: (_) => onSubmitted?.call(), // ← 엔터 시 전송 연결(옵션)
+      onSubmitted: (_) => onSubmitted?.call(),
       decoration: const InputDecoration(
         hintText: '메시지를 입력하세요…',
         enabledBorder: UnderlineInputBorder(
@@ -496,9 +496,6 @@ class _BorderlessInput extends StatelessWidget {
 }
 
 /// 메시지 버블
-/// - 내 메시지: 화면 오른쪽 정렬, 시간은 버블의 왼쪽
-/// - 상대 메시지: 화면 왼쪽 정렬, 시간은 버블의 오른쪽
-/// - 긴 텍스트 자동 줄바꿈, 버블 최대 폭 제한(≈ 75%)
 class _MessageBubble extends StatelessWidget {
   final bool isMe;
   final String text;
@@ -516,13 +513,12 @@ class _MessageBubble extends StatelessWidget {
     final bubbleColor = isMe ? myColor : Colors.grey[200];
     final textColor = isMe ? Colors.white : Colors.black87;
 
-    // 화면 폭 기준으로 버블의 최대 폭 제한 (채팅 UX 표준)
     final maxBubbleWidth = MediaQuery.of(context).size.width * 0.78;
 
     final content = Text(
       text,
-      softWrap: true, // ✅ 자동 줄바꿈
-      overflow: TextOverflow.visible, // 긴 텍스트도 잘리지 않게
+      softWrap: true,
+      overflow: TextOverflow.visible,
       style: TextStyle(
         fontSize: ResponsiveSizes.f(context, 16),
         color: textColor,
@@ -530,9 +526,7 @@ class _MessageBubble extends StatelessWidget {
     );
 
     final bubble = ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: maxBubbleWidth, // ✅ 버블 최대 폭 제한
-      ),
+      constraints: BoxConstraints(maxWidth: maxBubbleWidth),
       child: Container(
         margin: EdgeInsets.symmetric(
           vertical: ResponsiveSizes.p(context, 2),
@@ -558,10 +552,8 @@ class _MessageBubble extends StatelessWidget {
         ? const SizedBox.shrink()
         : Padding(
             padding: EdgeInsets.only(
-              right: isMe
-                  ? ResponsiveSizes.p(context, 4)
-                  : 0, // 내 메시지: 시간 오른쪽 여백
-              left: isMe ? 0 : ResponsiveSizes.p(context, 4), // 상대: 시간 왼쪽 여백
+              right: isMe ? ResponsiveSizes.p(context, 4) : 0,
+              left: isMe ? 0 : ResponsiveSizes.p(context, 4),
             ),
             child: Text(
               time!,
@@ -572,9 +564,6 @@ class _MessageBubble extends StatelessWidget {
             ),
           );
 
-    // ✅ 최종 정렬 규칙
-    // 내 메시지(오른쪽): [time, bubble]
-    // 상대 메시지(왼쪽): [bubble, time]
     return Row(
       mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.end,

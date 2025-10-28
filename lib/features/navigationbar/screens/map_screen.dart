@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:http/http.dart' as http;
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/room_owner_post.dart';
@@ -13,7 +12,7 @@ import 'package:roommate/features/navigationbar/widgets/owner_preview_card.dart'
 import 'package:roommate/features/view/room_owner_post_view.dart';
 import 'package:roommate/class/chat_repository.dart';
 import 'package:roommate/features/chat/chat_screen.dart';
-
+import 'package:roommate/net/jsonp_web.dart'; // ← VWorld JSONP
 import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/constants/gaps.dart';
 
@@ -44,6 +43,10 @@ class _MapScreenState extends State<MapScreen> {
   final Map<String, RoomOwnerPost> _ownerCache = {};
   final _searchCtrl = TextEditingController(text: '');
   final _searchFocus = FocusNode();
+
+  Future<Map<String, double>?> _addrToCoordinate(String address) async {
+    return await addrToCoordinate(address); // RoomOwnerPost와 동일
+  }
 
   GoogleMapController? _controller;
   bool _loading = false;
@@ -90,63 +93,6 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 
-  // 클래스: _MapScreenState 안에 추가
-  Future<List<PlaceInfo>> _searchJusoPlaces(
-    String keyword, {
-    int maxResults = 10,
-  }) async {
-    if (_jusoKey.isEmpty) {
-      throw Exception('JUSO_API_KEY가 설정되어 있지 않습니다.');
-    }
-
-    // 1) JUSO API 호출
-    final url = Uri.https('www.juso.go.kr', '/addrlink/addrLinkApi.do', {
-      'confmKey': _jusoKey,
-      'currentPage': '1',
-      'countPerPage': '20',
-      'keyword': keyword,
-      'resultType': 'json',
-    });
-
-    final res = await http.get(url);
-    if (res.statusCode != 200) {
-      throw Exception('JUSO API 오류: ${res.statusCode}');
-    }
-
-    final decoded = jsonDecode(res.body);
-    final list = (decoded['results']?['juso'] as List?) ?? const [];
-
-    if (list.isEmpty) return const [];
-
-    // 2) 상위 N개만 좌표 변환(도로명 우선, 없으면 지번)
-    final targets = list.take(maxResults).cast<Map>().toList();
-
-    Future<PlaceInfo?> one(Map j) async {
-      final road = (j['roadAddr'] as String?)?.trim() ?? '';
-      final jibun = (j['jibunAddr'] as String?)?.trim() ?? '';
-      final query = road.isNotEmpty ? road : jibun;
-      if (query.isEmpty) return null;
-
-      try {
-        final locs = await geocoding.locationFromAddress(query);
-        if (locs.isEmpty) return null;
-        final loc = locs.first;
-        return PlaceInfo(
-          pos: LatLng(loc.latitude, loc.longitude),
-          title: road.isNotEmpty ? road : jibun, // 리스트 타이틀은 도로명 우선
-          address: jibun,
-          roadAddress: road,
-        );
-      } catch (_) {
-        return null;
-      }
-    }
-
-    final placed = await Future.wait(targets.map(one));
-    // 좌표 변환 성공분만 리턴
-    return placed.whereType<PlaceInfo>().toList();
-  }
-
   Future<void> _searchAddress(String keyword) async {
     if (_controller == null) return;
     final query = keyword.trim();
@@ -191,29 +137,40 @@ class _MapScreenState extends State<MapScreen> {
         return;
       }
 
-      // 2) 검색 결과(도로명/지번) → 지오코딩 → PlaceInfo로 변환
+      // 2) 검색 결과(도로명/지번) → addrToCoordinate로 좌표 변환
       final places = <PlaceInfo>[];
       for (final item in jusoList.take(20).cast<Map>()) {
-        final road = (item['roadAddr'] as String?)?.trim() ?? '';
+        final roadFull = (item['roadAddr'] as String?)?.trim() ?? '';
+        final roadP1 =
+            (item['roadAddrPart1'] as String?)?.trim() ?? ''; // 괄호 등 제거된 도로명
         final jibun = (item['jibunAddr'] as String?)?.trim() ?? '';
-        final q = road.isNotEmpty ? road : jibun;
-        if (q.isEmpty) continue;
 
-        try {
-          final locs = await geocoding.locationFromAddress(q);
-          if (locs.isEmpty) continue;
-          final loc = locs.first;
-          places.add(
-            PlaceInfo(
-              pos: LatLng(loc.latitude, loc.longitude),
-              title: road.isNotEmpty ? road : jibun, // 리스트/마커 타이틀
-              address: jibun,
-              roadAddress: road,
-            ),
-          );
-        } catch (_) {
-          // 좌표 변환 실패 항목은 스킵
+        // 변환 성공률을 높이기 위해 후보 순서대로 시도
+        final candidates = <String>[
+          roadP1, // 가장 깔끔
+          roadFull, // 전체 도로명
+          jibun, // 지번
+        ].where((s) => s.isNotEmpty).toList();
+
+        Map<String, double>? center;
+        for (final cand in candidates) {
+          center = await _addrToCoordinate(cand);
+          // 실패 시 '대한민국' 접두사 붙여 재시도 (일부 케이스에서 필요)
+          if (center == null && !cand.startsWith('대한민국')) {
+            center = await _addrToCoordinate('대한민국 $cand');
+          }
+          if (center != null) break;
         }
+        if (center == null) continue;
+
+        places.add(
+          PlaceInfo(
+            pos: LatLng(center['latitude']!, center['longitude']!),
+            title: roadFull.isNotEmpty ? roadFull : jibun, // 마커/리스트 타이틀
+            address: jibun,
+            roadAddress: roadFull,
+          ),
+        );
       }
 
       if (!mounted) return;
