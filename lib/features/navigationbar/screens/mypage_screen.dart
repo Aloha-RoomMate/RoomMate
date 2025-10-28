@@ -776,13 +776,12 @@ class _MypageScreenState extends State<MypageScreen> {
 }
 
 // -------------------- Drawer --------------------
-
 class _MyPageEndDrawer extends StatelessWidget {
   final String displayName;
   final String email;
   final VoidCallback onOpenProfileSheet;
   final VoidCallback onSignOut;
-  final BuildContext parentContext;
+  final BuildContext parentContext; // Scaffold context 전달받음
   final VoidCallback onEdited;
 
   const _MyPageEndDrawer({
@@ -794,25 +793,26 @@ class _MyPageEndDrawer extends StatelessWidget {
     required this.onEdited,
   });
 
-  void _openEditPicker(BuildContext parentContext) {
-    final pad = ResponsiveSizes.p(parentContext, 16);
+  void _openEditPicker(BuildContext scaffoldCtx) {
+    final pad = ResponsiveSizes.p(scaffoldCtx, 16);
 
     showModalBottomSheet<void>(
-      context: parentContext,
-      useRootNavigator: false,
+      context: scaffoldCtx,
+      useRootNavigator: true, // ✅ 최상위 네비게이터에 붙임
+      isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(ResponsiveSizes.p(parentContext, 20)),
+          top: Radius.circular(ResponsiveSizes.p(scaffoldCtx, 20)),
         ),
       ),
       builder: (sheetCtx) {
         Widget tile({
           required IconData icon,
           required String title,
-          String? subtitle,
           required Widget Function() screenFactory,
+          String? subtitle,
         }) {
           return ListTile(
             leading: Icon(icon),
@@ -820,14 +820,14 @@ class _MyPageEndDrawer extends StatelessWidget {
             subtitle: subtitle == null ? null : Text(subtitle),
             trailing: const Icon(Icons.chevron_right),
             onTap: () async {
-              Navigator.pop(sheetCtx);
-              await Future.microtask(() {});
-              final res = await Navigator.of(parentContext).push(
+              Navigator.pop(sheetCtx); // 1) 시트 닫기
+              await Future.microtask(() {}); // 2) 한 프레임 미룸
+              final res = await Navigator.of(scaffoldCtx).push(
                 MaterialPageRoute(builder: (_) => screenFactory()),
-              );
+              ); // 3) 같은 Scaffold의 Navigator로 push
               if (res == true) {
                 onEdited();
-                ScaffoldMessenger.of(parentContext).showSnackBar(
+                ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
                   const SnackBar(content: Text('저장되었습니다.')),
                 );
               }
@@ -841,7 +841,7 @@ class _MyPageEndDrawer extends StatelessWidget {
               pad,
               pad,
               pad,
-              pad + ResponsiveSizes.p(parentContext, 6),
+              pad + ResponsiveSizes.p(scaffoldCtx, 6),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -906,21 +906,19 @@ class _MyPageEndDrawer extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.photo),
               title: const Text('프로필 사진 변경'),
-              onTap: () {
-                Navigator.pop(context);
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  onOpenProfileSheet();
-                });
+              onTap: () async {
+                Navigator.of(context).pop(); // Drawer 닫기
+                await Future.delayed(const Duration(milliseconds: 120));
+                if (parentContext.mounted) onOpenProfileSheet();
               },
             ),
             ListTile(
               leading: const Icon(Icons.edit_rounded),
               title: const Text('내 정보 수정'),
-              onTap: () {
-                Navigator.pop(context);
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _openEditPicker(context);
-                });
+              onTap: () async {
+                Navigator.of(context).pop(); // Drawer 닫기
+                await Future.delayed(const Duration(milliseconds: 120));
+                if (parentContext.mounted) _openEditPicker(parentContext);
               },
             ),
             ListTile(

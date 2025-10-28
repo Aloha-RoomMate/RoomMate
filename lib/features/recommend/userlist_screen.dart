@@ -64,10 +64,7 @@ class _UserListScreenState extends State<UserListScreen> {
     final items = <_RecItem>[];
     for (final u in others) {
       final comp = scoreUsers(me, u); // breakdown + 사유
-      final finalScore =
-          kWStruct * comp.structSim +
-          kWHobby * comp.hobbySim +
-          kWText * comp.textSim;
+      final finalScore = comp.score;
 
       items.add(_RecItem(user: u, score: finalScore, compSim: comp));
     }

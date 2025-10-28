@@ -68,6 +68,52 @@ const List<String> kInterests = [
 
 const List<String> kDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+// 파일 상단 import/const 아래 아무 곳에 추가
+enum MbtiCompat { none, red, yellow, green, blue }
+
+const Map<MbtiCompat, double> _mbtiBoostByTier = {
+  MbtiCompat.none: 0.00,
+  MbtiCompat.red: 0.00, // 페널티는 주지 않음(요청 취지상 +보너스만)
+  MbtiCompat.yellow: 0.01, // 살짝 보너스
+  MbtiCompat.green: 0.03, // 좋은 관계
+  MbtiCompat.blue: 0.06, // 천생연분
+};
+
+MbtiCompat _mbtiCompatTier(String? a, String? b) {
+  if (a == null || b == null) return MbtiCompat.none;
+  final A = a.toUpperCase();
+  final B = b.toUpperCase();
+  if (A.length != 4 || B.length != 4) return MbtiCompat.none;
+  if (A == '모름' || B == '모름') return MbtiCompat.none;
+
+  // 각 글자 일치 여부
+  final sameE = A[0] == B[0];
+  final sameN = A[1] == B[1];
+  final sameT = A[2] == B[2];
+  final sameJ = A[3] == B[3];
+  final cnt = [sameE, sameN, sameT, sameJ].where((x) => x).length;
+
+  // "천생연분" 휴리스틱:
+  //  - 가운데 두 글자(N/S, T/F)는 같고
+  //  - 바깥(E/I, J/P)은 서로 반대  → 예: INFJ ↔ ENFP, INTJ ↔ ENTP
+  final middleSame = sameN && sameT;
+  final outerOpp = !sameE && !sameJ;
+  if (middleSame && outerOpp) return MbtiCompat.blue;
+
+  // "좋은 관계" 휴리스틱:
+  //  - 3글자 이상 동일(매우 유사)  또는
+  //  - 가운데 두 글자는 같고 바깥 중 하나만 다름(준보완)
+  if (cnt >= 3 || (middleSame && (sameE != sameJ))) {
+    return MbtiCompat.green;
+  }
+
+  // "보통"
+  if (cnt == 2) return MbtiCompat.yellow;
+
+  // "다시 생각"
+  return MbtiCompat.red;
+}
+
 List<double> buildStructVector(AppUser u) {
   final v = <double>[];
 
@@ -226,24 +272,41 @@ Compatibility scoreUsers(AppUser me, AppUser other) {
       : (other.introduction ?? '');
   final text = charBigramCosine(introMe, introOt);
 
-  // 기본 점수 (가중치 합 = 1.0)
+  // 기본 점수
   double score = wStruct * struct + wHobby * hobby + wText * text;
 
-  // ★ 같은 연령대(10년 단위)면 보너스 +5% (최대 1.0으로 클램프)
-  const double ageBonus = 0.05;
+  // ===== MBTI 보너스 추가 =====
+  final mbtiA = me.coliving?.mbti;
+  final mbtiB = other.coliving?.mbti;
+  final tier = _mbtiCompatTier(mbtiA, mbtiB);
+  final mbtiBonus = _mbtiBoostByTier[tier]!;
+  score = (score + mbtiBonus).clamp(0.0, 1.0);
+
   final reasons = <String>[];
   if (_isSameAgeDecade(me.birthYear, other.birthYear)) {
-    score = (score + ageBonus).clamp(0.0, 1.0);
+    score = (score + 0.05).clamp(0.0, 1.0); // 동연령대 보너스(기존)
     reasons.add("동연령대");
   }
 
-  // 기존 사유들
+  // 기존 사유
   if (other.coliving?.smoking == false && me.coliving?.smoking == false) {
     reasons.add("비흡연 선호 일치");
   }
   if (hobby >= 0.2) reasons.add("취미 겹침");
   if (struct >= 0.75) reasons.add("생활 패턴 유사");
   if (text >= 0.5) reasons.add("자기소개 톤 유사");
+
+  // MBTI 사유(좋음 이상일 때 노출)
+  switch (tier) {
+    case MbtiCompat.blue:
+      reasons.add("MBTI 천생연분");
+      break;
+    case MbtiCompat.green:
+      reasons.add("MBTI 궁합 좋음");
+      break;
+    default:
+      break;
+  }
 
   return Compatibility(struct, hobby, text, score, reasons.take(3).toList());
 }

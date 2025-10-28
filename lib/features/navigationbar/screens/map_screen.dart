@@ -428,7 +428,7 @@ class _MapScreenState extends State<MapScreen> {
                 markers: _searchMarkers.union(_ownerMarkers.values.toSet()),
                 myLocationEnabled: true,
 
-                // ✅ 지도 기본 컨트롤 제거
+                // 기본 컨트롤 제거
                 myLocationButtonEnabled: false,
                 zoomControlsEnabled: false,
                 compassEnabled: false,
@@ -446,7 +446,7 @@ class _MapScreenState extends State<MapScreen> {
                     horizontal: ResponsiveSizes.p(context, 12),
                   ),
                   child: Material(
-                    color: Colors.white, // 박스 배경
+                    color: Colors.white,
                     elevation: 4,
                     borderRadius: BorderRadius.circular(
                       ResponsiveSizes.p(context, 12),
@@ -457,7 +457,6 @@ class _MapScreenState extends State<MapScreen> {
                       focusNode: _searchFocus,
                       textInputAction: TextInputAction.search,
                       onSubmitted: _searchAndList,
-                      // ✅ 밑줄 제거 & 박스만 보이게
                       decoration: InputDecoration(
                         hintText: '장소/주소 검색 :',
                         hintStyle: TextStyle(
@@ -465,7 +464,6 @@ class _MapScreenState extends State<MapScreen> {
                           fontSize: ResponsiveSizes.f(context, 14),
                         ),
                         isDense: true,
-                        // 박스는 바깥 Material로 처리하므로 내부 보더는 없음
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -739,13 +737,13 @@ class _MapScreenState extends State<MapScreen> {
             ),
         ],
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      // ⬇⬇⬇ 왼쪽 하단으로 이동
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: Padding(
         padding: EdgeInsets.only(
-          right: ResponsiveSizes.p(context, 6),
+          left: ResponsiveSizes.p(context, 6),
           bottom: ResponsiveSizes.p(context, 6),
         ),
-        // ✅ 아주 작은 FAB 사용
         child: FloatingActionButton.small(
           focusColor: Colors.white,
           backgroundColor: Colors.white,
