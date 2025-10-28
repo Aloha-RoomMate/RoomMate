@@ -173,6 +173,8 @@ class _MypageScreenState extends State<MypageScreen> {
         final userHobby = me.hobby ?? me.hobby;
         final userTypeInfo = me.userType ?? me.userType;
 
+        final intro = me.introduction?.toString() ?? "";
+
         return Scaffold(
           key: _scaffoldKey,
           appBar: AppBar(
@@ -267,9 +269,9 @@ class _MypageScreenState extends State<MypageScreen> {
                         ),
                         Column(
                           children: [
-                            // 생활 패턴
+                            // 생활 패턴 (이름 통일)
                             AccordionWidget(
-                              title: " 내 생활패턴",
+                              title: "생활 패턴",
                               content: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -304,15 +306,16 @@ class _MypageScreenState extends State<MypageScreen> {
                                 ],
                               ),
                             ),
-                            // 공동 생활 성향
+
+                            // 공동 생활 성향 (이름 통일)
                             AccordionWidget(
-                              title: " 내 공동 생활 성향",
+                              title: "공동 생활 성향",
                               content: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   LabeldRow(
                                     labelWidth: 140,
-                                    label: "공용 공간 사용 선호도",
+                                    label: "공용 공간 선호",
                                     chips: [
                                       if ((colivingPreference?.coSpace ?? '')
                                           .isNotEmpty)
@@ -324,7 +327,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                   ),
                                   LabeldRow(
                                     labelWidth: 140,
-                                    label: "룸메이트와의 교류도",
+                                    label: "교류도",
                                     chips: [
                                       if ((colivingPreference?.interaction ??
                                               '')
@@ -337,7 +340,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                   ),
                                   LabeldRow(
                                     labelWidth: 140,
-                                    label: "정리 정돈 습관",
+                                    label: "정리 정돈",
                                     chips: [
                                       if ((colivingPreference?.cleanOption ??
                                               '')
@@ -350,7 +353,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                   ),
                                   LabeldRow(
                                     labelWidth: 140,
-                                    label: "화장실 청결 민감도",
+                                    label: "화장실",
                                     chips: [
                                       if ((colivingPreference?.bathroom ?? '')
                                           .isNotEmpty)
@@ -399,9 +402,10 @@ class _MypageScreenState extends State<MypageScreen> {
                                 ],
                               ),
                             ),
-                            // 취미
+
+                            // 취미/관심 (이름 통일)
                             AccordionWidget(
-                              title: " 내 취미",
+                              title: "취미/관심",
                               content: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -419,7 +423,7 @@ class _MypageScreenState extends State<MypageScreen> {
                                             .toList(),
                                   ),
                                   LabeldRow(
-                                    label: "요즘 관심사",
+                                    label: "관심사",
                                     chips:
                                         (userHobby?.interestLike ??
                                                 const <String>[])
@@ -447,7 +451,30 @@ class _MypageScreenState extends State<MypageScreen> {
                                 ],
                               ),
                             ),
+
+                            // 자기소개 (동일 UI)
+                            AccordionWidget(
+                              title: "자기소개",
+                              content: Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.all(
+                                  ResponsiveSizes.p(context, 12),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(
+                                    context,
+                                  ).primaryColor.withAlpha(12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  intro.isEmpty ? "자기소개가 아직 없습니다." : intro,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ),
+                            ),
+
                             Gaps.v16(context),
+
                             // 내가 쓴 글
                             (() {
                               final isOwner = (userTypeInfo.type)
@@ -657,7 +684,7 @@ class _MyPageEndDrawer extends StatelessWidget {
               onTap: () {
                 Navigator.pop(context);
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _openEditPicker(parentContext);
+                  _openEditPicker(context);
                 });
               },
             ),
@@ -681,9 +708,6 @@ class _MyPageEndDrawer extends StatelessWidget {
     );
   }
 }
-
-// LabeldRow, _MyOwnerPostsSection, _MiniOwnerPostTile, _MySearcherPostsSection, _MiniSearcherPostTile
-// (원본 동일 – 변경 없음)
 
 // -------------------- 라벨 + 칩 --------------------
 
@@ -732,7 +756,6 @@ class LabeldRow extends StatelessWidget {
 }
 
 // -------------------- 내가 쓴 글 (3열 그리드 + 무한 스크롤) --------------------
-// ✅ 최소 변경: 기존 _MyPostsSection을 Owner용으로 리네이밍만 하고 그대로 사용
 
 class _MyOwnerPostsSection extends StatefulWidget {
   final String title;
@@ -823,7 +846,7 @@ class _MyOwnerPostsSectionState extends State<_MyOwnerPostsSection> {
 
   @override
   Widget build(BuildContext context) {
-    final boxColor = Theme.of(context).primaryColor.withValues(alpha: 0.06);
+    final boxColor = Theme.of(context).primaryColor.withOpacity(0.06);
     final radius = ResponsiveSizes.p(context, 18);
     final h = MediaQuery.of(context).size.height;
     final boxHeight = (h * 0.60).clamp(
@@ -905,7 +928,6 @@ class _MyOwnerPostsSectionState extends State<_MyOwnerPostsSection> {
 }
 
 /// 3열 그리드용 미니 타일 (썸네일 + 간단 정보)
-// ✅ 최소 변경: 클래스명만 Owner용으로 변경
 class _MiniOwnerPostTile extends StatelessWidget {
   _MiniOwnerPostTile({required this.post});
 
@@ -1062,7 +1084,6 @@ class _MiniOwnerPostTile extends StatelessWidget {
 }
 
 // -------------------- Searcher용 (3열 그리드 + 무한 스크롤) --------------------
-// ✅ 최소 추가: Searcher 전용 섹션/타일 (간단 텍스트 카드)
 
 class _MySearcherPostsSection extends StatefulWidget {
   final String title;

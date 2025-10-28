@@ -139,14 +139,14 @@ class _UserProfileViewState extends State<UserProfileView> {
                   ),
                   Gaps.v12(context),
 
-                  // ───────────────── 하루 리듬 (마이페이지와 동일 필드만) ─────────────────
+                  // ───────────────── 생활 패턴 ─────────────────
                   AccordionWidget(
-                    title: " 하루 리듬",
+                    title: "생활 패턴",
                     content: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         LabeldRow(
-                          label: "출근일 :",
+                          label: "출근일",
                           chips: [
                             for (final day
                                 in (userDailyRhythm?.workDays ??
@@ -171,19 +171,18 @@ class _UserProfileViewState extends State<UserProfileView> {
                               ),
                           ],
                         ),
-                        // ✅ 주말/알람은 현재 모델에 없을 수 있으므로 제외 (마이페이지와 동일하게)
                       ],
                     ),
                   ),
 
                   // ───────────────── 공동 생활 성향 ─────────────────
                   AccordionWidget(
-                    title: " 공동 생활 성향",
+                    title: "공동 생활 성향",
                     content: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         LabeldRow(
-                          label: "공용 공간 사용 선호도 :",
+                          label: "공용 공간 선호",
                           chips: [
                             if ((colivingPreference?.coSpace ?? '').isNotEmpty)
                               ChipButton(
@@ -193,7 +192,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                           ],
                         ),
                         LabeldRow(
-                          label: "룸메이트와의 교류도 :",
+                          label: "교류도",
                           chips: [
                             if ((colivingPreference?.interaction ?? '')
                                 .isNotEmpty)
@@ -204,7 +203,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                           ],
                         ),
                         LabeldRow(
-                          label: "정리 정돈 습관 :",
+                          label: "정리 정돈",
                           chips: [
                             if ((colivingPreference?.cleanOption ?? '')
                                 .isNotEmpty)
@@ -215,7 +214,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                           ],
                         ),
                         LabeldRow(
-                          label: "화장실 :",
+                          label: "화장실",
                           chips: [
                             if ((colivingPreference?.bathroom ?? '').isNotEmpty)
                               ChipButton(
@@ -225,7 +224,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                           ],
                         ),
                         LabeldRow(
-                          label: "MBTI :",
+                          label: "MBTI",
                           chips: [
                             if ((colivingPreference?.mbti ?? '').isNotEmpty)
                               ChipButton(
@@ -235,13 +234,13 @@ class _UserProfileViewState extends State<UserProfileView> {
                           ],
                         ),
                         LabeldRow(
-                          label: "반려동물 :",
+                          label: "반려동물",
                           chips: (colivingPreference?.pet ?? const <String>[])
                               .map((e) => ChipButton(text: e, isSelected: true))
                               .toList(),
                         ),
                         LabeldRow(
-                          label: "흡연 :",
+                          label: "흡연",
                           chips: [
                             if (colivingPreference?.smoking != null)
                               ChipButton(
@@ -256,71 +255,26 @@ class _UserProfileViewState extends State<UserProfileView> {
                     ),
                   ),
 
-                  // ───────────────── 유저 타입 ─────────────────
+                  // ───────────────── 취미/관심 ─────────────────
                   AccordionWidget(
-                    title: " 유저 타입",
+                    title: "취미/관심",
                     content: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         LabeldRow(
-                          label: "유형 :",
-                          chips: [
-                            ChipButton(
-                              text: (userTypeInfo?.type == "roomOwner")
-                                  ? "RoomOwner"
-                                  : "Searcher",
-                              isSelected: true,
-                            ),
-                          ],
-                        ),
-                        if (userTypeInfo?.type == "roomOwner")
-                          LabeldRow(
-                            label: "주소 :",
-                            chips: [
-                              ChipButton(
-                                text: (userTypeInfo?.address ?? '주소 없음')
-                                    .split('(')
-                                    .first
-                                    .trim(),
-                                isSelected: true,
-                              ),
-                            ],
-                          )
-                        else
-                          LabeldRow(
-                            label: "선호 지역 :",
-                            chips:
-                                (userTypeInfo?.searchAreas ?? const <String>[])
-                                    .map(
-                                      (a) =>
-                                          ChipButton(text: a, isSelected: true),
-                                    )
-                                    .toList(),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  // ───────────────── 취미 ─────────────────
-                  AccordionWidget(
-                    title: " 취미/관심",
-                    content: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        LabeldRow(
-                          label: "최애 음식 :",
+                          label: "최애 음식",
                           chips: (userHobby?.foodLike ?? const <String>[])
                               .map((e) => ChipButton(text: e, isSelected: true))
                               .toList(),
                         ),
                         LabeldRow(
-                          label: "관심사 :",
+                          label: "관심사",
                           chips: (userHobby?.interestLike ?? const <String>[])
                               .map((e) => ChipButton(text: e, isSelected: true))
                               .toList(),
                         ),
                         LabeldRow(
-                          label: "운동 :",
+                          label: "운동",
                           chips: (userHobby?.sportLike ?? const <String>[])
                               .map((e) => ChipButton(text: e, isSelected: true))
                               .toList(),
@@ -331,7 +285,7 @@ class _UserProfileViewState extends State<UserProfileView> {
 
                   // ───────────────── 자기소개 ─────────────────
                   AccordionWidget(
-                    title: " 자기소개",
+                    title: "자기소개",
                     content: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(Sizes.size12),
@@ -369,7 +323,7 @@ class _UserProfileViewState extends State<UserProfileView> {
   }
 }
 
-/// 라벨 + 칩 (마이페이지와 동일 스타일)
+/// 라벨 + 칩
 class LabeldRow extends StatelessWidget {
   final String label;
   final List<Widget> chips;
@@ -442,7 +396,7 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
   bool _hasMore = true;
   DocumentSnapshot? _lastDocument;
 
-  // ✅ 권한 거부 상태 플래그(크래시 방지)
+  // 권한 거부 상태 플래그(크래시 방지)
   bool _permissionDenied = false;
 
   @override

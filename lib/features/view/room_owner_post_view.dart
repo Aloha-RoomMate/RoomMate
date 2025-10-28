@@ -660,7 +660,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
 /// 전체 화면 이미지 갤러리
 /// - 좌우 스와이프
 /// - 핀치 줌(InteractiveViewer)
-/// - 우상단 X 버튼으로 닫기
+/// - 우상단 X 버튼(테마 primaryColor)으로 닫기
 /// - Hero 애니메이션으로 자연스러운 전환
 class FullscreenImageGallery extends StatefulWidget {
   final List<String> urls;
@@ -699,6 +699,8 @@ class _FullscreenImageGalleryState extends State<FullscreenImageGallery> {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).primaryColor;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -732,7 +734,7 @@ class _FullscreenImageGalleryState extends State<FullscreenImageGallery> {
             },
           ),
 
-          // 상단 그라데이션 + 닫기 버튼
+          // 상단 그라데이션
           Positioned.fill(
             child: IgnorePointer(
               ignoring: true,
@@ -751,6 +753,8 @@ class _FullscreenImageGalleryState extends State<FullscreenImageGallery> {
               ),
             ),
           ),
+
+          // 닫기 버튼: 아이콘은 primaryColor, 배경은 밝은 톤으로 어디서든 잘 보이게
           SafeArea(
             child: Align(
               alignment: Alignment.topRight,
@@ -759,15 +763,27 @@ class _FullscreenImageGalleryState extends State<FullscreenImageGallery> {
                   top: Sizes.size10,
                   right: Sizes.size10,
                 ),
-                child: ClipOval(
-                  child: Material(
-                    color: Colors.black54,
-                    child: IconButton(
-                      onPressed: _close,
-                      icon: const Icon(Icons.close_rounded),
-                      color: Colors.white,
-                      tooltip: '닫기',
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.95),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.35),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.9),
+                      width: 1,
                     ),
+                  ),
+                  child: IconButton(
+                    onPressed: _close,
+                    icon: Icon(Icons.close_rounded),
+                    color: primary, // ← 테마 포인트 컬러
+                    tooltip: '닫기',
                   ),
                 ),
               ),
