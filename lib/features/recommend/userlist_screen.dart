@@ -35,6 +35,11 @@ class _UserListScreenState extends State<UserListScreen> {
   final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
   late Future<_RecBundle> _future;
+  @override
+  void initState() {
+    super.initState();
+    _future = _load(); // ★ 여기!
+  }
 
   // 성별 토큰/판별 헬퍼 (rules의 sameGender와 동치가 되도록)
   static const Set<String> _maleTokens = {'male', '남성', '남자', 'm', 'M'};
