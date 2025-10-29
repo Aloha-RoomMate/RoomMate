@@ -22,9 +22,10 @@ class ChatScreen extends StatefulWidget {
   final List<String>? quickPhrases;
   final VoidCallback? onSharePost;
 
-  final PostSnippet? postSnippet; // 게시글에서 진입 시
-  final String? initialPrefillText; // 프리필 문구
-  final bool autoSharePostOnFirstSend; // 첫 전송 시 카드 자동 공유
+  // 게시글에서 진입 시
+  final PostSnippet? postSnippet; // 카드 내용
+  final String? initialPrefillText; // 프리필 문구 (예: 「제목」(근처) 게시글 보고 연락드려요.)
+  final bool autoSharePostOnFirstSend; // 첫 전송 시 1회 카드 자동 공유
 
   const ChatScreen({
     super.key,
@@ -58,7 +59,11 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _iAmAuthorOfOrigin = false;
 
   bool _firstSendDone = false;
-  bool _alreadySharedOrigin = true; // 기본 true, postSnippet 있을 때 false로 내려줌
+  bool _alreadySharedOrigin = true; // 기본 true, postSnippet 있으면 false로 갱신
+
+  // ⬇️ 빈 방 보호: 문서/메시지 스트림 부착 여부
+  bool _listenChatDoc = false;
+  bool _listenMessages = false;
 
   @override
   void initState() {
@@ -78,6 +83,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     _prepareOriginContext();
+    _checkChatDocOnce(); // ← 최초 한 번만 존재 여부 확인(있을 때만 스트림 활성화)
   }
 
   @override
@@ -96,9 +102,9 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
 
-    // 2) 원글 UI용 정보만 로드. ✔ 서버에 chat 문서 조회는 하지 않음
+    // 2) 원글 UI용 정보만 로드(서버에 chats 문서 접근 안함)
     if (widget.postSnippet != null) {
-      _alreadySharedOrigin = false; // 아직 안 보냈다고 가정(첫 전송 시 1회 처리)
+      _alreadySharedOrigin = false; // 첫 전송 시 1회 공유하도록
       try {
         final p = await _postRepo.fetchById(widget.postSnippet!.postId);
         if (!mounted) return;
@@ -110,6 +116,26 @@ class _ChatScreenState extends State<ChatScreen> {
     } else {
       _alreadySharedOrigin = true;
       if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _checkChatDocOnce() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(widget.chatRoomId)
+          .get(); // 존재하지 않으면 exists=false 로 안전히 돌아옴
+      if (!mounted) return;
+      if (snap.exists) {
+        setState(() {
+          _listenChatDoc = true;
+          _listenMessages = true;
+        });
+        // 존재할 때만 읽음 처리
+        await _chatRepo.markChatRead(widget.chatRoomId);
+      }
+    } catch (_) {
+      // 권한/비존재 에러는 무시 (빈 방 상태 유지)
     }
   }
 
@@ -158,6 +184,17 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) setState(() {});
     }
 
+    // 이제 부모 문서가 생겼을 것이므로 스트림 활성화 + 읽음 처리
+    if (!_listenMessages || !_listenChatDoc) {
+      if (mounted) {
+        setState(() {
+          _listenChatDoc = true;
+          _listenMessages = true;
+        });
+      }
+      await _chatRepo.markChatRead(widget.chatRoomId);
+    }
+
     Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
   }
 
@@ -173,6 +210,17 @@ class _ChatScreenState extends State<ChatScreen> {
       _alreadySharedOrigin = true;
       if (mounted) setState(() {});
     }
+
+    if (!_listenMessages || !_listenChatDoc) {
+      if (mounted) {
+        setState(() {
+          _listenChatDoc = true;
+          _listenMessages = true;
+        });
+      }
+      await _chatRepo.markChatRead(widget.chatRoomId);
+    }
+
     Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
   }
 
@@ -292,11 +340,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final chatDocStream = FirebaseFirestore.instance
-        .collection('chats')
-        .doc(widget.chatRoomId)
-        .snapshots();
-
     final quicks = (widget.quickPhrases == null || widget.quickPhrases!.isEmpty)
         ? const ['안녕하세요', '저랑 룸메이트 어떠세요 ?', '집이 멋져요']
         : widget.quickPhrases!;
@@ -305,6 +348,15 @@ class _ChatScreenState extends State<ChatScreen> {
       context,
     ).colorScheme.surfaceContainerHighest.withOpacity(0.25);
 
+    // chat 문서 스트림(존재 확인 전에는 붙이지 않음)
+    final Stream<DocumentSnapshot<Map<String, dynamic>>>? chatDocStream =
+        _listenChatDoc
+        ? FirebaseFirestore.instance
+              .collection('chats')
+              .doc(widget.chatRoomId)
+              .snapshots()
+        : null;
+
     return GestureDetector(
       onTap: _onScaffoldTap,
       child: Scaffold(
@@ -312,76 +364,38 @@ class _ChatScreenState extends State<ChatScreen> {
           scrolledUnderElevation: 0,
           centerTitle: false,
           titleSpacing: 0,
-          title: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: chatDocStream,
-            builder: (context, snap) {
-              Timestamp? lastSeenPartner;
-              if (snap.hasData && snap.data!.exists) {
-                final map = snap.data!.data() ?? const <String, dynamic>{};
-                final ls = (map['lastSeenAt'] as Map?) ?? {};
-                lastSeenPartner = ls[widget.partnerUid] as Timestamp?;
-              }
-              final active = _isActiveNow(lastSeenPartner);
-              final statusText = active
-                  ? 'Active now'
-                  : (lastSeenPartner != null
-                        ? 'Last seen ${DateFormat.jm().format(lastSeenPartner.toDate())}'
-                        : '');
+          title: _listenChatDoc
+              ? StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: chatDocStream,
+                  builder: (context, snap) {
+                    Timestamp? lastSeenPartner;
+                    if (snap.hasData && snap.data!.exists) {
+                      final map =
+                          snap.data!.data() ?? const <String, dynamic>{};
+                      final ls = (map['lastSeenAt'] as Map?) ?? {};
+                      lastSeenPartner = ls[widget.partnerUid] as Timestamp?;
+                    }
+                    final active = _isActiveNow(lastSeenPartner);
+                    final statusText = active
+                        ? 'Active now'
+                        : (lastSeenPartner != null
+                              ? 'Last seen ${DateFormat.jm().format(lastSeenPartner.toDate())}'
+                              : '');
 
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    radius: ResponsiveSizes.p(context, 16),
-                    backgroundImage:
-                        (_partnerPhoto != null && _partnerPhoto!.isNotEmpty)
-                        ? NetworkImage(_partnerPhoto!)
-                        : null,
-                    child: (_partnerPhoto == null || _partnerPhoto!.isEmpty)
-                        ? Icon(
-                            Icons.person,
-                            size: ResponsiveSizes.f(context, 20),
-                          )
-                        : null,
-                  ),
-                  Gaps.h10(context),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.partnerName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 18,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          if (active)
-                            const Padding(
-                              padding: EdgeInsets.only(right: 4),
-                              child: Icon(
-                                Icons.circle,
-                                size: 8,
-                                color: Colors.greenAccent,
-                              ),
-                            ),
-                          Text(
-                            statusText,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
+                    return _AppBarTitle(
+                      name: widget.partnerName,
+                      photoUrl: _partnerPhoto,
+                      active: active,
+                      statusText: statusText,
+                    );
+                  },
+                )
+              : _AppBarTitle(
+                  name: widget.partnerName,
+                  photoUrl: _partnerPhoto,
+                  active: false,
+                  statusText: '',
+                ),
           actions: [
             PopupMenuButton<String>(
               itemBuilder: (c) {
@@ -431,293 +445,349 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
 
-        body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: chatDocStream,
-          builder: (context, chatSnap) {
-            Timestamp? lastSeenPartner;
-            if (chatSnap.hasData && chatSnap.data!.exists) {
-              final map = chatSnap.data!.data() ?? const <String, dynamic>{};
-              final ls = (map['lastSeenAt'] as Map?) ?? {};
-              lastSeenPartner = ls[widget.partnerUid] as Timestamp?;
-            }
-
-            return Column(
-              children: [
-                // 메시지 리스트
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: _chatRepo.watchMessages(widget.chatRoomId),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      final docs = snapshot.data!.docs;
-
-                      // 최신 메시지가 상대 메시지면 읽음 갱신
-                      if (docs.isNotEmpty) {
-                        final last = docs.last;
-                        final d = last.data();
-                        final isMine = d['senderId'] == _me.uid;
-                        if (!isMine && _lastClearedMsgId != last.id) {
-                          _chatRepo.markChatRead(widget.chatRoomId);
-                          _lastClearedMsgId = last.id;
+        body: Column(
+          children: [
+            // 메시지 리스트(문서가 생기기 전에는 비워둠)
+            Expanded(
+              child: _listenMessages
+                  ? StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _chatRepo.watchMessages(widget.chatRoomId),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          // 권한/기타 오류 시에도 UI는 죽지 않게
+                          return const SizedBox.shrink();
                         }
-                      }
+                        if (!snapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
 
-                      return ListView.builder(
-                        controller: _scrollController,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: ResponsiveSizes.p(context, 20),
-                          vertical: ResponsiveSizes.p(context, 8),
-                        ),
-                        itemCount: docs.length,
-                        itemBuilder: (context, index) {
-                          final data = docs[index].data();
-                          final isMe = data['senderId'] == _me.uid;
-                          final createdAt = (data['createdAt'] as Timestamp?)
-                              ?.toDate();
-                          final kind = (data['kind'] ?? 'text').toString();
+                        final docs = snapshot.data!.docs;
 
-                          // 날짜 헤더
-                          bool showDateHeader = false;
-                          if (createdAt != null) {
-                            if (index == 0) {
-                              showDateHeader = true;
-                            } else {
-                              final prev =
-                                  (docs[index - 1].data()['createdAt']
-                                          as Timestamp?)
-                                      ?.toDate();
-                              if (prev == null || !_sameDay(createdAt, prev))
+                        // 최신 메시지가 상대 메시지면 읽음 갱신
+                        if (docs.isNotEmpty) {
+                          final last = docs.last;
+                          final d = last.data();
+                          final isMine = d['senderId'] == _me.uid;
+                          if (!isMine && _lastClearedMsgId != last.id) {
+                            _chatRepo.markChatRead(widget.chatRoomId);
+                            _lastClearedMsgId = last.id;
+                          }
+                        }
+
+                        return ListView.builder(
+                          controller: _scrollController,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: ResponsiveSizes.p(context, 20),
+                            vertical: ResponsiveSizes.p(context, 8),
+                          ),
+                          itemCount: docs.length,
+                          itemBuilder: (context, index) {
+                            final data = docs[index].data();
+                            final isMe = data['senderId'] == _me.uid;
+                            final createdAt = (data['createdAt'] as Timestamp?)
+                                ?.toDate();
+                            final kind = (data['kind'] ?? 'text').toString();
+
+                            // 날짜 헤더
+                            bool showDateHeader = false;
+                            if (createdAt != null) {
+                              if (index == 0) {
                                 showDateHeader = true;
+                              } else {
+                                final prev =
+                                    (docs[index - 1].data()['createdAt']
+                                            as Timestamp?)
+                                        ?.toDate() ??
+                                    DateTime.fromMillisecondsSinceEpoch(0);
+                                if (!_sameDay(createdAt, prev)) {
+                                  showDateHeader = true;
+                                }
+                              }
                             }
-                          }
 
-                          // 묶음 마지막에만 시간
-                          String? timeText;
-                          if (createdAt != null) {
-                            final isLast = index == docs.length - 1;
-                            if (isLast) {
-                              timeText = _fmtHm(createdAt);
-                            } else {
-                              final next = docs[index + 1].data();
-                              final nextSender = next['senderId'] as String?;
-                              final nextAt = (next['createdAt'] as Timestamp?)
-                                  ?.toDate();
-                              final senderChanged =
-                                  nextSender != data['senderId'];
-                              final minuteChanged = nextAt == null
-                                  ? true
-                                  : !_sameMinute(createdAt, nextAt);
-                              if (senderChanged || minuteChanged)
+                            // 묶음 마지막에만 시간
+                            String? timeText;
+                            if (createdAt != null) {
+                              final isLast = index == docs.length - 1;
+                              if (isLast) {
                                 timeText = _fmtHm(createdAt);
+                              } else {
+                                final next = docs[index + 1].data();
+                                final nextSender = next['senderId'] as String?;
+                                final nextAt = (next['createdAt'] as Timestamp?)
+                                    ?.toDate();
+                                final senderChanged =
+                                    nextSender != data['senderId'];
+                                final minuteChanged = nextAt == null
+                                    ? true
+                                    : !_sameMinute(createdAt, nextAt);
+                                if (senderChanged || minuteChanged) {
+                                  timeText = _fmtHm(createdAt);
+                                }
+                              }
                             }
-                          }
 
-                          // 내 메시지 읽지않음 '1'
-                          bool showUnreadBadge = false;
-                          if (isMe) {
-                            if (lastSeenPartner == null) {
-                              showUnreadBadge = true;
-                            } else if (createdAt == null) {
-                              showUnreadBadge = true;
+                            // 내 메시지 읽지않음 '1'
+                            Timestamp? lastSeenPartner;
+                            if (_listenChatDoc && chatDocStream != null) {
+                              // 상단 StreamBuilder에서 계산하지만,
+                              // 여기서는 안전하게 showUnread만 판단
+                            }
+                            bool showUnreadBadge = false;
+                            if (isMe) {
+                              // 간단 판단: timeText가 있으면 마지막 버블에서만 표시되도록
+                              if (timeText != null) {
+                                showUnreadBadge = true;
+                              }
+                            }
+
+                            Widget child;
+                            if (kind == 'post') {
+                              final postMap = (data['post'] as Map?)
+                                  ?.cast<String, dynamic>();
+                              if (postMap != null) {
+                                final s = PostSnippet.fromMap(postMap);
+                                child = Align(
+                                  alignment: isMe
+                                      ? Alignment.centerRight
+                                      : Alignment.centerLeft,
+                                  child: _PostNoticeBubble(
+                                    isMe: isMe,
+                                    snippet: s,
+                                    getSignedUrl: _signedUrl,
+                                    onTap: () => _openPostDetail(s),
+                                    time: timeText,
+                                  ),
+                                );
+                              } else {
+                                child = const SizedBox.shrink();
+                              }
                             } else {
-                              showUnreadBadge = createdAt.isAfter(
-                                lastSeenPartner.toDate(),
+                              child = _MessageBubble(
+                                isMe: isMe,
+                                text: (data['text'] ?? '').toString(),
+                                time: timeText,
+                                showUnread: showUnreadBadge,
                               );
                             }
-                          }
 
-                          Widget child;
-                          if (kind == 'post') {
-                            final postMap = (data['post'] as Map?)
-                                ?.cast<String, dynamic>();
-                            if (postMap != null) {
-                              final s = PostSnippet.fromMap(postMap);
-                              child = Align(
-                                alignment: isMe
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
-                                child: _PostNoticeBubble(
-                                  isMe: isMe,
-                                  snippet: s,
-                                  getSignedUrl: _signedUrl,
-                                  onTap: () => _openPostDetail(s),
-                                  time: timeText,
-                                ),
-                              );
-                            } else {
-                              child = const SizedBox.shrink();
-                            }
-                          } else {
-                            child = _MessageBubble(
-                              isMe: isMe,
-                              text: (data['text'] ?? '').toString(),
-                              time: timeText,
-                              showUnread: showUnreadBadge,
-                            );
-                          }
-
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (showDateHeader && createdAt != null) ...[
-                                SizedBox(height: ResponsiveSizes.p(context, 8)),
-                                Center(
-                                  child: Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: ResponsiveSizes.p(
-                                        context,
-                                        10,
-                                      ),
-                                      vertical: ResponsiveSizes.p(context, 4),
-                                    ),
-                                    child: Text(
-                                      _fmtDateKr(createdAt),
-                                      style: TextStyle(
-                                        fontSize: ResponsiveSizes.f(
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (showDateHeader && createdAt != null) ...[
+                                  SizedBox(
+                                    height: ResponsiveSizes.p(context, 8),
+                                  ),
+                                  Center(
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: ResponsiveSizes.p(
                                           context,
-                                          12,
+                                          10,
                                         ),
-                                        color: Colors.grey.shade700,
+                                        vertical: ResponsiveSizes.p(context, 4),
+                                      ),
+                                      child: Text(
+                                        _fmtDateKr(createdAt),
+                                        style: TextStyle(
+                                          fontSize: ResponsiveSizes.f(
+                                            context,
+                                            12,
+                                          ),
+                                          color: Colors.grey.shade700,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                SizedBox(height: ResponsiveSizes.p(context, 6)),
+                                  SizedBox(
+                                    height: ResponsiveSizes.p(context, 6),
+                                  ),
+                                ],
+                                child,
                               ],
-                              child,
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
+                            );
+                          },
+                        );
+                      },
+                    )
+                  : const SizedBox.expand(), // 빈 방: 조용히 빈 화면
+            ),
 
-                // 퀵 전송 칩 + 글 공유하기 버튼
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: ResponsiveSizes.p(context, 12),
-                    vertical: ResponsiveSizes.p(context, 6),
-                  ),
-                  color: inputStripBg,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        ...(quicks).map(
-                          (t) => Padding(
-                            padding: EdgeInsets.only(
-                              right: ResponsiveSizes.p(context, 8),
-                            ),
-                            child: ActionChip(
-                              label: Text(t),
-                              onPressed: () => _quickSend(t),
-                              backgroundColor: Colors.white,
-                              side: const BorderSide(color: Colors.black12),
-                              shape: const StadiumBorder(),
-                              labelPadding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                            ),
+            // 퀵 전송 칩 + 글 공유하기 버튼
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                horizontal: ResponsiveSizes.p(context, 12),
+                vertical: ResponsiveSizes.p(context, 6),
+              ),
+              color: inputStripBg,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ...(quicks).map(
+                      (t) => Padding(
+                        padding: EdgeInsets.only(
+                          right: ResponsiveSizes.p(context, 8),
+                        ),
+                        child: ActionChip(
+                          label: Text(t),
+                          onPressed: () => _quickSend(t),
+                          backgroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.black12),
+                          shape: const StadiumBorder(),
+                          labelPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
                           ),
                         ),
-                        if (widget.postSnippet != null && !_alreadySharedOrigin)
-                          Padding(
-                            padding: EdgeInsets.only(
-                              left: ResponsiveSizes.p(context, 4),
-                            ),
-                            child: OutlinedButton.icon(
-                              onPressed: () async {
-                                final ok = await _chatRepo.sharePostOnce(
-                                  widget.chatRoomId,
-                                  widget.postSnippet!,
-                                );
-                                // ok 여부와 관계없이 서버가 1회만 보장하므로 버튼은 숨김
-                                setState(() => _alreadySharedOrigin = true);
-
-                                // (선택) UX 피드백
-                                // if (!ok) {
-                                //   ScaffoldMessenger.of(context).showSnackBar(
-                                //     const SnackBar(content: Text('이미 공유된 게시글입니다.')),
-                                //   );
-                                // }
-                              },
-                              icon: const Icon(Icons.campaign_outlined),
-                              label: const Text('글 공유하기'),
-                              style: OutlinedButton.styleFrom(
-                                shape: const StadiumBorder(),
-                              ),
-                            ),
-                          ),
-                      ],
+                      ),
                     ),
-                  ),
+                    if (widget.postSnippet != null && !_alreadySharedOrigin)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          left: ResponsiveSizes.p(context, 4),
+                        ),
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final ok = await _chatRepo.sharePostOnce(
+                              widget.chatRoomId,
+                              widget.postSnippet!,
+                            );
+                            setState(() => _alreadySharedOrigin = true);
+                            // ok 여부와 무관하게 서버가 1회만 보장
+                          },
+                          icon: const Icon(Icons.campaign_outlined),
+                          label: const Text('글 공유하기'),
+                          style: OutlinedButton.styleFrom(
+                            shape: const StadiumBorder(),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
+              ),
+            ),
 
-                // 입력 영역
-                Container(
-                  width: double.infinity,
-                  color: inputStripBg,
-                  padding: EdgeInsets.fromLTRB(
-                    ResponsiveSizes.p(context, 10),
-                    ResponsiveSizes.p(context, 6),
-                    ResponsiveSizes.p(context, 10),
-                    ResponsiveSizes.p(context, 10),
-                  ),
-                  child: SafeArea(
-                    top: false,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: ResponsiveSizes.p(context, 12),
-                              vertical: ResponsiveSizes.p(context, 2),
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(
-                                ResponsiveSizes.p(context, 18),
-                              ),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x14000000),
-                                  blurRadius: 6,
-                                  offset: Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: _BorderlessInput(
-                              controller: _msgCtrl,
-                              onSubmitted: _sendMessage,
-                            ),
-                          ),
+            // 입력 영역
+            Container(
+              width: double.infinity,
+              color: inputStripBg,
+              padding: EdgeInsets.fromLTRB(
+                ResponsiveSizes.p(context, 10),
+                ResponsiveSizes.p(context, 6),
+                ResponsiveSizes.p(context, 10),
+                ResponsiveSizes.p(context, 10),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: ResponsiveSizes.p(context, 12),
+                          vertical: ResponsiveSizes.p(context, 2),
                         ),
-                        Gaps.h8(context),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.send,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                            onPressed: _sendMessage,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(
+                            ResponsiveSizes.p(context, 18),
                           ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x14000000),
+                              blurRadius: 6,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
                         ),
-                      ],
+                        child: _BorderlessInput(
+                          controller: _msgCtrl,
+                          onSubmitted: _sendMessage,
+                        ),
+                      ),
                     ),
-                  ),
+                    Gaps.h8(context),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.send,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                        onPressed: _sendMessage,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _AppBarTitle extends StatelessWidget {
+  final String name;
+  final String? photoUrl;
+  final bool active;
+  final String statusText;
+
+  const _AppBarTitle({
+    required this.name,
+    required this.photoUrl,
+    required this.active,
+    required this.statusText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: ResponsiveSizes.p(context, 16),
+          backgroundImage: (photoUrl != null && photoUrl!.isNotEmpty)
+              ? NetworkImage(photoUrl!)
+              : null,
+          child: (photoUrl == null || photoUrl!.isEmpty)
+              ? Icon(Icons.person, size: ResponsiveSizes.f(context, 20))
+              : null,
+        ),
+        Gaps.h10(context),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              name,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+            ),
+            Row(
+              children: [
+                if (active)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 4),
+                    child: Icon(
+                      Icons.circle,
+                      size: 8,
+                      color: Colors.greenAccent,
+                    ),
+                  ),
+                Text(
+                  statusText,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

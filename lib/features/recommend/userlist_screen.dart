@@ -212,7 +212,7 @@ class _UserListScreenState extends State<UserListScreen> {
   Future<void> _startChat(AppUser partner) async {
     final meUid = _auth.currentUser!.uid;
     final chatRepo = ChatRepository();
-    final chatId = await chatRepo.createChatRoom(meUid, partner.uid);
+    final chatId = ChatRepository.makeRoomId(meUid, partner.uid);
 
     if (!mounted) return;
     Navigator.push(
@@ -222,6 +222,8 @@ class _UserListScreenState extends State<UserListScreen> {
           chatRoomId: chatId,
           partnerUid: partner.uid,
           partnerName: partner.displayName,
+          initialPrefillText: '안녕하세요!', // 프리필도 넣고
+          autoSharePostOnFirstSend: false, // 유저리스트는 게시글 공유 없음
         ),
       ),
     );

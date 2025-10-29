@@ -423,7 +423,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
 
       final chatRoomId = ChatRepository.makeRoomId(me.uid, partnerUid);
 
-      // 게시글 카드 정보만 준비 (즉시 전송 금지)
+      // 게시글 카드 정보만 준비(즉시 전송 금지)
       final snippet = PostSnippet(
         postId: widget.post.postId ?? '',
         title: widget.post.title ?? '',
@@ -436,6 +436,13 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             : null,
       );
 
+      // ⬇️ 프리필 문구: 「제목」(근처라벨) 게시글 보고 연락드려요
+      final t = (widget.post.title ?? '').trim();
+      final nl = widget.post.getAddressLabel.trim();
+      final prefill =
+          '「${t.isEmpty ? "게시글" : t}」'
+          '${nl.isEmpty ? "" : "($nl)"} 게시글 보고 연락드려요.';
+
       if (!mounted) return;
       Navigator.push(
         context,
@@ -444,9 +451,9 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             chatRoomId: chatRoomId,
             partnerUid: partnerUid,
             partnerName: partnerName,
-            initialPrefillText: '게시글을 보고 연락했어요',
+            initialPrefillText: prefill,
             postSnippet: snippet,
-            autoSharePostOnFirstSend: true, // 첫 전송 시 1회 자동 공유
+            autoSharePostOnFirstSend: true, // 첫 전송 시 1회 공유
           ),
         ),
       );
