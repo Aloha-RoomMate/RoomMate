@@ -47,6 +47,7 @@ class ChatRepository {
   }
 
   // ── 게시글 카드 1회 공유 ─────────────────────────────────────────────
+  // ChatRepository.dart — sharePostOnce() 전체 교체
   Future<bool> sharePostOnce(String chatRoomId, PostSnippet s) async {
     final me = _auth.currentUser!;
     final chatRef = _db.collection('chats').doc(chatRoomId);
@@ -60,6 +61,7 @@ class ChatRepository {
       final shared = (data['sharedOriginPostIds'] as List?) ?? const [];
       if (shared.contains(s.postId)) return false;
 
+      // 메시지 문서
       final msgRef = msgCol.doc();
       tx.set(msgRef, {
         'id': msgRef.id,
@@ -69,18 +71,28 @@ class ChatRepository {
         'post': s.toMap(),
       });
 
-      tx.set(chatRef, {
+      // 메타 갱신 (+ 배지/hasContent)
+      final participants = List<String>.from(data['participants'] ?? const []);
+      final updates = <String, dynamic>{
         'sharedOriginPostIds': FieldValue.arrayUnion([s.postId]),
         'lastMessage': '${s.title} 공유함',
         'lastMessageSenderId': me.uid,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+        'hasContent': true, // ✅ 목록 대상화
+      };
+      for (final p in participants) {
+        updates['unreadCounts.$p'] = (p == me.uid)
+            ? 0
+            : FieldValue.increment(1);
+      }
 
+      tx.set(chatRef, updates, SetOptions(merge: true));
       return true;
     });
   }
 
   // ── 텍스트 전송 ─────────────────────────────────────────────────────
+  // ChatRepository.dart — sendMessage() 만 수정
   Future<void> sendMessage(String chatRoomId, String text) async {
     final me = _auth.currentUser!;
     final chatRef = _db.collection('chats').doc(chatRoomId);
@@ -101,6 +113,7 @@ class ChatRepository {
     await _db.runTransaction((tx) async {
       final snap = await tx.get(chatRef);
       if (!snap.exists) return;
+
       final participants = List<String>.from(
         snap.data()?['participants'] ?? const [],
       );
@@ -108,6 +121,7 @@ class ChatRepository {
         'lastMessage': text,
         'lastMessageSenderId': me.uid,
         'updatedAt': FieldValue.serverTimestamp(),
+        'hasContent': true, // ✅ 빈방 숨기기 플래그
       };
       for (final p in participants) {
         updates['unreadCounts.$p'] = (p == me.uid)

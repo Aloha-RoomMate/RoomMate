@@ -166,62 +166,75 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // ChatScreen.dart — _sendMessage()와 _quickSend()의 try/catch 보강
   Future<void> _sendMessage() async {
     _commitComposing();
     final text = _msgCtrl.text.trim();
     if (text.isEmpty) return;
 
-    await _chatRepo.sendMessage(widget.chatRoomId, text);
-    _msgCtrl.clear();
+    try {
+      await _chatRepo.sendMessage(widget.chatRoomId, text);
+      _msgCtrl.clear();
 
-    // ✅ 첫 전송 + 자동공유 + postSnippet 있을 때만 1회 공유
-    if (!_firstSendDone &&
-        widget.autoSharePostOnFirstSend &&
-        widget.postSnippet != null) {
-      _firstSendDone = true;
-      await _chatRepo.sharePostOnce(widget.chatRoomId, widget.postSnippet!);
-      _alreadySharedOrigin = true;
-      if (mounted) setState(() {});
-    }
-
-    // 이제 부모 문서가 생겼을 것이므로 스트림 활성화 + 읽음 처리
-    if (!_listenMessages || !_listenChatDoc) {
-      if (mounted) {
-        setState(() {
-          _listenChatDoc = true;
-          _listenMessages = true;
-        });
+      if (!_firstSendDone &&
+          widget.autoSharePostOnFirstSend &&
+          widget.postSnippet != null) {
+        _firstSendDone = true;
+        await _chatRepo.sharePostOnce(widget.chatRoomId, widget.postSnippet!);
+        _alreadySharedOrigin = true;
+        if (mounted) setState(() {});
       }
-      await _chatRepo.markChatRead(widget.chatRoomId);
-    }
 
-    Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
+      if (!_listenMessages || !_listenChatDoc) {
+        if (mounted) {
+          setState(() {
+            _listenChatDoc = true;
+            _listenMessages = true;
+          });
+        }
+        await _chatRepo.markChatRead(widget.chatRoomId);
+      }
+
+      Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('전송 실패: $e')),
+      );
+    }
   }
 
   Future<void> _quickSend(String text) async {
     if (text.trim().isEmpty) return;
-    await _chatRepo.sendMessage(widget.chatRoomId, text.trim());
+    try {
+      await _chatRepo.sendMessage(widget.chatRoomId, text.trim());
 
-    if (!_firstSendDone &&
-        widget.autoSharePostOnFirstSend &&
-        widget.postSnippet != null) {
-      _firstSendDone = true;
-      await _chatRepo.sharePostOnce(widget.chatRoomId, widget.postSnippet!);
-      _alreadySharedOrigin = true;
-      if (mounted) setState(() {});
-    }
-
-    if (!_listenMessages || !_listenChatDoc) {
-      if (mounted) {
-        setState(() {
-          _listenChatDoc = true;
-          _listenMessages = true;
-        });
+      if (!_firstSendDone &&
+          widget.autoSharePostOnFirstSend &&
+          widget.postSnippet != null) {
+        _firstSendDone = true;
+        await _chatRepo.sharePostOnce(widget.chatRoomId, widget.postSnippet!);
+        _alreadySharedOrigin = true;
+        if (mounted) setState(() {});
       }
-      await _chatRepo.markChatRead(widget.chatRoomId);
-    }
 
-    Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
+      if (!_listenMessages || !_listenChatDoc) {
+        if (mounted) {
+          setState(() {
+            _listenChatDoc = true;
+            _listenMessages = true;
+          });
+        }
+        await _chatRepo.markChatRead(widget.chatRoomId);
+      }
+
+      Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('전송 실패: $e')),
+      );
+    }
   }
 
   bool _sameDay(DateTime a, DateTime b) =>

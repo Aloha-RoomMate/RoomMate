@@ -55,8 +55,9 @@ class RoomOwnerPostRepository {
       ...post.toMap(),
       if (post.authorGender != null)
         'authorGender': _normalize(post.authorGender) ?? post.authorGender,
-      'status': post.status ?? 'open', // ✅ 명시적으로
+      'status': post.status ?? 'open',
       'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(), // ⬅️ 추가
       if (post.imageUrls == null) 'imageUrls': <String>[],
     };
     final doc = await _col.add(data);
@@ -94,24 +95,22 @@ class RoomOwnerPostRepository {
     String? myGender,
   }) async {
     myGender ??= await _fetchViewerGender();
+    final tokens = _synonyms(myGender);
 
     try {
       var q = _col
           .where('postType', isEqualTo: postType)
-          .where('status', isEqualTo: 'open') // ✅ 열린 글만
-          .orderBy('createdAt', descending: true)
+          .where('status', isEqualTo: 'open')
+          .orderBy('updatedAt', descending: true) // ⬅️ 변경 권장
           .limit(limit);
 
-      final tokens = _synonyms(myGender);
+      if (lastItem != null) q = q.startAfterDocument(lastItem);
       if (tokens.isNotEmpty) {
         q = q.where('authorGender', whereIn: tokens);
       }
 
-      if (lastItem != null) q = q.startAfterDocument(lastItem);
-
       final snap = await q.get();
       final posts = snap.docs.map(RoomOwnerPost.fromDoc).toList();
-
       return PaginatedPostsResult(
         posts: posts,
         lastDocument: snap.docs.isNotEmpty ? snap.docs.last : null,
@@ -123,34 +122,44 @@ class RoomOwnerPostRepository {
 
       if (!needsIndex) rethrow;
 
-      // 🩹 인덱스 빌드 중 임시 폴백
-      var q = _col.where('postType', isEqualTo: postType).limit(limit);
-
-      final tokens = _synonyms(myGender);
-      if (tokens.isNotEmpty) {
-        q = q.where('authorGender', whereIn: tokens);
-      }
-
+      // ===== 폴백 경로 (인덱스 빌드 중) =====
+      // 1) 서버 쿼리는 최소화: postType만, 커서는 서버 순서(__name__) 기준 유지
+      // 2) 클라이언트에서 status=='open'와 gender 토큰 필터링 + updatedAt/createdAt 정렬
+      var q = _col
+          .where('postType', isEqualTo: postType)
+          .limit(limit * 5); // ⬅️ 넉넉히
       if (lastItem != null) q = q.startAfterDocument(lastItem);
 
       final snap = await q.get();
-      final docs = snap.docs.toList()
-        ..sort((a, b) {
-          final at = a.data()['createdAt'];
-          final bt = b.data()['createdAt'];
-          final ad = (at is Timestamp)
-              ? at.toDate()
-              : DateTime.fromMillisecondsSinceEpoch(0);
-          final bd = (bt is Timestamp)
-              ? bt.toDate()
-              : DateTime.fromMillisecondsSinceEpoch(0);
-          return bd.compareTo(ad); // desc
-        });
+      // 커서는 반드시 '서버가 돌려준 순서'의 마지막 스냅샷으로 잡아야 함
+      final serverLast = snap.docs.isNotEmpty ? snap.docs.last : null;
 
-      final list = docs.map(RoomOwnerPost.fromDoc).toList();
+      // 클라이언트 필터
+      List<RoomOwnerPost> all = snap.docs.map(RoomOwnerPost.fromDoc).toList();
+      all = all
+          .where((p) => (p.status ?? 'open') == 'open')
+          .toList(); // ⬅️ 마감 제거
+
+      if (tokens.isNotEmpty) {
+        final tokSet = tokens.toSet();
+        all = all.where((p) {
+          final g = p.authorGender;
+          if (g == null) return false;
+          // 저장은 보통 'male'/'female'로 정규화돼 있으니 토큰셋에 포함되면 통과
+          return tokSet.contains(g);
+        }).toList();
+      }
+
+      // 정렬: updatedAt > createdAt
+      DateTime ts(RoomOwnerPost p) =>
+          p.updatedAt ?? p.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      all.sort((a, b) => ts(b).compareTo(ts(a)));
+
+      final page = all.take(limit).toList();
+
       return PaginatedPostsResult(
-        posts: list,
-        lastDocument: docs.isNotEmpty ? docs.last : null,
+        posts: page,
+        lastDocument: serverLast, // ⬅️ 서버 커서 유지(중요)
       );
     }
   }
@@ -289,6 +298,7 @@ class RoomOwnerPostRepository {
       final snap = await q.get();
       final list = snap.docs
           .map(RoomOwnerPost.fromDoc)
+          .where((p) => (p.status ?? 'open') == 'open') // ⬅️ 추가
           .where((p) {
             final gp = p.coordinate;
             if (gp == null) return false;

@@ -24,6 +24,12 @@ const _jusoKey = String.fromEnvironment(
   defaultValue: '',
 );
 
+class _PickedImage {
+  final XFile file;
+  final DateTime addedAt;
+  const _PickedImage(this.file, this.addedAt);
+}
+
 class RoomOwnerPostScreen extends StatefulWidget {
   const RoomOwnerPostScreen({super.key, this.postToEdit});
   final RoomOwnerPost? postToEdit;
@@ -61,7 +67,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
 
   // image pick & upload (Supabase)
   final _picker = ImagePicker();
-  final List<XFile> _pickedImages = []; // 새로 추가할 이미지(저장 시 업로드)
+  final List<_PickedImage> _pickedImages = []; // 새로 추가할 이미지(저장 시 업로드)
   bool _uploadingImages = false;
 
   // === 기존 업로드 이미지(편집 모드) ===
@@ -108,8 +114,12 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
 
     final uploadedPaths = <String>[];
     try {
-      for (int i = 0; i < _pickedImages.length; i++) {
-        final xf = _pickedImages[i];
+      // ✔ 선택(addedAt) 오름차순으로 고정
+      final ordered = List<_PickedImage>.from(_pickedImages)
+        ..sort((a, b) => a.addedAt.compareTo(b.addedAt));
+
+      for (int i = 0; i < ordered.length; i++) {
+        final xf = ordered[i].file;
         final ext = xf.path.split('.').last;
         final fileName = '${DateTime.now().millisecondsSinceEpoch}-$i.$ext';
         final storagePath = 'roomOwnerPosts/$uid/$postId/$fileName';
@@ -126,7 +136,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 cacheControl: '3600',
               ),
             );
-
         uploadedPaths.add(storagePath);
       }
     } finally {
@@ -185,7 +194,9 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
         imageQuality: 85,
         preferredCameraDevice: CameraDevice.rear,
       );
-      if (x != null) setState(() => _pickedImages.add(x));
+      if (x != null) {
+        setState(() => _pickedImages.add(_PickedImage(x, DateTime.now())));
+      }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -197,7 +208,17 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
   Future<void> _getPhotoLibraryImages() async {
     try {
       final files = await _picker.pickMultiImage(imageQuality: 85);
-      if (files.isNotEmpty) setState(() => _pickedImages.addAll(files));
+      if (files.isNotEmpty) {
+        final base = DateTime.now();
+        setState(() {
+          for (int i = 0; i < files.length; i++) {
+            // 선택한 “그대로의 순서”를 미세한 시간차로 보존
+            _pickedImages.add(
+              _PickedImage(files[i], base.add(Duration(microseconds: i))),
+            );
+          }
+        });
+      }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -694,6 +715,16 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                         },
                       ),
                     ),
+                    Gaps.v8(context),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: _addresses.isNotEmpty
+                          ? SizedBox(
+                              height: 240, // 필요 시 200~320 사이로 조절
+                              child: _buildResults(),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
                   ],
                 ),
                 Builder(
@@ -824,7 +855,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                           borderRadius: BorderRadius.circular(8),
                           // 웹 호환을 위해 Image.network 사용(Blob URL)
                           child: Image.network(
-                            _pickedImages[i].path,
+                            _pickedImages[i].file.path,
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -847,13 +878,8 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       ],
                     ),
                   ),
-                Gaps.v24(context),
+                Gaps.v32(context),
 
-                SizedBox(
-                  height: _addresses.isNotEmpty ? 300 : 0,
-                  child: _buildResults(),
-                ),
-                Gaps.v12(context),
                 Text(
                   '사진 업로드',
                   style: TextStyle(

@@ -1,3 +1,4 @@
+// lib/class/room_owner_post.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// 방 주인(방 제공자) 게시글 데이터 모델
@@ -40,15 +41,16 @@ class RoomOwnerPost {
   final String? introduction;
   final List<String>? imageUrls;
 
-  // 생성 시각(서버시간)
+  // 생성/수정 시각(서버시간 → DateTime으로 노멀라이즈)
   final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const RoomOwnerPost({
     this.postId,
     required this.authorId,
     this.postType,
     this.authorGender,
-    this.status, // ✅ 추가
+    this.status,
     this.title,
     this.coordinate,
     this.roadAddress,
@@ -66,14 +68,31 @@ class RoomOwnerPost {
     this.introduction,
     this.imageUrls,
     this.createdAt,
+    this.updatedAt,
   });
+
+  // Timestamp / DateTime / int(ms) / String(ISO) → DateTime?
+  static DateTime? _asDate(dynamic v) {
+    if (v == null) return null;
+    if (v is Timestamp) return v.toDate();
+    if (v is DateTime) return v;
+    if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+    if (v is String) {
+      try {
+        return DateTime.parse(v);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
 
   Map<String, dynamic> toMap({bool skipNulls = true}) {
     final map = <String, dynamic>{
       'authorId': authorId,
       'postType': postType,
       'authorGender': authorGender,
-      'status': status ?? 'open', // ✅ 추가
+      'status': status ?? 'open',
       'title': title,
       'coordinate': coordinate,
       'roadAddress': roadAddress,
@@ -90,6 +109,7 @@ class RoomOwnerPost {
       'maxContract': maxContract,
       'introduction': introduction,
       'imageUrls': imageUrls,
+      // createdAt/updatedAt은 Repository에서 serverTimestamp로 관리
     };
     if (skipNulls) map.removeWhere((_, v) => v == null);
     return map;
@@ -102,17 +122,18 @@ class RoomOwnerPost {
       return null;
     }
 
+    String? safeStr(dynamic v) => v is String ? v : null;
+
     return RoomOwnerPost(
       postId: postId,
-      authorId: map['authorId'] as String? ?? '',
-      postType: map['postType'] as String?,
-      authorGender: map['authorGender'] as String?,
-      status: (map['status'] as String?) ?? 'open', // ✅ 추가
-      title: map['title'] as String? ?? '제목 없음',
+      authorId: safeStr(map['authorId']) ?? '',
+      postType: safeStr(map['postType']),
+      authorGender: safeStr(map['authorGender']),
+      status: safeStr(map['status']) ?? 'open',
+      title: safeStr(map['title']) ?? '제목 없음',
       coordinate: map['coordinate'] as GeoPoint?,
-      roadAddress:
-          map['roadAddress'] as String? ?? map['addressLabel'] as String?,
-      jibunAddress: map['jibunAddress'] as String?,
+      roadAddress: safeStr(map['roadAddress']) ?? safeStr(map['addressLabel']),
+      jibunAddress: safeStr(map['jibunAddress']),
       deposit: (map['deposit'] as num?)?.toInt(),
       rent: (map['rent'] as num?)?.toInt(),
       manageFee: (map['manageFee'] as num?)?.toInt(),
@@ -123,25 +144,25 @@ class RoomOwnerPost {
       movingDate: map['movingDate'] as Timestamp?,
       minContract: (map['minContract'] as num?)?.toInt(),
       maxContract: (map['maxContract'] as num?)?.toInt(),
-      introduction: map['introduction'] as String?,
+      introduction: safeStr(map['introduction']),
       imageUrls: toStringList(map['imageUrls']),
-      createdAt: (map['createdAt'] is Timestamp)
-          ? (map['createdAt'] as Timestamp).toDate()
-          : null,
+      createdAt: _asDate(map['createdAt']),
+      updatedAt: _asDate(map['updatedAt']),
     );
   }
 
-  // 편의 getter (원하면 사용)
+  factory RoomOwnerPost.fromDoc(DocumentSnapshot doc) {
+    final data =
+        (doc.data() as Map<String, dynamic>?) ?? const <String, dynamic>{};
+    return RoomOwnerPost.fromMap(doc.id, data);
+    // 제네릭이 Map<String,dynamic>이든 dynamic이든 안전하게 캐스팅
+  }
+
+  // 편의 getter
   bool get isOpen => (status ?? 'open') == 'open';
   bool get isClosed => (status ?? 'open') == 'closed';
   bool get isMatched => (status ?? '') == 'matched';
   bool get isCompleted => (status ?? '') == 'completed';
-
-  factory RoomOwnerPost.fromDoc(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    return RoomOwnerPost.fromMap(doc.id, doc.data() ?? <String, dynamic>{});
-  }
 
   /// jibunAddress를 기반으로 "XX동 부근"
   String get getAddressLabel {
@@ -151,9 +172,7 @@ class RoomOwnerPost {
     }
 
     final cleanedAddress = fullAddress.replaceAll(RegExp(r'\s*부근$'), '').trim();
-    if (cleanedAddress.isEmpty) {
-      return '주소 정보 없음';
-    }
+    if (cleanedAddress.isEmpty) return '주소 정보 없음';
 
     final RegExp regExp = RegExp(r'\(([^)]+)\)');
     final match = regExp.firstMatch(cleanedAddress);
@@ -168,9 +187,9 @@ class RoomOwnerPost {
       }
     }
 
-    List<String> parts = cleanedAddress.split(' ');
+    final parts = cleanedAddress.split(' ');
 
-    for (String part in parts) {
+    for (final part in parts) {
       if (part.endsWith('동') ||
           part.endsWith('읍') ||
           part.endsWith('면') ||
@@ -180,7 +199,7 @@ class RoomOwnerPost {
       }
     }
 
-    for (String part in parts) {
+    for (final part in parts) {
       if (part.endsWith('시') || part.endsWith('구')) {
         return '$part 부근';
       }

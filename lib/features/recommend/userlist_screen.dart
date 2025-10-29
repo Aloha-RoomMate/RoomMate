@@ -34,13 +34,19 @@ class UserListScreen extends StatefulWidget {
 class _UserListScreenState extends State<UserListScreen> {
   final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
+  late Future<_RecBundle> _future;
 
-  Future<_RecBundle>? _future;
+  // 성별 토큰/판별 헬퍼 (rules의 sameGender와 동치가 되도록)
+  static const Set<String> _maleTokens = {'male', '남성', '남자', 'm', 'M'};
+  static const Set<String> _femaleTokens = {'female', '여성', '여자', 'f', 'F'};
 
-  @override
-  void initState() {
-    super.initState();
-    _future = _load();
+  bool _isMale(String? g) => g != null && _maleTokens.contains(g.trim());
+  bool _isFemale(String? g) => g != null && _femaleTokens.contains(g.trim());
+
+  List<String> _genderTokens(String? g) {
+    if (_isMale(g)) return _maleTokens.toList();
+    if (_isFemale(g)) return _femaleTokens.toList();
+    return const <String>[];
   }
 
   Future<_RecBundle> _load() async {
@@ -51,12 +57,22 @@ class _UserListScreenState extends State<UserListScreen> {
     if (!meDoc.exists) throw StateError('내 사용자 문서가 없습니다.');
     final me = AppUser.fromDoc(meDoc);
 
-    final qs = await _db
+    // 1) 내 성별 확인 (없으면 규칙상 쿼리 실패 → 안내하고 중단)
+    final tokens = _genderTokens(me.gender);
+    if (tokens.isEmpty) {
+      throw StateError('설정에서 성별을 먼저 지정해주세요.');
+    }
+
+    // 2) 규칙과 동일한 조건으로 쿼리: pass == true AND same gender
+    var q = _db
         .collection('users')
         .where('userPass.pass', isEqualTo: true)
-        .limit(200)
-        .get();
+        .where('gender', whereIn: tokens) // ← 필수!
+        .limit(200);
 
+    final qs = await q.get();
+
+    // 3) 본인 제외 + 추천 점수 계산/정렬
     final others = qs.docs
         .where((d) => d.id != meUid)
         .map((d) => AppUser.fromDoc(d))
@@ -64,12 +80,11 @@ class _UserListScreenState extends State<UserListScreen> {
 
     final items = <_RecItem>[];
     for (final u in others) {
-      final comp = scoreUsers(me, u); // breakdown + 사유
-      final finalScore = comp.score;
-
-      items.add(_RecItem(user: u, score: finalScore, compSim: comp));
+      final comp = scoreUsers(me, u);
+      items.add(_RecItem(user: u, score: comp.score, compSim: comp));
     }
     items.sort((a, b) => b.score.compareTo(a.score));
+
     return _RecBundle(me: me, items: items);
   }
 
