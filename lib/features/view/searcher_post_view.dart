@@ -2,12 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/chat_repository.dart';
 import 'package:roommate/class/searcher_post.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:roommate/class/chat_repository.dart';
 import 'package:roommate/features/chat/chat_screen.dart';
 import 'package:roommate/features/view/user_profile_view.dart';
 import 'package:roommate/features/navigationbar/screens/mypage_screen.dart';
@@ -127,6 +127,7 @@ class _SearcherPostViewState extends State<SearcherPostView> {
       final partner = await _userRepository.fetchUserById(partnerUid);
       final partnerName = partner?.displayName ?? '상대방';
       final chatRoomId = await _chatRepo.createChatRoom(me.uid, partnerUid);
+      await _chatRepo.ensureChatDoc(chatRoomId); // ✅ 추가
 
       if (!mounted) return;
       Navigator.push(

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:roommate/class/app_user.dart';
+import 'package:roommate/class/chat_repository.dart';
 import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
@@ -425,6 +426,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
       final partner = await _userRepo.fetchUserById(partnerUid);
       final partnerName = partner?.displayName ?? '상대방';
       final chatRoomId = await _chatRepo.createChatRoom(me.uid, partnerUid);
+      await _chatRepo.ensureChatDoc(chatRoomId); // ✅ 추가
 
       // 공지형 카드 요약
       final imagePaths = (widget.post.imageUrls ?? [])

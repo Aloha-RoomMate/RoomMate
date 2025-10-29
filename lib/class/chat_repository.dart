@@ -35,6 +35,9 @@ class ChatRepository {
   /// 공지형 '게시글 카드'를 **한 번만** 보내고, sharedOriginPostIds 에 기록
   /// 반환값: 실제 전송되면 true, 이미 보낸 적 있으면 false
   Future<bool> sharePostOnce(String chatRoomId, PostSnippet s) async {
+    // ✅ 부모 문서 선보장 (중요)
+    await ensureChatDoc(chatRoomId);
+
     final chatRef = _db.collection('chats').doc(chatRoomId);
     final msgCol = chatRef.collection('messages');
     final me = _auth.currentUser!;
@@ -42,9 +45,7 @@ class ChatRepository {
       final chatSnap = await tx.get(chatRef);
       final data = chatSnap.data() ?? <String, dynamic>{};
       final shared = (data['sharedOriginPostIds'] as List?) ?? const [];
-      if (shared.contains(s.postId)) {
-        return false; // 이미 공유됨
-      }
+      if (shared.contains(s.postId)) return false;
 
       final msgRef = msgCol.doc();
       tx.set(msgRef, {
@@ -70,8 +71,30 @@ class ChatRepository {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  /// 메시지 전송 시에만 채팅방 문서를 원자적으로 생성/갱신
+  /// 채팅 문서가 없으면 participants와 기본 필드를 채워 생성 (멱등)
+  Future<void> ensureChatDoc(String chatRoomId) async {
+    final ids = _idsFromRoomId(chatRoomId);
+    if (ids.length != 2) return;
+
+    final chatRef = _db.collection("chats").doc(chatRoomId);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(chatRef);
+      if (snap.exists) return; // 이미 있으면 패스
+
+      tx.set(chatRef, {
+        "participants": ids,
+        "createdAt": FieldValue.serverTimestamp(),
+        "updatedAt": FieldValue.serverTimestamp(),
+        "unreadCounts": {ids[0]: 0, ids[1]: 0},
+      });
+    });
+  }
+
+  /// 메시지 전송 (부모 문서 선보장 + 메타 갱신)
   Future<void> sendMessage(String chatRoomId, String text) async {
+    // ✅ 부모 문서 선보장 (중요)
+    await ensureChatDoc(chatRoomId);
+
     final me = _auth.currentUser!;
     final idsFromKey = _idsFromRoomId(chatRoomId);
 
@@ -80,7 +103,6 @@ class ChatRepository {
 
     await _db.runTransaction((tx) async {
       final snap = await tx.get(chatRef);
-      // participants 확정(문서 없으면 roomId 파싱)
       final participants = snap.exists
           ? List<String>.from(snap.data()?["participants"] ?? idsFromKey)
           : idsFromKey;
@@ -95,26 +117,19 @@ class ChatRepository {
         "createdAt": FieldValue.serverTimestamp(),
       });
 
-      // 메타 갱신(+ 최초 생성 포함)
+      // 채팅 메타 갱신
       final updates = <String, dynamic>{
         "participants": participants,
         "lastMessage": text,
         "lastMessageSenderId": me.uid,
         "updatedAt": FieldValue.serverTimestamp(),
       };
-
       if (!snap.exists) {
         updates["createdAt"] = FieldValue.serverTimestamp();
       }
-
-      // unreadCounts: 보낸 사람은 0, 상대는 +1
       for (final p in participants) {
         final field = "unreadCounts.$p";
-        if (p == me.uid) {
-          updates[field] = 0;
-        } else {
-          updates[field] = FieldValue.increment(1);
-        }
+        updates[field] = (p == me.uid) ? 0 : FieldValue.increment(1);
       }
 
       tx.set(chatRef, updates, SetOptions(merge: true));

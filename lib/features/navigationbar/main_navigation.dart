@@ -111,6 +111,7 @@ class _MainNavigationState extends State<MainNavigation> {
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
         title: Text(title),
         content: Text(message),
         actions: [
