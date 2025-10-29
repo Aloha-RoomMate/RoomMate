@@ -1,4 +1,4 @@
-// features/view/searcher_post_view.dart
+// lib/features/view/searcher_post_view.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:roommate/class/app_user.dart';
@@ -10,7 +10,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:roommate/class/chat_repository.dart';
 import 'package:roommate/features/chat/chat_screen.dart';
 import 'package:roommate/features/view/user_profile_view.dart';
-// import 'package:roommate/features/post/searcher_post_screen.dart'; // 수정 화면이 준비되면 활성화
+import 'package:roommate/features/navigationbar/screens/mypage_screen.dart';
+import 'package:roommate/features/navigationbar/main_navigation.dart';
+import 'package:roommate/class/searcher_post_repository.dart';
 
 class SearcherPostView extends StatefulWidget {
   final SearcherPost post;
@@ -27,6 +29,8 @@ class SearcherPostView extends StatefulWidget {
 class _SearcherPostViewState extends State<SearcherPostView> {
   final UserRepository _userRepository = UserRepository();
   final ChatRepository _chatRepo = ChatRepository();
+  final SearcherPostRepository _searcherRepo = SearcherPostRepository();
+
   late Future<AppUser?> _authorFuture;
   bool _startingChat = false;
 
@@ -43,6 +47,15 @@ class _SearcherPostViewState extends State<SearcherPostView> {
     } else {
       _authorFuture = Future.value(null);
     }
+  }
+
+  // === MainNavigation으로 이동 (RoomOwnerPostView와 동일한 패턴) ===
+  void _goMain() {
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const MainNavigation(initialIndex: 0)),
+      (route) => false,
+    );
   }
 
   Widget _buildInfoRow(
@@ -137,18 +150,55 @@ class _SearcherPostViewState extends State<SearcherPostView> {
   }
 
   void _goEdit() {
-    // TODO: 방 구하기 게시물 수정 화면으로 이동
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(
-    //     builder: (_) => SearcherPostScreen(
-    //       postToEdit: widget.post,
-    //     ),
-    //   ),
-    // );
+    // TODO: 방 구하기 게시물 수정 화면으로 이동 (준비되면 활성화)
+    // Navigator.push(context, MaterialPageRoute(builder: (_) => SearcherPostScreen(postToEdit: widget.post)));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('수정 기능은 아직 준비 중입니다.')),
     );
+  }
+
+  Future<void> _handleDelete() async {
+    final postId = widget.post.postId;
+    if (postId == null || postId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('삭제할 게시글 ID가 없어요.')),
+      );
+      return;
+    }
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('완전 삭제'),
+        content: const Text('정말 삭제하시겠어요? 삭제 후 복구할 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await _searcherRepo.deletePost(postId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('게시글을 삭제했어요.')),
+      );
+      _goMain(); // ✅ 삭제 후 메인으로
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('삭제 실패: $e')),
+      );
+    }
   }
 
   @override
@@ -172,12 +222,18 @@ class _SearcherPostViewState extends State<SearcherPostView> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
+          // === SliverAppBar (RoomOwnerPostView 스타일) ===
           SliverAppBar(
             pinned: true,
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             foregroundColor: Colors.black,
             elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: _goMain, // ✅ MainNavigation으로
+              tooltip: '뒤로',
+            ),
             title: const Text(
               '상세 보기',
               style: TextStyle(
@@ -185,7 +241,17 @@ class _SearcherPostViewState extends State<SearcherPostView> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            actions: [
+              if (_isOwner)
+                IconButton(
+                  tooltip: '삭제하기',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: _handleDelete,
+                ),
+            ],
           ),
+
+          // === 본문 ===
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(Sizes.size20),
@@ -241,11 +307,23 @@ class _SearcherPostViewState extends State<SearcherPostView> {
                             );
                             return;
                           }
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => UserProfileView(targetUid: uid),
-                            ),
-                          );
+                          final meUid = FirebaseAuth.instance.currentUser?.uid;
+                          if (uid == meUid) {
+                            // ✅ 내 글이면 마이페이지
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const MypageScreen(isBlocked: false),
+                              ),
+                            );
+                          } else {
+                            // ✅ 남의 글이면 상대 프로필
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => UserProfileView(targetUid: uid),
+                              ),
+                            );
+                          }
                         },
                       );
                     },
@@ -281,7 +359,7 @@ class _SearcherPostViewState extends State<SearcherPostView> {
                   _buildInfoRow(
                     Icons.attach_money_outlined,
                     "희망 예산",
-                    "보증금 ${deposit}만 / 월세 ${minRent}만 ~ ${maxRent}만",
+                    "보증금 $deposit만 / 월세 $minRent만 ~ $maxRent만",
                     valueRight: true,
                   ),
                   _buildInfoRow(
@@ -317,7 +395,10 @@ class _SearcherPostViewState extends State<SearcherPostView> {
           ),
         ],
       ),
+      // === 하단 버튼: 투명 바텀앱바 ===
       bottomNavigationBar: BottomAppBar(
+        color: Colors.transparent,
+        elevation: 0,
         child: Padding(
           padding: const EdgeInsets.symmetric(
             vertical: Sizes.size6,

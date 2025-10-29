@@ -58,20 +58,9 @@ class _ChatScreenState extends State<ChatScreen> {
   RoomOwnerPost? _originPost;
   bool _iAmAuthorOfOrigin = false;
 
-  Future<String?> _signedUrl(String? path) async {
-    if (path == null || path.isEmpty) return null;
-    try {
-      return await _supabase.storage
-          .from('RoomMate-image')
-          .createSignedUrl(path, 3600);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  bool _firstSendDone = false; // 이 세션의 첫 전송 여부
-  bool _alreadySharedOrigin = false; // 이 채팅방에서 해당 postId를 이미 공유했는지
-  bool _shouldAutoShare = false; // 실제 자동공유 수행 여부
+  // UX용 로컬 플래그 (실제 중복 방지는 서버 트랜잭션이 보장)
+  bool _firstSendDone = false;
+  bool _alreadySharedOrigin = true; // postSnippet 있을 때 서버 확인 후 갱신
 
   @override
   void initState() {
@@ -97,8 +86,15 @@ class _ChatScreenState extends State<ChatScreen> {
     _prepareOriginContext();
   }
 
+  @override
+  void dispose() {
+    _msgCtrl.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _prepareOriginContext() async {
-    // 1) 프리필 세팅
+    // 1) 프리필
     if (widget.initialPrefillText?.isNotEmpty ?? false) {
       _msgCtrl.text = widget.initialPrefillText!;
       _msgCtrl.selection = TextSelection.collapsed(
@@ -106,36 +102,40 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
 
-    // 2) 원글 정보 + 한 번 공유 여부
+    // 2) 원글 공유 이력/원글 상세 (UI용)
     if (widget.postSnippet != null) {
-      final s = widget.postSnippet!;
       try {
         final shared = await _chatRepo.hasSharedOriginPost(
           widget.chatRoomId,
-          s.postId,
+          widget.postSnippet!.postId,
         );
         _alreadySharedOrigin = shared;
-        _shouldAutoShare = widget.autoSharePostOnFirstSend && !shared;
 
-        final p = await _postRepo.fetchById(s.postId);
+        final p = await _postRepo.fetchById(widget.postSnippet!.postId);
         if (!mounted) return;
         setState(() {
           _originPost = p;
           _iAmAuthorOfOrigin = (p?.authorId == _me.uid);
         });
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[_prepareOriginContext] err: $e');
+        if (mounted) setState(() {}); // UI만 갱신
+      }
     } else {
-      _shouldAutoShare = false;
       _alreadySharedOrigin = true; // 버튼 숨김
-      setState(() {});
+      if (mounted) setState(() {});
     }
   }
 
-  @override
-  void dispose() {
-    _msgCtrl.dispose();
-    _scrollController.dispose();
-    super.dispose();
+  Future<String?> _signedUrl(String? path) async {
+    if (path == null || path.isEmpty) return null;
+    try {
+      return await _supabase.storage
+          .from('RoomMate-image')
+          .createSignedUrl(path, 3600);
+    } catch (_) {
+      return null;
+    }
   }
 
   void _scrollToBottom() {
@@ -162,11 +162,14 @@ class _ChatScreenState extends State<ChatScreen> {
     await _chatRepo.sendMessage(widget.chatRoomId, text);
     _msgCtrl.clear();
 
-    if (!_firstSendDone && _shouldAutoShare && widget.postSnippet != null) {
-      _firstSendDone = true;
+    // ✅ 첫 전송 & 자동공유 옵션 & postSnippet 존재 시 → 서버 트랜잭션으로 1회 공유 시도
+    if (!_firstSendDone &&
+        widget.autoSharePostOnFirstSend &&
+        widget.postSnippet != null) {
+      _firstSendDone = true; // UX용
       await _chatRepo.sharePostOnce(widget.chatRoomId, widget.postSnippet!);
-      _alreadySharedOrigin = true;
-      setState(() {});
+      _alreadySharedOrigin = true; // 성공/중복 모두 버튼 숨김 (서버가 보장)
+      if (mounted) setState(() {});
     }
 
     Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
@@ -176,11 +179,13 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.trim().isEmpty) return;
     await _chatRepo.sendMessage(widget.chatRoomId, text.trim());
 
-    if (!_firstSendDone && _shouldAutoShare && widget.postSnippet != null) {
+    if (!_firstSendDone &&
+        widget.autoSharePostOnFirstSend &&
+        widget.postSnippet != null) {
       _firstSendDone = true;
       await _chatRepo.sharePostOnce(widget.chatRoomId, widget.postSnippet!);
       _alreadySharedOrigin = true;
-      setState(() {});
+      if (mounted) setState(() {});
     }
 
     Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
@@ -198,7 +203,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   String _fmtDateKr(DateTime dt) =>
       '${dt.year}년 ${dt.month.toString().padLeft(2, '0')}월 ${dt.day.toString().padLeft(2, '0')}일';
-
   String _fmtHm(DateTime dt) => DateFormat.jm().format(dt);
 
   bool _isActiveNow(Timestamp? ts) {
@@ -227,7 +231,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('게시글을 마감했어요.')));
-      setState(() {}); // 상태 반영
+      setState(() {});
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -465,7 +469,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
                       final docs = snapshot.data!.docs;
 
-                      // 최신 메시지가 상대 메시지면 바로 읽음 처리
+                      // 최신 메시지가 상대 메시지면 읽음 갱신
                       if (docs.isNotEmpty) {
                         final last = docs.last;
                         final d = last.data();
@@ -500,9 +504,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                   (docs[index - 1].data()['createdAt']
                                           as Timestamp?)
                                       ?.toDate();
-                              if (prev == null || !_sameDay(createdAt, prev)) {
+                              if (prev == null || !_sameDay(createdAt, prev))
                                 showDateHeader = true;
-                              }
                             }
                           }
 
@@ -522,9 +525,8 @@ class _ChatScreenState extends State<ChatScreen> {
                               final minuteChanged = nextAt == null
                                   ? true
                                   : !_sameMinute(createdAt, nextAt);
-                              if (senderChanged || minuteChanged) {
+                              if (senderChanged || minuteChanged)
                                 timeText = _fmtHm(createdAt);
-                              }
                             }
                           }
 
@@ -543,7 +545,6 @@ class _ChatScreenState extends State<ChatScreen> {
                           }
 
                           Widget child;
-
                           if (kind == 'post') {
                             final postMap = (data['post'] as Map?)
                                 ?.cast<String, dynamic>();
@@ -610,7 +611,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
 
-                // 퀵 전송 칩
+                // 퀵 전송 칩 + 글 공유하기 버튼
                 Container(
                   width: double.infinity,
                   padding: EdgeInsets.symmetric(
@@ -651,9 +652,15 @@ class _ChatScreenState extends State<ChatScreen> {
                                   widget.chatRoomId,
                                   widget.postSnippet!,
                                 );
-                                if (ok) {
-                                  setState(() => _alreadySharedOrigin = true);
-                                }
+                                // ok 여부와 관계없이 서버가 1회만 보장하므로 버튼은 숨김
+                                setState(() => _alreadySharedOrigin = true);
+
+                                // (선택) UX 피드백
+                                // if (!ok) {
+                                //   ScaffoldMessenger.of(context).showSnackBar(
+                                //     const SnackBar(content: Text('이미 공유된 게시글입니다.')),
+                                //   );
+                                // }
                               },
                               icon: const Icon(Icons.campaign_outlined),
                               label: const Text('글 공유하기'),
@@ -734,10 +741,7 @@ class _BorderlessInput extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback? onSubmitted;
 
-  const _BorderlessInput({
-    required this.controller,
-    this.onSubmitted,
-  });
+  const _BorderlessInput({required this.controller, this.onSubmitted});
 
   @override
   Widget build(BuildContext context) {
@@ -766,7 +770,7 @@ class _BorderlessInput extends StatelessWidget {
   }
 }
 
-/// 기본 텍스트 메시지 버블 (오버플로우 방지)
+/// 기본 텍스트 메시지 버블
 class _MessageBubble extends StatelessWidget {
   final bool isMe;
   final String text;
@@ -802,9 +806,7 @@ class _MessageBubble extends StatelessWidget {
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxBubbleWidth),
         child: Container(
-          margin: EdgeInsets.symmetric(
-            vertical: ResponsiveSizes.p(context, 2),
-          ),
+          margin: EdgeInsets.symmetric(vertical: ResponsiveSizes.p(context, 2)),
           padding: EdgeInsets.symmetric(
             vertical: ResponsiveSizes.p(context, 8),
             horizontal: ResponsiveSizes.p(context, 12),
@@ -877,7 +879,7 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-/// 게시글 공지 카드 버블(탭 시 상세로) — 오버플로우 방지
+/// 게시글 공지 카드 버블
 class _PostNoticeBubble extends StatelessWidget {
   final bool isMe;
   final PostSnippet snippet;

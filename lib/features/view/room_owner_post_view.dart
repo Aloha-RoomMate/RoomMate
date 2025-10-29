@@ -60,7 +60,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
   @override
   void initState() {
     super.initState();
-    _status = (widget.post.toMap()['status'] as String?)?.toLowerCase();
+    _status = widget.post.status?.toLowerCase(); // ✅ 이걸로 교체
     _authorFuture = (widget.post.authorId?.isNotEmpty ?? false)
         ? _userRepo.fetchUserById(widget.post.authorId!)
         : Future.value(null);

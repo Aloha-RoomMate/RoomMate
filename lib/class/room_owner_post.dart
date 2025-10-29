@@ -8,6 +8,7 @@ class RoomOwnerPost {
   final String? authorId;
   final String? postType;
   final String? authorGender;
+  final String? status;
 
   // 내용
   final String? title;
@@ -46,9 +47,10 @@ class RoomOwnerPost {
     this.postId,
     required this.authorId,
     this.postType,
+    this.authorGender,
+    this.status, // ✅ 추가
     this.title,
     this.coordinate,
-    this.authorGender,
     this.roadAddress,
     this.jibunAddress,
     this.deposit,
@@ -70,8 +72,9 @@ class RoomOwnerPost {
     final map = <String, dynamic>{
       'authorId': authorId,
       'postType': postType,
-      'title': title,
       'authorGender': authorGender,
+      'status': status ?? 'open', // ✅ 추가
+      'title': title,
       'coordinate': coordinate,
       'roadAddress': roadAddress,
       'jibunAddress': jibunAddress,
@@ -103,10 +106,12 @@ class RoomOwnerPost {
       postId: postId,
       authorId: map['authorId'] as String? ?? '',
       postType: map['postType'] as String?,
-      title: map['title'] as String? ?? '제목 없음',
       authorGender: map['authorGender'] as String?,
+      status: (map['status'] as String?) ?? 'open', // ✅ 추가
+      title: map['title'] as String? ?? '제목 없음',
       coordinate: map['coordinate'] as GeoPoint?,
-      roadAddress: map['roadAddress'] as String? ?? map['addressLabel'] as String?,
+      roadAddress:
+          map['roadAddress'] as String? ?? map['addressLabel'] as String?,
       jibunAddress: map['jibunAddress'] as String?,
       deposit: (map['deposit'] as num?)?.toInt(),
       rent: (map['rent'] as num?)?.toInt(),
@@ -125,6 +130,12 @@ class RoomOwnerPost {
           : null,
     );
   }
+
+  // 편의 getter (원하면 사용)
+  bool get isOpen => (status ?? 'open') == 'open';
+  bool get isClosed => (status ?? 'open') == 'closed';
+  bool get isMatched => (status ?? '') == 'matched';
+  bool get isCompleted => (status ?? '') == 'completed';
 
   factory RoomOwnerPost.fromDoc(
     DocumentSnapshot<Map<String, dynamic>> doc,

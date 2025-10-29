@@ -55,7 +55,7 @@ class RoomOwnerPostRepository {
       ...post.toMap(),
       if (post.authorGender != null)
         'authorGender': _normalize(post.authorGender) ?? post.authorGender,
-      'status': post.toMap()['status'] ?? 'open', // 기본 open
+      'status': post.status ?? 'open', // ✅ 명시적으로
       'createdAt': FieldValue.serverTimestamp(),
       if (post.imageUrls == null) 'imageUrls': <String>[],
     };
@@ -98,6 +98,7 @@ class RoomOwnerPostRepository {
     try {
       var q = _col
           .where('postType', isEqualTo: postType)
+          .where('status', isEqualTo: 'open') // ✅ 열린 글만
           .orderBy('createdAt', descending: true)
           .limit(limit);
 
@@ -110,12 +111,6 @@ class RoomOwnerPostRepository {
 
       final snap = await q.get();
       final posts = snap.docs.map(RoomOwnerPost.fromDoc).toList();
-
-      // 🔍 클라 필터로 마감/매칭 숨기기(원하면 주석 해제)
-      // final filtered = posts.where((p) {
-      //   final st = (p.toMap()['status'] ?? 'open').toString();
-      //   return st == 'open';
-      // }).toList();
 
       return PaginatedPostsResult(
         posts: posts,
@@ -264,6 +259,7 @@ class RoomOwnerPostRepository {
     try {
       var query = _col
           .where('postType', isEqualTo: 'roomOwner')
+          .where('status', isEqualTo: 'open') // ✅ 추가
           .where('coordinate', isGreaterThanOrEqualTo: GeoPoint(minLat, minLng))
           .where('coordinate', isLessThanOrEqualTo: GeoPoint(maxLat, maxLng))
           .limit(limit);
