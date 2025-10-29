@@ -60,7 +60,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
   @override
   void initState() {
     super.initState();
-    _status = widget.post.status?.toLowerCase(); // ✅ 이걸로 교체
+    _status = widget.post.status?.toLowerCase();
     _authorFuture = (widget.post.authorId?.isNotEmpty ?? false)
         ? _userRepo.fetchUserById(widget.post.authorId!)
         : Future.value(null);
@@ -130,8 +130,9 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
   }
 
   Widget _statusBadge() {
-    if (!(_status == 'closed' || _status == 'matched'))
+    if (!(_status == 'closed' || _status == 'matched')) {
       return const SizedBox.shrink();
+    }
     final closed = _status == 'closed';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -182,7 +183,6 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
 
   Widget _imageHeader(List<String> imagePaths, String heroPrefix) {
     if (imagePaths.isEmpty) {
-      // 기본 이미지(블러+원본)
       return Stack(
         fit: StackFit.expand,
         children: [
@@ -332,14 +332,12 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
 
             final meUid = FirebaseAuth.instance.currentUser?.uid;
             if (uid == meUid) {
-              // ✅ 내 글이면 마이페이지로 바로 push
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const MypageScreen(isBlocked: false),
                 ),
               );
             } else {
-              // ✅ 남의 글이면 상대 프로필로
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => UserProfileView(targetUid: uid),
@@ -426,14 +424,11 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
       final partner = await _userRepo.fetchUserById(partnerUid);
       final partnerName = partner?.displayName ?? '상대방';
 
-      // ✅ 결정적 roomId (문서 생성 X)
+      // 결정적 roomId
       final chatRoomId = ChatRepository.makeRoomId(me.uid, partnerUid);
 
-      // ✅ 게시글 카드 1회 자동 공유(없으면 생성 + 메시지 기록)
-      final firstImagePath =
-          (widget.post.imageUrls ?? const <String>[]).isNotEmpty
-          ? widget.post.imageUrls!.first
-          : null;
+      // ⚠️ 여기서 문서만 생성 (hasContent=false) → ChatList에는 아직 안 뜸
+      await _chatRepo.ensureChatExists(chatRoomId);
 
       final snippet = PostSnippet(
         postId: widget.post.postId ?? '',
@@ -442,10 +437,10 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
         deposit: widget.post.deposit,
         rent: widget.post.rent,
         manageFee: widget.post.manageFee,
-        imagePath: firstImagePath, // Supabase 경로 그대로
+        imagePath: (widget.post.imageUrls ?? const <String>[]).isNotEmpty
+            ? widget.post.imageUrls!.first
+            : null,
       );
-
-      await _chatRepo.sharePostOnce(chatRoomId, snippet);
 
       if (!mounted) return;
       Navigator.push(
@@ -455,9 +450,11 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             chatRoomId: chatRoomId,
             partnerUid: partnerUid,
             partnerName: partnerName,
-            // 이미 1회 공유했으므로 자동공유 비활성화
+            // 1) 프리필
+            initialPrefillText: '게시글을 보고 연락했어요',
+            // 2) 첫 전송 시 자동 1회 공유
             postSnippet: snippet,
-            autoSharePostOnFirstSend: false,
+            autoSharePostOnFirstSend: true,
           ),
         ),
       );
@@ -643,13 +640,10 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             actions: [
               if (_isOwner)
                 PopupMenuButton<String>(
-                  color: Colors.white, // ✅ 메뉴 배경 흰색
+                  color: Colors.white,
                   itemBuilder: (c) => const [
                     PopupMenuItem(value: 'edit', child: Text('수정하기')),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text('완전 삭제'),
-                    ),
+                    PopupMenuItem(value: 'delete', child: Text('완전 삭제')),
                   ],
                   onSelected: (v) {
                     switch (v) {
@@ -675,7 +669,6 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 작성자
                   _ownerTile(_authorFuture),
                   const Divider(height: Sizes.size40),
 
@@ -695,8 +688,9 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
                       final r = numberFormat.format(widget.post.rent ?? 0);
                       final m = numberFormat.format(widget.post.manageFee ?? 0);
                       final parts = <String>["보증금 $d만", "월세 $r만"];
-                      if ((widget.post.manageFee ?? 0) > 0)
+                      if ((widget.post.manageFee ?? 0) > 0) {
                         parts.add("관리비 $m만");
+                      }
                       return parts.join(" · ");
                     }(),
                     valueRight: true,
@@ -768,7 +762,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
         ],
       ),
 
-      // 하단 버튼 (divider 제거, 오너인 경우에도 한 줄짜리 긴 버튼만)
+      // 하단 버튼
       bottomNavigationBar: BottomAppBar(
         color: Colors.white,
         child: Padding(
@@ -890,7 +884,6 @@ class _FullscreenImageGalleryState extends State<FullscreenImageGallery> {
               );
             },
           ),
-
           // 상단 그라데이션
           Positioned.fill(
             child: IgnorePointer(
@@ -910,7 +903,6 @@ class _FullscreenImageGalleryState extends State<FullscreenImageGallery> {
               ),
             ),
           ),
-
           // 닫기 버튼
           SafeArea(
             child: Align(
@@ -946,7 +938,6 @@ class _FullscreenImageGalleryState extends State<FullscreenImageGallery> {
               ),
             ),
           ),
-
           // 하단 인덱스
           Positioned(
             bottom: 16,

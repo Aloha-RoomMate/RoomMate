@@ -29,6 +29,7 @@ class ChatListScreen extends StatelessWidget {
     final chatStream = FirebaseFirestore.instance
         .collection("chats")
         .where("participants", arrayContains: uid)
+        .where("hasContent", isEqualTo: true) // ← 추가
         .orderBy("updatedAt", descending: true)
         .snapshots();
 
