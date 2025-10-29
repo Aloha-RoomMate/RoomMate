@@ -426,10 +426,10 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
       final partner = await _userRepo.fetchUserById(partnerUid);
       final partnerName = partner?.displayName ?? '상대방';
 
-      // ✅ 결정적 roomId (문서 생성 X)
+      // ✅ 결정적 roomId만 계산(문서 생성 X)
       final chatRoomId = ChatRepository.makeRoomId(me.uid, partnerUid);
 
-      // ✅ 게시글 카드 1회 자동 공유(없으면 생성 + 메시지 기록)
+      // ✅ 게시글 요약(카드용) 구성만 해서 ChatScreen에 전달
       final firstImagePath =
           (widget.post.imageUrls ?? const <String>[]).isNotEmpty
           ? widget.post.imageUrls!.first
@@ -442,10 +442,8 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
         deposit: widget.post.deposit,
         rent: widget.post.rent,
         manageFee: widget.post.manageFee,
-        imagePath: firstImagePath, // Supabase 경로 그대로
+        imagePath: firstImagePath, // Supabase 경로
       );
-
-      await _chatRepo.sharePostOnce(chatRoomId, snippet);
 
       if (!mounted) return;
       Navigator.push(
@@ -455,9 +453,11 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             chatRoomId: chatRoomId,
             partnerUid: partnerUid,
             partnerName: partnerName,
-            // 이미 1회 공유했으므로 자동공유 비활성화
+            // 👇 1) 입력창 프리필
+            initialPrefillText: '게시글을 보고 연락했어요',
+            // 👇 2) 첫 전송 시 카드 1회 자동공유(중복 방지)
             postSnippet: snippet,
-            autoSharePostOnFirstSend: false,
+            autoSharePostOnFirstSend: true, // (기본값 true지만 명시)
           ),
         ),
       );
