@@ -25,6 +25,7 @@ import 'package:roommate/features/category/introduction_screen.dart';
 import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
 import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
 import 'package:roommate/features/view/room_owner_post_view.dart';
+import 'package:roommate/features/view/searcher_post_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MypageScreen extends StatefulWidget {
@@ -235,7 +236,7 @@ class _MypageScreenState extends State<MypageScreen> {
   Future<void> _showBottomSheet() async {
     await showModalBottomSheet<void>(
       context: context,
-      useRootNavigator: true,
+      // useRootNavigator: true,
       useSafeArea: true,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -255,17 +256,23 @@ class _MypageScreenState extends State<MypageScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ElevatedButton(
-                  onPressed: () async {
+                  onPressed: () {
                     Navigator.of(ctx).pop();
-                    await _getCameraImage();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted) return;
+                      _getCameraImage();
+                    });
                   },
                   child: const Text('사진 찍기'),
                 ),
                 Gaps.v3(context),
                 ElevatedButton(
-                  onPressed: () async {
+                  onPressed: () {
                     Navigator.of(ctx).pop();
-                    await _getPhotoLibraryImage();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted) return;
+                      _getPhotoLibraryImage();
+                    });
                   },
                   child: const Text('라이브러리에서 불러오기'),
                 ),
@@ -273,7 +280,10 @@ class _MypageScreenState extends State<MypageScreen> {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(ctx).pop();
-                    _getBasicProfile();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted) return;
+                      _getBasicProfile();
+                    });
                   },
                   child: const Text('기본 프로필로 설정'),
                 ),
@@ -474,7 +484,7 @@ class _MypageScreenState extends State<MypageScreen> {
                         ),
                         Divider(
                           height: 1,
-                          color: Theme.of(context).primaryColor.withAlpha(100),
+                          color: Colors.black26,
                         ),
                         Column(
                           children: [
@@ -815,22 +825,25 @@ class _MyPageEndDrawer extends StatelessWidget {
           String? subtitle,
         }) {
           return ListTile(
+            tileColor: Colors.white,
             leading: Icon(icon),
             title: Text(title),
             subtitle: subtitle == null ? null : Text(subtitle),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () async {
+            onTap: () {
               Navigator.pop(sheetCtx); // 1) 시트 닫기
-              await Future.microtask(() {}); // 2) 한 프레임 미룸
-              final res = await Navigator.of(scaffoldCtx).push(
-                MaterialPageRoute(builder: (_) => screenFactory()),
-              ); // 3) 같은 Scaffold의 Navigator로 push
-              if (res == true) {
-                onEdited();
-                ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
-                  const SnackBar(content: Text('저장되었습니다.')),
+              // 2) 진짜 '프레임 이후'에 push (마우스트래커 업데이트 구간 벗어나기)
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                final res = await Navigator.of(scaffoldCtx).push(
+                  MaterialPageRoute(builder: (_) => screenFactory()),
                 );
-              }
+                if (res == true) {
+                  onEdited();
+                  ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+                    const SnackBar(content: Text('저장되었습니다.')),
+                  );
+                }
+              });
             },
           );
         }
@@ -843,45 +856,49 @@ class _MyPageEndDrawer extends StatelessWidget {
               pad,
               pad + ResponsiveSizes.p(scaffoldCtx, 6),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                tile(
-                  icon: Icons.badge_rounded,
-                  title: '직업/학교',
-                  screenFactory: () =>
-                      const UserjobScreen(returnAfterSave: true),
-                ),
-                tile(
-                  icon: Icons.sports_esports_rounded,
-                  title: '취미',
-                  screenFactory: () => const HobbyScreen(returnAfterSave: true),
-                ),
-                tile(
-                  icon: Icons.people_alt_rounded,
-                  title: '공동 생활 성향',
-                  screenFactory: () =>
-                      const ColivingScreen(returnAfterSave: true),
-                ),
-                tile(
-                  icon: Icons.schedule_rounded,
-                  title: '생활 패턴',
-                  screenFactory: () =>
-                      const DailyRhythmScreen(returnAfterSave: true),
-                ),
-                tile(
-                  icon: Icons.healing_rounded,
-                  title: '질병/알레르기',
-                  screenFactory: () =>
-                      const DiseaseScreen(returnAfterSave: true),
-                ),
-                tile(
-                  icon: Icons.short_text_rounded,
-                  title: '자기소개',
-                  screenFactory: () =>
-                      const IntroductionScreen(returnAfterSave: true),
-                ),
-              ],
+            child: Container(
+              color: Colors.white,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  tile(
+                    icon: Icons.badge_rounded,
+                    title: '직업/유저 타입',
+                    screenFactory: () =>
+                        const UserjobScreen(returnAfterSave: true),
+                  ),
+                  tile(
+                    icon: Icons.sports_esports_rounded,
+                    title: '취미',
+                    screenFactory: () =>
+                        const HobbyScreen(returnAfterSave: true),
+                  ),
+                  tile(
+                    icon: Icons.people_alt_rounded,
+                    title: '공동 생활 성향',
+                    screenFactory: () =>
+                        const ColivingScreen(returnAfterSave: true),
+                  ),
+                  tile(
+                    icon: Icons.schedule_rounded,
+                    title: '생활 패턴',
+                    screenFactory: () =>
+                        const DailyRhythmScreen(returnAfterSave: true),
+                  ),
+                  tile(
+                    icon: Icons.healing_rounded,
+                    title: '질병/알레르기',
+                    screenFactory: () =>
+                        const DiseaseScreen(returnAfterSave: true),
+                  ),
+                  tile(
+                    icon: Icons.short_text_rounded,
+                    title: '자기소개',
+                    screenFactory: () =>
+                        const IntroductionScreen(returnAfterSave: true),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -892,6 +909,7 @@ class _MyPageEndDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
+      backgroundColor: Colors.white,
       child: SafeArea(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -904,28 +922,28 @@ class _MyPageEndDrawer extends StatelessWidget {
               accountEmail: Text(email),
             ),
             ListTile(
+              tileColor: Colors.white,
               leading: const Icon(Icons.photo),
               title: const Text('프로필 사진 변경'),
-              onTap: () async {
+              onTap: () {
                 Navigator.of(context).pop(); // Drawer 닫기
-                await Future.delayed(const Duration(milliseconds: 120));
-                if (parentContext.mounted) onOpenProfileSheet();
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (parentContext.mounted) onOpenProfileSheet();
+                });
               },
             ),
             ListTile(
+              tileColor: Colors.white,
               leading: const Icon(Icons.edit_rounded),
               title: const Text('내 정보 수정'),
-              onTap: () async {
+              onTap: () {
                 Navigator.of(context).pop(); // Drawer 닫기
-                await Future.delayed(const Duration(milliseconds: 120));
-                if (parentContext.mounted) _openEditPicker(parentContext);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (parentContext.mounted) _openEditPicker(parentContext);
+                });
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('설정'),
-              onTap: () => Navigator.pop(context),
-            ),
+
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout),
@@ -1200,9 +1218,12 @@ class _MiniOwnerPostTile extends StatelessWidget {
   }
 
   void _openDetail(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => RoomOwnerPostView(post: post)),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => RoomOwnerPostView(post: post)),
+      );
+    });
   }
 
   @override
@@ -1498,6 +1519,15 @@ class _MiniSearcherPostTile extends StatelessWidget {
     return '보증금 $d / 월 $range';
   }
 
+  void _openDetail(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => SearcherPostView(post: post)),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final radius = ResponsiveSizes.p(context, 12);
@@ -1520,49 +1550,69 @@ class _MiniSearcherPostTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              (post.title ?? '제목 없음'),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            SizedBox(height: ResponsiveSizes.p(context, 6)),
-            Row(
-              children: [
-                const Icon(Icons.place_outlined, size: 14),
-                SizedBox(width: ResponsiveSizes.p(context, 4)),
-                Expanded(
-                  child: Text(
-                    _area(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.grey.shade800,
-                      fontSize: 12,
-                    ),
-                  ),
+            InkWell(
+              // ✅ 클릭 가능
+              onTap: () => _openDetail(context), // ✅ 상세로 이동
+              mouseCursor: SystemMouseCursors.click,
+              child: Container(
+                color: Colors.white,
+                padding: EdgeInsets.fromLTRB(
+                  ResponsiveSizes.p(context, 10),
+                  ResponsiveSizes.p(context, 10),
+                  ResponsiveSizes.p(context, 10),
+                  ResponsiveSizes.p(context, 12),
                 ),
-              ],
-            ),
-            SizedBox(height: ResponsiveSizes.p(context, 4)),
-            Row(
-              children: [
-                const Icon(Icons.payments_outlined, size: 14),
-                SizedBox(width: ResponsiveSizes.p(context, 4)),
-                Expanded(
-                  child: Text(
-                    _price(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontSize: 12,
+                child: Column(
+                  // 🔧 중요: shrink-wrap 하도록 설정
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (post.title ?? '제목 없음'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
-                  ),
+                    SizedBox(height: ResponsiveSizes.p(context, 6)),
+                    Row(
+                      children: [
+                        const Icon(Icons.place_outlined, size: 14),
+                        SizedBox(width: ResponsiveSizes.p(context, 4)),
+                        Expanded(
+                          child: Text(
+                            _area(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.grey.shade800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: ResponsiveSizes.p(context, 4)),
+                    Row(
+                      children: [
+                        const Icon(Icons.payments_outlined, size: 14),
+                        SizedBox(width: ResponsiveSizes.p(context, 4)),
+                        Expanded(
+                          child: Text(
+                            _price(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-            const Spacer(),
           ],
         ),
       ),

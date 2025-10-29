@@ -138,6 +138,9 @@ class _UserListScreenState extends State<UserListScreen> {
                       ),
                     ],
                   ),
+                  Divider(
+                    color: Colors.black26,
+                  ),
                   const SizedBox(height: 12),
 
                   // 변경:
@@ -156,6 +159,9 @@ class _UserListScreenState extends State<UserListScreen> {
                   _MetricRow(
                     label: 'MBTI 궁합(가중치 ${_pct(kWMbti)})', // ⬅️ 추가
                     value: comp.mbtiSim,
+                  ),
+                  Divider(
+                    color: Colors.black26,
                   ),
                   const SizedBox(height: 12),
 
@@ -183,13 +189,16 @@ class _UserListScreenState extends State<UserListScreen> {
                   _OverlapRow(title: '음식', items: interFood),
                   _OverlapRow(title: '운동', items: interSport),
                   _OverlapRow(title: '관심사', items: interInterest),
+                  Divider(
+                    color: Colors.black26,
+                  ),
                   const SizedBox(height: 8),
                   if (interFood.isEmpty &&
                       interSport.isEmpty &&
                       interInterest.isEmpty)
                     Text(
-                      '겹치는 취미가 아직 없어요. 관심사/취미를 더 채우면 추천 품질이 올라가요!',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      '아직 ${other.displayName}님과 겹치는 취미가 아직 없어요.',
+                      style: TextStyle(color: Colors.black38),
                     ),
                 ],
               ),
@@ -458,7 +467,10 @@ class _MetricRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: Text(label)),
-          Text(_pct(value)),
+          Text(
+            _pct(value),
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );

@@ -7,6 +7,7 @@ import 'package:roommate/class/room_owner_post.dart';
 import 'package:roommate/class/room_owner_post_repository.dart';
 
 import 'package:roommate/constants/gaps.dart';
+import 'package:roommate/constants/responsive_sizes.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:roommate/features/navigationbar/widgets/accordion_widget.dart';
 import 'package:roommate/features/navigationbar/widgets/chip_button.dart';
@@ -87,6 +88,7 @@ class _UserProfileViewState extends State<UserProfileView> {
 
         return Scaffold(
           appBar: AppBar(
+            scrolledUnderElevation: 0,
             title: Text(
               "${user.displayName}의 프로필",
               style: const TextStyle(fontSize: Sizes.size24),
@@ -546,8 +548,11 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
         vertical: Sizes.size12,
       ),
       decoration: BoxDecoration(
-        color: boxColor,
-        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).primaryColor.withAlpha(100),
+        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(ResponsiveSizes.p(context, 18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

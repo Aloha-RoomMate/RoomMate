@@ -229,230 +229,268 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
 
         // ───────── Body ─────────
-        body: Column(
-          children: [
-            // 메시지 리스트
-            Expanded(
-              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: _chatRepo.watchMessages(widget.chatRoomId),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+        body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: chatDocStream,
+          builder: (context, chatSnap) {
+            Timestamp? lastSeenPartner;
+            if (chatSnap.hasData && chatSnap.data!.exists) {
+              final map = chatSnap.data!.data() ?? const <String, dynamic>{};
+              final ls = (map['lastSeenAt'] as Map?) ?? {};
+              lastSeenPartner = ls[widget.partnerUid] as Timestamp?;
+            }
 
-                  final docs = snapshot.data!.docs;
+            return Column(
+              children: [
+                // 메시지 리스트
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: _chatRepo.watchMessages(widget.chatRoomId),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                  // 최신 메시지가 상대 메시지면 바로 읽음 처리(리스트 뱃지 0으로)
-                  if (docs.isNotEmpty) {
-                    final last = docs.last;
-                    final d = last.data();
-                    final isMine = d['senderId'] == _me.uid;
-                    if (!isMine && _lastClearedMsgId != last.id) {
-                      _chatRepo.markChatRead(widget.chatRoomId);
-                      _lastClearedMsgId = last.id;
-                    }
-                  }
+                      final docs = snapshot.data!.docs;
 
-                  return ListView.builder(
-                    controller: _scrollController,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: ResponsiveSizes.p(context, 20),
-                      vertical: ResponsiveSizes.p(context, 8),
-                    ),
-                    itemCount: docs.length,
-                    itemBuilder: (context, index) {
-                      final data = docs[index].data();
-                      final isMe = data['senderId'] == _me.uid;
-                      final createdAt = (data['createdAt'] as Timestamp?)
-                          ?.toDate();
-
-                      // 날짜 헤더(하루 단위)
-                      bool showDateHeader = false;
-                      if (createdAt != null) {
-                        if (index == 0) {
-                          showDateHeader = true;
-                        } else {
-                          final prev =
-                              (docs[index - 1].data()['createdAt']
-                                      as Timestamp?)
-                                  ?.toDate();
-                          if (prev == null || !_sameDay(createdAt, prev)) {
-                            showDateHeader = true;
-                          }
+                      // 최신 메시지가 상대 메시지면 바로 읽음 처리(리스트 뱃지 0으로)
+                      if (docs.isNotEmpty) {
+                        final last = docs.last;
+                        final d = last.data();
+                        final isMine = d['senderId'] == _me.uid;
+                        if (!isMine && _lastClearedMsgId != last.id) {
+                          _chatRepo.markChatRead(widget.chatRoomId);
+                          _lastClearedMsgId = last.id;
                         }
                       }
 
-                      // 묶음의 "마지막" 메시지에만 시간
-                      String? timeText;
-                      if (createdAt != null) {
-                        final isLast = index == docs.length - 1;
-                        if (isLast) {
-                          timeText = _fmtHm(createdAt);
-                        } else {
-                          final nextData = docs[index + 1].data();
-                          final nextSender = nextData['senderId'] as String?;
-                          final nextAt = (nextData['createdAt'] as Timestamp?)
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: ResponsiveSizes.p(context, 20),
+                          vertical: ResponsiveSizes.p(context, 8),
+                        ),
+                        itemCount: docs.length,
+                        itemBuilder: (context, index) {
+                          final data = docs[index].data();
+                          final isMe = data['senderId'] == _me.uid;
+                          final createdAt = (data['createdAt'] as Timestamp?)
                               ?.toDate();
-                          final senderChanged = nextSender != data['senderId'];
-                          final minuteChanged = (nextAt == null)
-                              ? true
-                              : !_sameMinute(createdAt, nextAt);
-                          if (senderChanged || minuteChanged) {
-                            timeText = _fmtHm(createdAt);
+
+                          // 날짜 헤더(하루 단위)
+                          bool showDateHeader = false;
+                          if (createdAt != null) {
+                            if (index == 0) {
+                              showDateHeader = true;
+                            } else {
+                              final prev =
+                                  (docs[index - 1].data()['createdAt']
+                                          as Timestamp?)
+                                      ?.toDate();
+                              if (prev == null || !_sameDay(createdAt, prev)) {
+                                showDateHeader = true;
+                              }
+                            }
                           }
-                        }
-                      }
 
-                      final bubble = _MessageBubble(
-                        isMe: isMe,
-                        text: (data['text'] ?? '').toString(),
-                        time: timeText,
-                      );
+                          // 묶음의 "마지막" 메시지에만 시간
+                          String? timeText;
+                          if (createdAt != null) {
+                            final isLast = index == docs.length - 1;
+                            if (isLast) {
+                              timeText = _fmtHm(createdAt);
+                            } else {
+                              final nextData = docs[index + 1].data();
+                              final nextSender =
+                                  nextData['senderId'] as String?;
+                              final nextAt =
+                                  (nextData['createdAt'] as Timestamp?)
+                                      ?.toDate();
+                              final senderChanged =
+                                  nextSender != data['senderId'];
+                              final minuteChanged = (nextAt == null)
+                                  ? true
+                                  : !_sameMinute(createdAt, nextAt);
+                              if (senderChanged || minuteChanged) {
+                                timeText = _fmtHm(createdAt);
+                              }
+                            }
+                          }
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (showDateHeader && createdAt != null) ...[
-                            SizedBox(height: ResponsiveSizes.p(context, 8)),
-                            Center(
-                              child: Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: ResponsiveSizes.p(context, 10),
-                                  vertical: ResponsiveSizes.p(context, 4),
-                                ),
-                                decoration: const BoxDecoration(
-                                  color: Colors.transparent,
-                                ),
-                                child: Text(
-                                  _fmtDateKr(createdAt),
-                                  style: TextStyle(
-                                    fontSize: ResponsiveSizes.f(context, 12),
-                                    color: Colors.grey.shade700,
+                          // ✅ 내 메시지에 대해 “1” 노출 여부 계산
+                          bool showUnreadBadge = false;
+                          if (isMe) {
+                            if (lastSeenPartner == null) {
+                              // 상대가 아직 방을 한 번도 안 열었으면 내 모든 메시지에 “1”
+                              showUnreadBadge = true;
+                            } else if (createdAt == null) {
+                              // serverTimestamp 대기 중이면 일단 “1”
+                              showUnreadBadge = true;
+                            } else {
+                              showUnreadBadge = createdAt.isAfter(
+                                lastSeenPartner.toDate(),
+                              );
+                            }
+                          }
+
+                          final bubble = _MessageBubble(
+                            isMe: isMe,
+                            text: (data['text'] ?? '').toString(),
+                            time: timeText,
+                            showUnread: showUnreadBadge, // ← NEW
+                          );
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (showDateHeader && createdAt != null) ...[
+                                SizedBox(height: ResponsiveSizes.p(context, 8)),
+                                Center(
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: ResponsiveSizes.p(
+                                        context,
+                                        10,
+                                      ),
+                                      vertical: ResponsiveSizes.p(context, 4),
+                                    ),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.transparent,
+                                    ),
+                                    child: Text(
+                                      _fmtDateKr(createdAt),
+                                      style: TextStyle(
+                                        fontSize: ResponsiveSizes.f(
+                                          context,
+                                          12,
+                                        ),
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            SizedBox(height: ResponsiveSizes.p(context, 6)),
-                          ],
-                          bubble,
-                        ],
+                                SizedBox(height: ResponsiveSizes.p(context, 6)),
+                              ],
+                              bubble,
+                            ],
+                          );
+                        },
                       );
                     },
-                  );
-                },
-              ),
-            ),
+                  ),
+                ),
 
-            // 퀵 전송 칩 (입력창 위)
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(
-                horizontal: ResponsiveSizes.p(context, 12),
-                vertical: ResponsiveSizes.p(context, 6),
-              ),
-              color: inputStripBg,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    ...quicks.map(
-                      (t) => Padding(
-                        padding: EdgeInsets.only(
-                          right: ResponsiveSizes.p(context, 8),
-                        ),
-                        child: ActionChip(
-                          label: Text(t),
-                          onPressed: () => _quickSend(t),
-                          backgroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.black12),
-                          shape: const StadiumBorder(),
-                          labelPadding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
+                // 퀵 전송 칩 (입력창 위)
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveSizes.p(context, 12),
+                    vertical: ResponsiveSizes.p(context, 6),
+                  ),
+                  color: inputStripBg,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        ...(quicks).map(
+                          (t) => Padding(
+                            padding: EdgeInsets.only(
+                              right: ResponsiveSizes.p(context, 8),
+                            ),
+                            child: ActionChip(
+                              label: Text(t),
+                              onPressed: () => _quickSend(t),
+                              backgroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.black12),
+                              shape: const StadiumBorder(),
+                              labelPadding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        if (widget.onSharePost != null)
+                          Padding(
+                            padding: EdgeInsets.only(
+                              left: ResponsiveSizes.p(context, 4),
+                            ),
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: ResponsiveSizes.p(context, 10),
+                                  vertical: ResponsiveSizes.p(context, 6),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                              ),
+                              onPressed: widget.onSharePost,
+                              icon: const Icon(Icons.play_circle_outline),
+                              label: const Text('Share post'),
+                            ),
+                          ),
+                      ],
                     ),
-                    if (widget.onSharePost != null)
-                      Padding(
-                        padding: EdgeInsets.only(
-                          left: ResponsiveSizes.p(context, 4),
-                        ),
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
+                  ),
+                ),
+
+                // 입력 영역
+                Container(
+                  width: double.infinity,
+                  color: inputStripBg,
+                  padding: EdgeInsets.fromLTRB(
+                    ResponsiveSizes.p(context, 10),
+                    ResponsiveSizes.p(context, 6),
+                    ResponsiveSizes.p(context, 10),
+                    ResponsiveSizes.p(context, 10),
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Container(
                             padding: EdgeInsets.symmetric(
-                              horizontal: ResponsiveSizes.p(context, 10),
-                              vertical: ResponsiveSizes.p(context, 6),
+                              horizontal: ResponsiveSizes.p(context, 12),
+                              vertical: ResponsiveSizes.p(context, 2),
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(22),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(
+                                ResponsiveSizes.p(context, 18),
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x14000000),
+                                  blurRadius: 6,
+                                  offset: Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: _BorderlessInput(
+                              controller: _msgCtrl,
+                              onSubmitted: _sendMessage,
                             ),
                           ),
-                          onPressed: widget.onSharePost,
-                          icon: const Icon(Icons.play_circle_outline),
-                          label: const Text('Share post'),
                         ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            // 입력 영역
-            Container(
-              width: double.infinity,
-              color: inputStripBg,
-              padding: EdgeInsets.fromLTRB(
-                ResponsiveSizes.p(context, 10),
-                ResponsiveSizes.p(context, 6),
-                ResponsiveSizes.p(context, 10),
-                ResponsiveSizes.p(context, 10),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: ResponsiveSizes.p(context, 12),
-                          vertical: ResponsiveSizes.p(context, 2),
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(
-                            ResponsiveSizes.p(context, 18),
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x14000000),
-                              blurRadius: 6,
-                              offset: Offset(0, 1),
+                        Gaps.h8(context),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.send,
+                              color: Theme.of(context).primaryColor,
                             ),
-                          ],
+                            onPressed: _sendMessage,
+                          ),
                         ),
-                        child: _BorderlessInput(
-                          controller: _msgCtrl,
-                          onSubmitted: _sendMessage,
-                        ),
-                      ),
+                      ],
                     ),
-                    Gaps.h8(context),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.send,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                        onPressed: _sendMessage,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -500,11 +538,13 @@ class _MessageBubble extends StatelessWidget {
   final bool isMe;
   final String text;
   final String? time;
+  final bool showUnread; // ← NEW
 
   const _MessageBubble({
     required this.isMe,
     required this.text,
     this.time,
+    this.showUnread = false, // ← NEW
   });
 
   @override
@@ -548,9 +588,13 @@ class _MessageBubble extends StatelessWidget {
       ),
     );
 
-    final timeWidget = (time == null)
-        ? const SizedBox.shrink()
-        : Padding(
+    // 시간 + (내 메시지의 경우) 읽지않음 “1”
+    final meta = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (time != null)
+          Padding(
             padding: EdgeInsets.only(
               right: isMe ? ResponsiveSizes.p(context, 4) : 0,
               left: isMe ? 0 : ResponsiveSizes.p(context, 4),
@@ -562,14 +606,36 @@ class _MessageBubble extends StatelessWidget {
                 color: Colors.grey[600],
               ),
             ),
-          );
+          ),
+        if (isMe && showUnread) ...[
+          SizedBox(width: ResponsiveSizes.p(context, 4)),
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: ResponsiveSizes.p(context, 5),
+              vertical: ResponsiveSizes.p(context, 1),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: Colors.black12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '1',
+              style: TextStyle(
+                fontSize: ResponsiveSizes.f(context, 10),
+                fontWeight: FontWeight.w700,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
 
     return Row(
       mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: isMe
-          ? <Widget>[timeWidget, bubble]
-          : <Widget>[bubble, timeWidget],
+      children: isMe ? <Widget>[meta, bubble] : <Widget>[bubble, meta],
     );
   }
 }

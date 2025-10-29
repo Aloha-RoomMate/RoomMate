@@ -73,7 +73,10 @@ class _AccordionWidgetState extends State<AccordionWidget>
               AnimatedRotation(
                 turns: _isExpanded ? 0.5 : 0.0,
                 duration: const Duration(milliseconds: 150),
-                child: const Icon(Icons.expand_more_rounded),
+                child: Icon(
+                  Icons.expand_more_rounded,
+                  color: Theme.of(context).primaryColor.withAlpha(200),
+                ),
               ),
               Gaps.h6(context),
               Padding(
@@ -101,7 +104,7 @@ class _AccordionWidgetState extends State<AccordionWidget>
         Gaps.v4(context),
         Divider(
           height: 0,
-          color: Theme.of(context).primaryColor.withAlpha(100),
+          color: Colors.black26,
         ),
       ],
     );

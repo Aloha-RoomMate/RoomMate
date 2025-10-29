@@ -551,7 +551,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     hintText: '제목 입력',
                     hintStyle: TextStyle(
                       fontSize: ResponsiveSizes.f(context, 14),
-                      color: Colors.black87,
+                      color: Colors.black38,
                       fontWeight: FontWeight.w300,
                     ),
                     border: OutlineInputBorder(),
@@ -586,7 +586,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                           border: OutlineInputBorder(),
                           hintStyle: TextStyle(
                             fontSize: ResponsiveSizes.f(context, 14),
-                            color: Colors.black87,
+                            color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
                         ),
@@ -721,7 +721,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                           hintText: "보증금(만 원)",
                           hintStyle: TextStyle(
                             fontSize: ResponsiveSizes.f(context, 14),
-                            color: Colors.black87,
+                            color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
                           border: OutlineInputBorder(),
@@ -737,7 +737,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                           hintText: "월세(만 원)",
                           hintStyle: TextStyle(
                             fontSize: ResponsiveSizes.f(context, 14),
-                            color: Colors.black87,
+                            color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
                           border: OutlineInputBorder(),
@@ -753,7 +753,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                           hintText: "관리비(만 원)",
                           hintStyle: TextStyle(
                             fontSize: ResponsiveSizes.f(context, 14),
-                            color: Colors.black87,
+                            color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
                           border: OutlineInputBorder(),
@@ -774,7 +774,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                           hintText: '해당층',
                           hintStyle: TextStyle(
                             fontSize: ResponsiveSizes.f(context, 14),
-                            color: Colors.black87,
+                            color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
                           border: OutlineInputBorder(),
@@ -790,7 +790,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                           hintText: '건물층',
                           hintStyle: TextStyle(
                             fontSize: ResponsiveSizes.f(context, 14),
-                            color: Colors.black87,
+                            color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
                           border: OutlineInputBorder(),
@@ -818,7 +818,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                           hintText: '(평)',
                           hintStyle: TextStyle(
                             fontSize: ResponsiveSizes.f(context, 14),
-                            color: Colors.black87,
+                            color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
                           border: OutlineInputBorder(),
@@ -834,7 +834,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                           hintText: '화장실 개수',
                           hintStyle: TextStyle(
                             fontSize: ResponsiveSizes.f(context, 14),
-                            color: Colors.black87,
+                            color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
                           border: OutlineInputBorder(),
@@ -865,7 +865,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                     hintText: '입주 가능일',
                     hintStyle: TextStyle(
                       fontSize: ResponsiveSizes.f(context, 14),
-                      color: Colors.black87,
+                      color: Colors.black38,
                       fontWeight: FontWeight.w300,
                     ),
                     border: OutlineInputBorder(),
@@ -883,7 +883,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                           hintText: '최소 거주 기간(개월)',
                           hintStyle: TextStyle(
                             fontSize: ResponsiveSizes.f(context, 14),
-                            color: Colors.black87,
+                            color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
                           border: OutlineInputBorder(),
@@ -899,7 +899,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                           hintText: '최대 거주 기간(개월)',
                           hintStyle: TextStyle(
                             fontSize: ResponsiveSizes.f(context, 14),
-                            color: Colors.black87,
+                            color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
 
@@ -928,7 +928,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                         '자유롭게 글을 작성해주세요!\n취미, 희망 진로, 동거 규칙에 대해 작성해주시면 좋아요!',
                     hintStyle: TextStyle(
                       fontSize: ResponsiveSizes.f(context, 14),
-                      color: Colors.black87,
+                      color: Colors.black38,
                       fontWeight: FontWeight.w300,
                     ),
                     border: OutlineInputBorder(),

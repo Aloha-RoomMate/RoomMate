@@ -216,6 +216,7 @@ class _MainNavigationState extends State<MainNavigation> {
       ),
       child: SafeArea(
         top: false,
+        bottom: false,
         child: BottomNavigationBar(
           onTap: (i) {
             HapticFeedback.selectionClick();
@@ -288,9 +289,8 @@ class _PostEntryDecider extends StatelessWidget {
   Widget build(BuildContext context) {
     // UserRepository는 상위에서 이미 사용 중이므로 여기서도 재사용
     final repo = UserRepository();
-
-    return FutureBuilder<AppUser?>(
-      future: repo.fetchMe(),
+    return StreamBuilder<AppUser?>(
+      stream: repo.watchMe(), // ✅ 실시간 반영
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -299,7 +299,15 @@ class _PostEntryDecider extends StatelessWidget {
         final isOwner = (me.userType?.type ?? '').toLowerCase().contains(
           'owner',
         );
-        return isOwner ? RoomOwnerPostScreen() : const SearcherPostScreen();
+
+        // ✅ 타입이 바뀌면 다른 키로 교체되어 이전 화면 상태를 폐기
+        final key = ValueKey('${me.uid}_${isOwner ? 'owner' : 'searcher'}');
+        return KeyedSubtree(
+          key: key,
+          child: isOwner
+              ? const RoomOwnerPostScreen()
+              : const SearcherPostScreen(),
+        );
       },
     );
   }

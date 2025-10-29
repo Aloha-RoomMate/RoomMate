@@ -40,6 +40,24 @@ class RoomMate extends StatelessWidget {
           child: MaterialApp(
             title: 'RoomMate',
             theme: ThemeData(
+              bottomSheetTheme: const BottomSheetThemeData(
+                backgroundColor: Colors.white, // persistent bottom sheet
+                modalBackgroundColor: Colors.white, // showModalBottomSheet
+                surfaceTintColor: Colors.transparent, // M3 틴트 제거(진짜 흰색)
+                dragHandleColor: Colors.teal,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+              ),
+              timePickerTheme: const TimePickerThemeData(
+                backgroundColor: Colors.white,
+                dialBackgroundColor: Colors.white,
+
+                entryModeIconColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                ),
+              ),
               colorScheme: scheme,
               scaffoldBackgroundColor: Colors.white,
               primaryColor: Colors.green.shade600,

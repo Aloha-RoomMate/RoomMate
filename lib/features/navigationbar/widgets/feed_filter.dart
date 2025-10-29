@@ -243,6 +243,7 @@ class FeedFilterBottomSheet extends StatefulWidget {
       builder: (_) => Theme(
         data: Theme.of(context).copyWith(
           bottomSheetTheme: const BottomSheetThemeData(
+            backgroundColor: Colors.white,
             dragHandleColor: Colors.white, // ← 잡는부분(드래그 핸들) 색상
             dragHandleSize: Size(44, 5), // ←(선택) 크기
           ),
@@ -449,13 +450,17 @@ class _FeedFilterBottomSheetState extends State<FeedFilterBottomSheet>
           Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: _minCtr,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    hintText: '최소',
-                    border: OutlineInputBorder(),
-                    isDense: true,
+                child: Padding(
+                  padding: const EdgeInsets.all(2.0),
+                  child: TextField(
+                    textAlign: TextAlign.center,
+                    controller: _minCtr,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      hintText: '최소',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
                   ),
                 ),
               ),
@@ -463,13 +468,17 @@ class _FeedFilterBottomSheetState extends State<FeedFilterBottomSheet>
               const Text('~'),
               const SizedBox(width: 8),
               Expanded(
-                child: TextField(
-                  controller: _maxCtr,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    hintText: '최대',
-                    border: OutlineInputBorder(),
-                    isDense: true,
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: TextField(
+                    textAlign: TextAlign.center,
+                    controller: _maxCtr,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      hintText: '최대',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
                   ),
                 ),
               ),
@@ -552,6 +561,7 @@ class _FeedFilterBottomSheetState extends State<FeedFilterBottomSheet>
             }),
           ),
           const SizedBox(height: 12),
+          // 흡연 여부는 그대로 토글 유지
           SwitchListTile(
             title: Text(
               '흡연 여부',
@@ -633,6 +643,8 @@ class _RangeFieldState extends State<_RangeField> {
 
   @override
   Widget build(BuildContext context) {
+    final fieldWidth = ResponsiveSizes.p(context, 110); // 각 필드 폭 살짝 축소
+
     return Column(
       children: [
         RangeSlider(
@@ -654,32 +666,45 @@ class _RangeFieldState extends State<_RangeField> {
           }),
         ),
         Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Expanded(
-              child: TextField(
-                controller: _a,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                  suffixText: '만',
+            // 왼쪽 필드: 가운데 정렬 + 외부 padding 2.0 + 폭 축소
+            Padding(
+              padding: const EdgeInsets.all(2.0),
+              child: SizedBox(
+                width: fieldWidth,
+                child: TextField(
+                  controller: _a,
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                    suffixText: '만', // '만'은 오른쪽 끝
+                  ),
+                  onChanged: (_) => _emit(),
                 ),
-                onChanged: (_) => _emit(),
               ),
             ),
             const SizedBox(width: 8),
             const Text('~'),
             const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: _b,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                  suffixText: '만',
+            // 오른쪽 필드: 가운데 정렬 + 외부 padding 2.0 + 폭 축소
+            Padding(
+              padding: const EdgeInsets.all(2.0),
+              child: SizedBox(
+                width: fieldWidth,
+                child: TextField(
+                  controller: _b,
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                    suffixText: '만', // '만'은 오른쪽 끝
+                  ),
+                  onChanged: (_) => _emit(),
                 ),
-                onChanged: (_) => _emit(),
               ),
             ),
           ],
@@ -689,7 +714,7 @@ class _RangeFieldState extends State<_RangeField> {
   }
 }
 
-/// 멀티 선택 칩
+/// 멀티 선택 칩 (디자인 커스텀: 보더/배경, 선택시 체크아이콘 유지)
 class _MultiChips extends StatelessWidget {
   final List<String> options;
   final Set<String> selected;
@@ -705,21 +730,44 @@ class _MultiChips extends StatelessWidget {
   Widget build(BuildContext context) {
     final chips = <Widget>[
       for (final opt in options)
-        FilterChip(
-          label: Text(opt),
-          selected: selected.contains(opt),
-          onSelected: (v) {
-            final next = {...selected};
-            if (v) {
-              next.add(opt);
-            } else {
-              next.remove(opt);
-            }
-            onChanged(next);
+        Builder(
+          builder: (ctx) {
+            final isSelected = selected.contains(opt);
+            return RawChip(
+              label: Text(
+                opt,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : null,
+                ),
+              ),
+              selected: isSelected,
+              showCheckmark: true,
+              checkmarkColor: Colors.white,
+              backgroundColor: Colors.white,
+              selectedColor: Theme.of(ctx).primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  ResponsiveSizes.p(ctx, 18),
+                ),
+              ),
+              side: BorderSide(
+                color: isSelected ? Colors.transparent : Colors.black38,
+              ),
+              onSelected: (v) {
+                final next = {...selected};
+                if (v) {
+                  next.add(opt);
+                } else {
+                  next.remove(opt);
+                }
+                onChanged(next);
+              },
+            );
           },
         ),
       if (selected.isNotEmpty)
         ActionChip(
+          backgroundColor: Colors.transparent,
           label: const Text('선택 초기화'),
           onPressed: () => onChanged(<String>{}),
         ),
@@ -729,7 +777,7 @@ class _MultiChips extends StatelessWidget {
   }
 }
 
-/// 단일 선택 칩
+/// 단일 선택 칩 (디자인 커스텀: 보더/배경, 선택시 체크아이콘 유지)
 class _SingleChoiceChips extends StatelessWidget {
   final List<String> options;
   final String selected;
@@ -746,21 +794,37 @@ class _SingleChoiceChips extends StatelessWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: options
-          .map(
-            (opt) => FilterChip(
-              label: Text(opt),
-              selected: selected == opt,
-              onSelected: (isSelected) {
-                if (isSelected) {
-                  onChanged(opt);
-                } else {
-                  onChanged('');
-                }
-              },
+      children: options.map((opt) {
+        final isSelected = selected == opt;
+        return RawChip(
+          label: Text(
+            opt,
+            style: TextStyle(
+              color: isSelected ? Colors.white : null,
             ),
-          )
-          .toList(),
+          ),
+          selected: isSelected,
+          showCheckmark: true, // 선택 시 아이콘 유지
+          checkmarkColor: Colors.white,
+          backgroundColor: Colors.white,
+          selectedColor: Theme.of(context).primaryColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              ResponsiveSizes.p(context, 18),
+            ),
+          ),
+          side: BorderSide(
+            color: isSelected ? Colors.transparent : Colors.black38,
+          ),
+          onSelected: (v) {
+            if (v) {
+              onChanged(opt);
+            } else {
+              onChanged('');
+            }
+          },
+        );
+      }).toList(),
     );
   }
 }

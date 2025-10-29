@@ -248,6 +248,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                   controller: _titleCtrl,
                   decoration: const InputDecoration(
                     hintText: '제목 입력',
+                    hintStyle: TextStyle(color: Colors.black38),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -310,6 +311,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           hintText: "보증금(만 원)",
+                          hintStyle: TextStyle(color: Colors.black38),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -321,6 +323,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           hintText: "최소 월세(만 원)",
+                          hintStyle: TextStyle(color: Colors.black38),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -332,6 +335,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           hintText: "최대 월세(만 원)",
+                          hintStyle: TextStyle(color: Colors.black38),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -375,6 +379,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                   readOnly: true,
                   decoration: const InputDecoration(
                     hintText: '입주 희망일 선택',
+                    hintStyle: TextStyle(color: Colors.black38),
                     border: OutlineInputBorder(),
                     suffixIcon: Icon(CupertinoIcons.calendar),
                   ),
@@ -396,6 +401,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           hintText: "최소(개월)",
+                          hintStyle: TextStyle(color: Colors.black38),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -407,6 +413,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           hintText: "최대(개월)",
+                          hintStyle: TextStyle(color: Colors.black38),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -429,6 +436,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                   keyboardType: TextInputType.multiline,
                   decoration: const InputDecoration(
                     hintText: '자유롭게 글을 작성해주세요!',
+                    hintStyle: TextStyle(color: Colors.black38),
                     border: OutlineInputBorder(),
                   ),
                 ),
