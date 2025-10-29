@@ -40,16 +40,13 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
 
   late Future<AppUser?> _authorFuture;
 
-  // Supabase
   static const String _bucket = 'RoomMate-image';
-  static const int _urlTtl = 3600; // 1h
+  static const int _urlTtl = 3600;
   final _supabase = Supabase.instance.client;
 
   final _pageCtrl = PageController(viewportFraction: 1.0);
   int _currentPage = 0;
   bool _startingChat = false;
-
-  // 🔹 로컬 상태로 관리(즉시 뱃지/버튼 반영)
   String? _status;
 
   bool get _isOwner {
@@ -401,21 +398,21 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
     final partnerUid = widget.post.authorId ?? '';
 
     if (me == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인이 필요합니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
       return;
     }
     if (partnerUid.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('작성자 정보를 확인할 수 없어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('작성자 정보를 확인할 수 없어요.')));
       return;
     }
     if (partnerUid == me.uid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('내가 올린 글입니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('내가 올린 글입니다.')));
       return;
     }
 
@@ -424,12 +421,9 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
       final partner = await _userRepo.fetchUserById(partnerUid);
       final partnerName = partner?.displayName ?? '상대방';
 
-      // 결정적 roomId
       final chatRoomId = ChatRepository.makeRoomId(me.uid, partnerUid);
 
-      // ⚠️ 여기서 문서만 생성 (hasContent=false) → ChatList에는 아직 안 뜸
-      await _chatRepo.ensureChatExists(chatRoomId);
-
+      // 게시글 카드 정보만 준비 (즉시 전송 금지)
       final snippet = PostSnippet(
         postId: widget.post.postId ?? '',
         title: widget.post.title ?? '',
@@ -450,11 +444,9 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             chatRoomId: chatRoomId,
             partnerUid: partnerUid,
             partnerName: partnerName,
-            // 1) 프리필
             initialPrefillText: '게시글을 보고 연락했어요',
-            // 2) 첫 전송 시 자동 1회 공유
             postSnippet: snippet,
-            autoSharePostOnFirstSend: true,
+            autoSharePostOnFirstSend: true, // 첫 전송 시 1회 자동 공유
           ),
         ),
       );

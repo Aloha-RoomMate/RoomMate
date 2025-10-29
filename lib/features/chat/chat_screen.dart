@@ -22,10 +22,9 @@ class ChatScreen extends StatefulWidget {
   final List<String>? quickPhrases;
   final VoidCallback? onSharePost;
 
-  // 컨텍스트 정보 (게시글에서 진입 시)
-  final PostSnippet? postSnippet; // 어떤 글에서 왔는지
-  final String? initialPrefillText; // 첫 진입 프리필
-  final bool autoSharePostOnFirstSend; // 첫 전송 시 카드 자동공유
+  final PostSnippet? postSnippet; // 게시글에서 진입 시
+  final String? initialPrefillText; // 프리필 문구
+  final bool autoSharePostOnFirstSend; // 첫 전송 시 카드 자동 공유
 
   const ChatScreen({
     super.key,
@@ -58,9 +57,8 @@ class _ChatScreenState extends State<ChatScreen> {
   RoomOwnerPost? _originPost;
   bool _iAmAuthorOfOrigin = false;
 
-  // UX용 로컬 플래그 (실제 중복 방지는 서버 트랜잭션이 보장)
   bool _firstSendDone = false;
-  bool _alreadySharedOrigin = true; // postSnippet 있을 때 서버 확인 후 갱신
+  bool _alreadySharedOrigin = true; // 기본 true, postSnippet 있을 때 false로 내려줌
 
   @override
   void initState() {
@@ -79,10 +77,6 @@ class _ChatScreenState extends State<ChatScreen> {
           });
     }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _chatRepo.markChatRead(widget.chatRoomId);
-    });
-
     _prepareOriginContext();
   }
 
@@ -95,34 +89,26 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _prepareOriginContext() async {
     // 1) 프리필
-    if (widget.initialPrefillText?.isNotEmpty ?? false) {
+    if ((widget.initialPrefillText?.isNotEmpty ?? false)) {
       _msgCtrl.text = widget.initialPrefillText!;
       _msgCtrl.selection = TextSelection.collapsed(
         offset: _msgCtrl.text.length,
       );
     }
 
-    // 2) 원글 공유 이력/원글 상세 (UI용)
+    // 2) 원글 UI용 정보만 로드. ✔ 서버에 chat 문서 조회는 하지 않음
     if (widget.postSnippet != null) {
+      _alreadySharedOrigin = false; // 아직 안 보냈다고 가정(첫 전송 시 1회 처리)
       try {
-        final shared = await _chatRepo.hasSharedOriginPost(
-          widget.chatRoomId,
-          widget.postSnippet!.postId,
-        );
-        _alreadySharedOrigin = shared;
-
         final p = await _postRepo.fetchById(widget.postSnippet!.postId);
         if (!mounted) return;
         setState(() {
           _originPost = p;
           _iAmAuthorOfOrigin = (p?.authorId == _me.uid);
         });
-      } catch (e) {
-        debugPrint('[_prepareOriginContext] err: $e');
-        if (mounted) setState(() {}); // UI만 갱신
-      }
+      } catch (_) {}
     } else {
-      _alreadySharedOrigin = true; // 버튼 숨김
+      _alreadySharedOrigin = true;
       if (mounted) setState(() {});
     }
   }
@@ -162,13 +148,13 @@ class _ChatScreenState extends State<ChatScreen> {
     await _chatRepo.sendMessage(widget.chatRoomId, text);
     _msgCtrl.clear();
 
-    // ✅ 첫 전송 & 자동공유 옵션 & postSnippet 존재 시 → 서버 트랜잭션으로 1회 공유 시도
+    // ✅ 첫 전송 + 자동공유 + postSnippet 있을 때만 1회 공유
     if (!_firstSendDone &&
         widget.autoSharePostOnFirstSend &&
         widget.postSnippet != null) {
-      _firstSendDone = true; // UX용
+      _firstSendDone = true;
       await _chatRepo.sharePostOnce(widget.chatRoomId, widget.postSnippet!);
-      _alreadySharedOrigin = true; // 성공/중복 모두 버튼 숨김 (서버가 보장)
+      _alreadySharedOrigin = true;
       if (mounted) setState(() {});
     }
 
@@ -187,7 +173,6 @@ class _ChatScreenState extends State<ChatScreen> {
       _alreadySharedOrigin = true;
       if (mounted) setState(() {});
     }
-
     Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
   }
 
