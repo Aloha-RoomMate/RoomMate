@@ -127,7 +127,7 @@ class _UserListScreenState extends State<UserListScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${other.displayName} 님과의 겹침정도',
+                          '${other.displayName} 님과의 겹침 정도',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                       ),
