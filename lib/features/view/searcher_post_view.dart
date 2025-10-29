@@ -105,21 +105,21 @@ class _SearcherPostViewState extends State<SearcherPostView> {
     final partnerUid = widget.post.authorId ?? '';
 
     if (me == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다.')),
+      );
       return;
     }
     if (partnerUid.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('작성자 정보를 확인할 수 없어요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('작성자 정보를 확인할 수 없어요.')),
+      );
       return;
     }
     if (partnerUid == me.uid) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('내가 올린 글입니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('내가 올린 글입니다.')),
+      );
       return;
     }
 
@@ -128,8 +128,8 @@ class _SearcherPostViewState extends State<SearcherPostView> {
       final partner = await _userRepo.fetchUserById(partnerUid);
       final partnerName = partner?.displayName ?? '상대방';
 
-      // ✅ 여기서 방 생성 + id 반환 (문서도 생성됨)
-      final chatRoomId = await _chatRepo.createChatRoom(me.uid, partnerUid);
+      // ✅ 문서 생성 없이 결정적 roomId만 계산
+      final chatRoomId = ChatRepository.makeRoomId(me.uid, partnerUid);
 
       if (!mounted) return;
       Navigator.push(

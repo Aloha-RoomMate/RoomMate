@@ -403,21 +403,21 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
     final partnerUid = widget.post.authorId ?? '';
 
     if (me == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다.')),
+      );
       return;
     }
     if (partnerUid.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('작성자 정보를 확인할 수 없어요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('작성자 정보를 확인할 수 없어요.')),
+      );
       return;
     }
     if (partnerUid == me.uid) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('내가 올린 글입니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('내가 올린 글입니다.')),
+      );
       return;
     }
 
@@ -426,8 +426,26 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
       final partner = await _userRepo.fetchUserById(partnerUid);
       final partnerName = partner?.displayName ?? '상대방';
 
-      // ✅ 여기서 방 생성 + id 반환 (문서도 생성됨)
-      final chatRoomId = await _chatRepo.createChatRoom(me.uid, partnerUid);
+      // ✅ 결정적 roomId (문서 생성 X)
+      final chatRoomId = ChatRepository.makeRoomId(me.uid, partnerUid);
+
+      // ✅ 게시글 카드 1회 자동 공유(없으면 생성 + 메시지 기록)
+      final firstImagePath =
+          (widget.post.imageUrls ?? const <String>[]).isNotEmpty
+          ? widget.post.imageUrls!.first
+          : null;
+
+      final snippet = PostSnippet(
+        postId: widget.post.postId ?? '',
+        title: widget.post.title ?? '',
+        nearLabel: widget.post.getAddressLabel,
+        deposit: widget.post.deposit,
+        rent: widget.post.rent,
+        manageFee: widget.post.manageFee,
+        imagePath: firstImagePath, // Supabase 경로 그대로
+      );
+
+      await _chatRepo.sharePostOnce(chatRoomId, snippet);
 
       if (!mounted) return;
       Navigator.push(
@@ -437,6 +455,9 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
             chatRoomId: chatRoomId,
             partnerUid: partnerUid,
             partnerName: partnerName,
+            // 이미 1회 공유했으므로 자동공유 비활성화
+            postSnippet: snippet,
+            autoSharePostOnFirstSend: false,
           ),
         ),
       );

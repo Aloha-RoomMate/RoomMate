@@ -1,4 +1,3 @@
-// lib/class/chat_repository.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'post_snippet.dart';
@@ -7,8 +6,12 @@ class ChatRepository {
   final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
-  // ───────────────────────────────────────────────────────────────
-  // Helpers
+  /// 두 uid를 정렬해 결정적인 chatRoomId 생성 (문서 생성 X)
+  static String makeRoomId(String uid1, String uid2) {
+    final uids = [uid1, uid2]..sort();
+    return "${uids[0]}_${uids[1]}";
+  }
+
   List<String> _idsFromRoomId(String roomId) {
     final i = roomId.indexOf('_');
     if (i <= 0 || i >= roomId.length - 1) return const [];
@@ -18,48 +21,33 @@ class ChatRepository {
     return list;
   }
 
+  /// 부모 채팅문서를 안전하게 보장(없으면 생성, 있으면 그대로)
   Future<void> _ensureChatDoc(String chatRoomId) async {
     final chatRef = _db.collection("chats").doc(chatRoomId);
     final snap = await chatRef.get();
     if (snap.exists) return;
 
-    final me = _auth.currentUser!;
     final ids = _idsFromRoomId(chatRoomId);
-    final participants = ids.isEmpty ? <String>[me.uid] : ids;
-
-    // 규칙과 맞추기: create/update 시 request.resource.data.participants 에 auth.uid 포함
     await chatRef.set({
-      "participants": participants,
+      "participants": ids,
       "createdAt": FieldValue.serverTimestamp(),
       "updatedAt": FieldValue.serverTimestamp(),
       "lastMessage": "",
       "lastMessageSenderId": null,
-      "unreadCounts": {for (final p in participants) p: 0},
+      "unreadCounts": {for (final p in ids) p: 0},
       "sharedOriginPostIds": [],
     }, SetOptions(merge: true));
   }
 
-  // ───────────────────────────────────────────────────────────────
-  /// uid를 정렬한 결정적 chatRoomId 생성 + 문서 선생성(merge)
+  /// (선택) 기존 API 유지 — 하지만 빈 방이 생기므로 특별한 이유 없으면 사용하지 말 것
   Future<String> createChatRoom(String uid1, String uid2) async {
-    final uids = [uid1, uid2]..sort();
-    final chatRoomId = "${uids[0]}_${uids[1]}";
-    final chatRef = _db.collection("chats").doc(chatRoomId);
-
-    await chatRef.set({
-      "participants": uids,
-      "createdAt": FieldValue.serverTimestamp(),
-      "updatedAt": FieldValue.serverTimestamp(),
-      "lastMessage": "",
-      "lastMessageSenderId": null,
-      "unreadCounts": {uids[0]: 0, uids[1]: 0},
-      "sharedOriginPostIds": [],
-    }, SetOptions(merge: true));
-
+    final chatRoomId = makeRoomId(uid1, uid2);
+    await _ensureChatDoc(chatRoomId);
     return chatRoomId;
   }
 
-  /// 해당 방에서 postId 카드가 이미 공유됐는지 확인
+  // ─────────────────────────────────────────────────────────────
+  // 게시글 카드 1회 자동 공유
   Future<bool> hasSharedOriginPost(String chatRoomId, String postId) async {
     final chatRef = _db.collection('chats').doc(chatRoomId);
     final snap = await chatRef.get();
@@ -68,14 +56,12 @@ class ChatRepository {
     return list.contains(postId);
   }
 
-  /// '게시글 카드'를 **한 번만** 공유 (트랜잭션으로 1회 보장)
-  /// 반환: 실제 전송되면 true, 이미 공유된 상태면 false
+  /// 게시글 카드를 **한 번만** 전송 (부모 보장 + 트랜잭션)
   Future<bool> sharePostOnce(String chatRoomId, PostSnippet s) async {
     final me = _auth.currentUser!;
     final chatRef = _db.collection('chats').doc(chatRoomId);
     final msgCol = chatRef.collection('messages');
 
-    // 부모 문서가 반드시 존재해야 메시지 규칙을 통과함
     await _ensureChatDoc(chatRoomId);
 
     return _db.runTransaction<bool>((tx) async {
@@ -90,7 +76,7 @@ class ChatRepository {
         'kind': 'post',
         'senderId': me.uid,
         'createdAt': FieldValue.serverTimestamp(),
-        'post': s.toMap(), // ← post_snippet.dart 구조와 일치
+        'post': s.toMap(),
       });
 
       tx.set(
@@ -103,21 +89,19 @@ class ChatRepository {
         },
         SetOptions(merge: true),
       );
-
       return true;
     });
   }
 
+  // ─────────────────────────────────────────────────────────────
   /// 텍스트 메시지 전송
   Future<void> sendMessage(String chatRoomId, String text) async {
     final me = _auth.currentUser!;
     final chatRef = _db.collection("chats").doc(chatRoomId);
     final msgRef = chatRef.collection("messages").doc();
 
-    // 부모 보장 (규칙 만족 위해 선 생성)
     await _ensureChatDoc(chatRoomId);
 
-    // 1) 메시지 생성
     await msgRef.set({
       "id": msgRef.id,
       "senderId": me.uid,
@@ -128,7 +112,6 @@ class ChatRepository {
       "kind": "text",
     });
 
-    // 2) 메타 갱신(짧은 트랜잭션)
     await _db.runTransaction((tx) async {
       final snap = await tx.get(chatRef);
       if (!snap.exists) return;
@@ -150,10 +133,13 @@ class ChatRepository {
     });
   }
 
-  /// 읽음 처리
+  /// 읽음 처리 — 문서가 없으면 **아무 것도 하지 않음**(빈 방 생성 방지)
   Future<void> markChatRead(String chatRoomId) async {
     final me = _auth.currentUser!;
     final chatRef = _db.collection("chats").doc(chatRoomId);
+    final snap = await chatRef.get();
+    if (!snap.exists) return; // ← 중요: 여기서 만들지 않는다
+
     await chatRef.set({
       "unreadCounts.${me.uid}": 0,
       "lastSeenAt.${me.uid}": FieldValue.serverTimestamp(),
@@ -161,7 +147,6 @@ class ChatRepository {
     }, SetOptions(merge: true));
   }
 
-  /// 메시지 스트림
   Stream<QuerySnapshot<Map<String, dynamic>>> watchMessages(String chatRoomId) {
     return _db
         .collection("chats")
