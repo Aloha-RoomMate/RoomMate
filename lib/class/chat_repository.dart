@@ -24,8 +24,6 @@ class ChatRepository {
   /// 부모 chat 문서 보장(없으면 생성, 있으면 유지)
   Future<void> _ensureChatDoc(String chatRoomId) async {
     final chatRef = _db.collection('chats').doc(chatRoomId);
-    final snap = await chatRef.get();
-    if (snap.exists) return;
 
     final ids = _idsFromRoomId(chatRoomId);
     await chatRef.set({
