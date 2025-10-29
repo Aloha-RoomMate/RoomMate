@@ -19,9 +19,9 @@ class RoomOwnerPostRepository {
       _auth = auth ?? FirebaseAuth.instance;
 
   CollectionReference<Map<String, dynamic>> get _col =>
-      _db.collection('roomOwnerPosts'); // ✅ 복수형 통일
+      _db.collection('roomOwnerPosts');
 
-  // -------------------- 성별 토큰/정규화(내부 헬퍼) --------------------
+  // -------------------- 성별 토큰/정규화(규칙과 동일) --------------------
   static const Set<String> _maleTokens = {'male', '남성', '남자', 'm', 'M'};
   static const Set<String> _femaleTokens = {'female', '여성', '여자', 'f', 'F'};
 
@@ -57,7 +57,7 @@ class RoomOwnerPostRepository {
         'authorGender': _normalize(post.authorGender) ?? post.authorGender,
       'status': post.status ?? 'open',
       'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(), // ⬅️ 추가
+      'updatedAt': FieldValue.serverTimestamp(),
       if (post.imageUrls == null) 'imageUrls': <String>[],
     };
     final doc = await _col.add(data);
@@ -81,7 +81,7 @@ class RoomOwnerPostRepository {
     return RoomOwnerPost.fromDoc(doc);
   }
 
-  // ✅ 과거 코드 호환용 별칭
+  // 과거 별칭 유지
   Future<RoomOwnerPost?> fetchPostById(String postId) => fetchById(postId);
 
   Future<void> deletePost(String postId) => _col.doc(postId).delete();
@@ -96,70 +96,78 @@ class RoomOwnerPostRepository {
   }) async {
     myGender ??= await _fetchViewerGender();
     final tokens = _synonyms(myGender);
+    if (tokens.isEmpty) {
+      // 규칙상 sameGender가 필요하므로 성별이 없으면 쿼리 자체를 막아 permission-denied 회피
+      throw StateError('설정에서 성별을 먼저 지정해주세요.');
+    }
 
     try {
+      // 규칙과 동일한 필터(동일 성별)를 서버 쿼리에 포함
       var q = _col
           .where('postType', isEqualTo: postType)
           .where('status', isEqualTo: 'open')
-          .orderBy('updatedAt', descending: true) // ⬅️ 변경 권장
+          .where('authorGender', whereIn: tokens)
+          .orderBy('updatedAt', descending: true)
           .limit(limit);
 
       if (lastItem != null) q = q.startAfterDocument(lastItem);
-      if (tokens.isNotEmpty) {
-        q = q.where('authorGender', whereIn: tokens);
-      }
 
       final snap = await q.get();
       final posts = snap.docs.map(RoomOwnerPost.fromDoc).toList();
+
       return PaginatedPostsResult(
         posts: posts,
         lastDocument: snap.docs.isNotEmpty ? snap.docs.last : null,
       );
     } on FirebaseException catch (e) {
+      // 인덱스 미구축/빌드 중 → 폴백
       final msg = e.message ?? '';
       final needsIndex =
-          e.code == 'failed-precondition' && msg.contains('index');
-
+          e.code == 'failed-precondition' &&
+          msg.toLowerCase().contains('index');
       if (!needsIndex) rethrow;
 
-      // ===== 폴백 경로 (인덱스 빌드 중) =====
-      // 1) 서버 쿼리는 최소화: postType만, 커서는 서버 순서(__name__) 기준 유지
-      // 2) 클라이언트에서 status=='open'와 gender 토큰 필터링 + updatedAt/createdAt 정렬
+      // 🩹 폴백: sameGender 필터는 유지(규칙 충족), 정렬은 클라에서 처리
       var q = _col
           .where('postType', isEqualTo: postType)
-          .limit(limit * 5); // ⬅️ 넉넉히
+          .where('authorGender', whereIn: tokens)
+          .limit(limit * 4); // 넉넉히 받아서 클라 정렬
+
       if (lastItem != null) q = q.startAfterDocument(lastItem);
 
       final snap = await q.get();
-      // 커서는 반드시 '서버가 돌려준 순서'의 마지막 스냅샷으로 잡아야 함
-      final serverLast = snap.docs.isNotEmpty ? snap.docs.last : null;
+      final docs = snap.docs.toList()
+        ..sort((a, b) {
+          DateTime asDate(dynamic v) {
+            if (v == null) return DateTime.fromMillisecondsSinceEpoch(0);
+            if (v is Timestamp) return v.toDate();
+            if (v is DateTime) return v;
+            if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+            if (v is String) {
+              try {
+                return DateTime.parse(v);
+              } catch (_) {
+                return DateTime.fromMillisecondsSinceEpoch(0);
+              }
+            }
+            return DateTime.fromMillisecondsSinceEpoch(0);
+          }
 
-      // 클라이언트 필터
-      List<RoomOwnerPost> all = snap.docs.map(RoomOwnerPost.fromDoc).toList();
-      all = all
-          .where((p) => (p.status ?? 'open') == 'open')
-          .toList(); // ⬅️ 마감 제거
+          final ad = asDate(a.data()['updatedAt'] ?? a.data()['createdAt']);
+          final bd = asDate(b.data()['updatedAt'] ?? b.data()['createdAt']);
+          return bd.compareTo(ad); // desc
+        });
 
-      if (tokens.isNotEmpty) {
-        final tokSet = tokens.toSet();
-        all = all.where((p) {
-          final g = p.authorGender;
-          if (g == null) return false;
-          // 저장은 보통 'male'/'female'로 정규화돼 있으니 토큰셋에 포함되면 통과
-          return tokSet.contains(g);
-        }).toList();
-      }
-
-      // 정렬: updatedAt > createdAt
-      DateTime ts(RoomOwnerPost p) =>
-          p.updatedAt ?? p.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      all.sort((a, b) => ts(b).compareTo(ts(a)));
-
-      final page = all.take(limit).toList();
+      // UI 정책상 open만 노출
+      final filtered = docs
+          .where((d) => (d.data()['status'] ?? 'open') == 'open')
+          .take(limit)
+          .map(RoomOwnerPost.fromDoc)
+          .toList();
 
       return PaginatedPostsResult(
-        posts: page,
-        lastDocument: serverLast, // ⬅️ 서버 커서 유지(중요)
+        posts: filtered,
+        lastDocument: snap.docs.isNotEmpty ? snap.docs.last : null,
       );
     }
   }
@@ -204,13 +212,7 @@ class RoomOwnerPostRepository {
           (msg.contains('index') || msg.contains('currently building'));
       if (!building) rethrow;
 
-      var q = _col.where('authorId', isEqualTo: uid).limit(limit);
-
-      final tokens = _synonyms(authorGender);
-      if (tokens.isNotEmpty) {
-        q = q.where('authorGender', whereIn: tokens);
-      }
-
+      var q = _col.where('authorId', isEqualTo: uid).limit(limit * 3);
       if (lastItem != null) q = q.startAfterDocument(lastItem);
 
       final snap = await q.get();
@@ -240,17 +242,16 @@ class RoomOwnerPostRepository {
     String? myGender,
   }) async {
     myGender ??= await _fetchViewerGender();
-
-    var q = _col.orderBy('createdAt', descending: true).limit(limit);
-
     final tokens = _synonyms(myGender);
-    if (tokens.isNotEmpty) {
-      q = q.where('authorGender', whereIn: tokens);
-    }
+    if (tokens.isEmpty) return const [];
+
+    var q = _col
+        .where('authorGender', whereIn: tokens)
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
 
     final snap = await q.get();
-    final list = snap.docs.map(RoomOwnerPost.fromDoc).toList();
-    return list;
+    return snap.docs.map(RoomOwnerPost.fromDoc).toList();
   }
 
   // -------------------- 지도(뷰포트 내) --------------------
@@ -264,18 +265,16 @@ class RoomOwnerPostRepository {
   }) async {
     myGender ??= await _fetchViewerGender();
     final tokens = _synonyms(myGender);
+    if (tokens.isEmpty) return const [];
 
     try {
       var query = _col
           .where('postType', isEqualTo: 'roomOwner')
-          .where('status', isEqualTo: 'open') // ✅ 추가
+          .where('status', isEqualTo: 'open')
+          .where('authorGender', whereIn: tokens)
           .where('coordinate', isGreaterThanOrEqualTo: GeoPoint(minLat, minLng))
           .where('coordinate', isLessThanOrEqualTo: GeoPoint(maxLat, maxLng))
           .limit(limit);
-
-      if (tokens.isNotEmpty) {
-        query = query.where('authorGender', whereIn: tokens);
-      }
 
       final snap = await query.get();
 
@@ -292,13 +291,16 @@ class RoomOwnerPostRepository {
       final needsIndex = e.code == 'failed-precondition';
       if (!needsIndex) rethrow;
 
-      var q = _col.where('postType', isEqualTo: 'roomOwner').limit(800);
-      if (tokens.isNotEmpty) q = q.where('authorGender', whereIn: tokens);
+      // 🩹 폴백: sameGender는 서버 필터로 유지, 좌표는 클라에서 필터
+      var q = _col
+          .where('postType', isEqualTo: 'roomOwner')
+          .where('authorGender', whereIn: tokens)
+          .limit(800);
 
       final snap = await q.get();
       final list = snap.docs
           .map(RoomOwnerPost.fromDoc)
-          .where((p) => (p.status ?? 'open') == 'open') // ⬅️ 추가
+          .where((p) => (p.status ?? 'open') == 'open')
           .where((p) {
             final gp = p.coordinate;
             if (gp == null) return false;
@@ -316,7 +318,7 @@ class RoomOwnerPostRepository {
   }
 }
 
-// === 상태 관리 유틸(추가) ===
+// === 상태 관리 유틸 ===
 extension RoomOwnerPostRepositoryStatus on RoomOwnerPostRepository {
   Future<void> closePost(String postId) async {
     await updatePost(postId, {
