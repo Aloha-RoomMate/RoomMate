@@ -1,6 +1,7 @@
 // lib/class/chat_repository.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import 'post_snippet.dart';
 
 class ChatRepository {
@@ -10,9 +11,10 @@ class ChatRepository {
   /// 두 uid를 정렬해 결정적인 chatRoomId 생성 (문서 생성 X)
   Future<String> createChatRoom(String uid1, String uid2) async {
     final uids = [uid1, uid2]..sort();
-    return "${uids[0]}_${uids[1]}";
+    return "${uids[0]}_${uids[1]}"; // ← uid_uid 포맷 유지
   }
 
+  /// chatRoomId("a_b")에서 uid 2개를 복원
   List<String> _idsFromRoomId(String roomId) {
     final i = roomId.indexOf('_');
     if (i <= 0 || i >= roomId.length - 1) return const [];
@@ -24,6 +26,7 @@ class ChatRepository {
 
   // ──────────────────────────────────────────────────────────────────────────
   // Origin Post 공유(한 번만)
+
   Future<bool> hasSharedOriginPost(String chatRoomId, String postId) async {
     final chatRef = _db.collection('chats').doc(chatRoomId);
     final snap = await chatRef.get();
@@ -35,12 +38,12 @@ class ChatRepository {
   /// 공지형 '게시글 카드'를 **한 번만** 보내고, sharedOriginPostIds 에 기록
   /// 반환값: 실제 전송되면 true, 이미 보낸 적 있으면 false
   Future<bool> sharePostOnce(String chatRoomId, PostSnippet s) async {
-    // ✅ 부모 문서 선보장 (중요)
-    await ensureChatDoc(chatRoomId);
+    await ensureChatDoc(chatRoomId); // 부모 문서 보장
 
     final chatRef = _db.collection('chats').doc(chatRoomId);
     final msgCol = chatRef.collection('messages');
     final me = _auth.currentUser!;
+
     return _db.runTransaction<bool>((tx) async {
       final chatSnap = await tx.get(chatRef);
       final data = chatSnap.data() ?? <String, dynamic>{};
@@ -66,6 +69,7 @@ class ChatRepository {
         },
         SetOptions(merge: true),
       );
+
       return true;
     });
   }
@@ -74,12 +78,27 @@ class ChatRepository {
   /// 채팅 문서가 없으면 participants와 기본 필드를 채워 생성 (멱등)
   Future<void> ensureChatDoc(String chatRoomId) async {
     final ids = _idsFromRoomId(chatRoomId);
-    if (ids.length != 2) return;
+
+    // 파싱 실패는 규칙 거절 전에 즉시 에러로
+    if (ids.length != 2) {
+      throw StateError('Invalid chatRoomId: "$chatRoomId" → parsed=$ids');
+    }
+
+    final me = _auth.currentUser;
+    if (me == null) {
+      throw StateError('Not signed in while ensuring chat doc');
+    }
+    if (!ids.contains(me.uid)) {
+      // 규칙: participants에 나 자신이 반드시 포함되어야 함
+      throw StateError(
+        'participants does not contain me.uid. me=${me.uid}, ids=$ids',
+      );
+    }
 
     final chatRef = _db.collection("chats").doc(chatRoomId);
     await _db.runTransaction((tx) async {
       final snap = await tx.get(chatRef);
-      if (snap.exists) return; // 이미 있으면 패스
+      if (snap.exists) return; // 멱등
 
       tx.set(chatRef, {
         "participants": ids,
@@ -92,7 +111,6 @@ class ChatRepository {
 
   /// 메시지 전송 (부모 문서 선보장 + 메타 갱신)
   Future<void> sendMessage(String chatRoomId, String text) async {
-    // ✅ 부모 문서 선보장 (중요)
     await ensureChatDoc(chatRoomId);
 
     final me = _auth.currentUser!;
@@ -103,6 +121,7 @@ class ChatRepository {
 
     await _db.runTransaction((tx) async {
       final snap = await tx.get(chatRef);
+
       final participants = snap.exists
           ? List<String>.from(snap.data()?["participants"] ?? idsFromKey)
           : idsFromKey;
@@ -117,19 +136,28 @@ class ChatRepository {
         "createdAt": FieldValue.serverTimestamp(),
       });
 
-      // 채팅 메타 갱신
+      // unreadCounts를 맵 전체 갱신(필드패스 점 표기 회피)
+      final currentUnread = Map<String, dynamic>.from(
+        snap.data()?["unreadCounts"] ?? {},
+      );
+      for (final p in participants) {
+        if (p == me.uid) {
+          currentUnread[p] = 0;
+        } else {
+          final prev = (currentUnread[p] ?? 0);
+          currentUnread[p] = (prev is int ? prev : 0) + 1;
+        }
+      }
+
       final updates = <String, dynamic>{
         "participants": participants,
         "lastMessage": text,
         "lastMessageSenderId": me.uid,
         "updatedAt": FieldValue.serverTimestamp(),
+        "unreadCounts": currentUnread,
       };
       if (!snap.exists) {
         updates["createdAt"] = FieldValue.serverTimestamp();
-      }
-      for (final p in participants) {
-        final field = "unreadCounts.$p";
-        updates[field] = (p == me.uid) ? 0 : FieldValue.increment(1);
       }
 
       tx.set(chatRef, updates, SetOptions(merge: true));
@@ -143,13 +171,24 @@ class ChatRepository {
 
     await _db.runTransaction((tx) async {
       final snap = await tx.get(chatRef);
-      if (!snap.exists) return; // 빈 방 생성 방지
+      if (!snap.exists) return;
+
+      final currentUnread = Map<String, dynamic>.from(
+        snap.data()?["unreadCounts"] ?? {},
+      );
+      currentUnread[me.uid] = 0;
+
+      final lastSeen = Map<String, dynamic>.from(
+        snap.data()?["lastSeenAt"] ?? {},
+      );
+      lastSeen[me.uid] = FieldValue.serverTimestamp();
 
       tx.set(
         chatRef,
         {
-          "unreadCounts.${me.uid}": 0,
-          "lastSeenAt.${me.uid}": FieldValue.serverTimestamp(),
+          "unreadCounts": currentUnread,
+          "lastSeenAt": lastSeen,
+          "updatedAt": FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
       );
@@ -169,12 +208,15 @@ class ChatRepository {
 
   /// (선택) 강제 공유(한 번 제한 없이) — 기존 코드 유지 호환
   Future<void> sendPostShare(String chatRoomId, PostSnippet s) async {
+    await ensureChatDoc(chatRoomId);
+
     final me = _auth.currentUser!;
     final msgRef = _db
         .collection('chats')
         .doc(chatRoomId)
         .collection('messages')
         .doc();
+
     await msgRef.set({
       'id': msgRef.id,
       'kind': 'post',
@@ -182,10 +224,14 @@ class ChatRepository {
       'createdAt': FieldValue.serverTimestamp(),
       'post': s.toMap(),
     });
-    await _db.collection('chats').doc(chatRoomId).set({
-      'lastMessage': '${s.title} 공유함',
-      'lastMessageSenderId': me.uid,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+
+    await _db.collection('chats').doc(chatRoomId).set(
+      {
+        'lastMessage': '${s.title} 공유함',
+        'lastMessageSenderId': me.uid,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 }

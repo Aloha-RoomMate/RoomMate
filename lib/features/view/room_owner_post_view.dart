@@ -11,7 +11,6 @@ import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:roommate/class/chat_repository.dart';
 import 'package:roommate/features/chat/chat_screen.dart';
 import 'package:roommate/features/post/room_owner_post_screen.dart';
 import 'package:roommate/features/view/user_profile_view.dart';
@@ -400,24 +399,26 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
   // ======= Actions =======
   Future<void> _startChat() async {
     if (_startingChat) return;
+
     final me = FirebaseAuth.instance.currentUser;
     final partnerUid = widget.post.authorId ?? '';
+
     if (me == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다.')),
+      );
       return;
     }
     if (partnerUid.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('작성자 정보를 확인할 수 없어요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('작성자 정보를 확인할 수 없어요.')),
+      );
       return;
     }
     if (partnerUid == me.uid) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('내가 올린 글입니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('내가 올린 글입니다.')),
+      );
       return;
     }
 
@@ -425,14 +426,15 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
     try {
       final partner = await _userRepo.fetchUserById(partnerUid);
       final partnerName = partner?.displayName ?? '상대방';
-      final chatRoomId = await _chatRepo.createChatRoom(me.uid, partnerUid);
-      await _chatRepo.ensureChatDoc(chatRoomId); // ✅ 추가
 
-      // 공지형 카드 요약
+      final chatRoomId = await _chatRepo.createChatRoom(me.uid, partnerUid);
+      await _chatRepo.ensureChatDoc(chatRoomId); // 권한/유효성 즉시 검사
+
+      // 공지형 카드 요약 생성
       final imagePaths = (widget.post.imageUrls ?? [])
           .where((e) => e.trim().isNotEmpty)
-          .map((e) => e.toString())
           .toList();
+
       final snippet = PostSnippet(
         postId: widget.post.postId ?? '',
         title: widget.post.title ?? '제목 없음',
@@ -442,6 +444,7 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
         manageFee: widget.post.manageFee,
         imagePath: imagePaths.isNotEmpty ? imagePaths.first : null,
       );
+
       final prefill = '안녕하세요! "${widget.post.title ?? '게시글'}" 글 보고 연락드렸어요 🙌';
 
       if (!mounted) return;
@@ -458,11 +461,18 @@ class _RoomOwnerPostViewState extends State<RoomOwnerPostView> {
           ),
         ),
       );
-    } catch (e) {
+    } on FirebaseException catch (e, st) {
+      debugPrint('🔥 startChat FirebaseException: ${e.code} ${e.message}\n$st');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('채팅 시작에 실패했어요: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('채팅 시작 실패: ${e.code}')),
+      );
+    } catch (e, st) {
+      debugPrint('🔥 startChat Other error: $e\n$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('채팅 시작 실패: $e')),
+      );
     } finally {
       if (mounted) setState(() => _startingChat = false);
     }

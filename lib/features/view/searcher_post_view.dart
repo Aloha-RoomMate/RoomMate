@@ -100,6 +100,7 @@ class _SearcherPostViewState extends State<SearcherPostView> {
 
   Future<void> _startChat() async {
     if (_startingChat) return;
+
     final me = FirebaseAuth.instance.currentUser;
     final partnerUid = widget.post.authorId ?? '';
 
@@ -126,8 +127,9 @@ class _SearcherPostViewState extends State<SearcherPostView> {
     try {
       final partner = await _userRepository.fetchUserById(partnerUid);
       final partnerName = partner?.displayName ?? '상대방';
+
       final chatRoomId = await _chatRepo.createChatRoom(me.uid, partnerUid);
-      await _chatRepo.ensureChatDoc(chatRoomId); // ✅ 추가
+      await _chatRepo.ensureChatDoc(chatRoomId);
 
       if (!mounted) return;
       Navigator.push(
@@ -140,10 +142,17 @@ class _SearcherPostViewState extends State<SearcherPostView> {
           ),
         ),
       );
-    } catch (e) {
+    } on FirebaseException catch (e, st) {
+      debugPrint('🔥 startChat FirebaseException: ${e.code} ${e.message}\n$st');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('채팅 시작에 실패했어요: $e')),
+        SnackBar(content: Text('채팅 시작 실패: ${e.code}')),
+      );
+    } catch (e, st) {
+      debugPrint('🔥 startChat Other error: $e\n$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('채팅 시작 실패: $e')),
       );
     } finally {
       if (mounted) setState(() => _startingChat = false);
