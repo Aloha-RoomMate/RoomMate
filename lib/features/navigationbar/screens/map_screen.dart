@@ -112,7 +112,7 @@ class _MapScreenState extends State<MapScreen> {
         throw Exception('JUSO_API_KEY가 설정되어 있지 않습니다.');
       }
 
-      // 1) JUSO API 호출 (RoomOwnerPost와 동일한 파라미터)
+      // 1) JUSO API 호출
       final url = Uri.https('www.juso.go.kr', '/addrlink/addrLinkApi.do', {
         'confmKey': _jusoKey,
         'currentPage': '1',
@@ -137,25 +137,22 @@ class _MapScreenState extends State<MapScreen> {
         return;
       }
 
-      // 2) 검색 결과(도로명/지번) → addrToCoordinate로 좌표 변환
+      // 2) 주소 → 좌표 변환
       final places = <PlaceInfo>[];
       for (final item in jusoList.take(20).cast<Map>()) {
         final roadFull = (item['roadAddr'] as String?)?.trim() ?? '';
-        final roadP1 =
-            (item['roadAddrPart1'] as String?)?.trim() ?? ''; // 괄호 등 제거된 도로명
+        final roadP1 = (item['roadAddrPart1'] as String?)?.trim() ?? '';
         final jibun = (item['jibunAddr'] as String?)?.trim() ?? '';
 
-        // 변환 성공률을 높이기 위해 후보 순서대로 시도
         final candidates = <String>[
-          roadP1, // 가장 깔끔
-          roadFull, // 전체 도로명
-          jibun, // 지번
+          roadP1,
+          roadFull,
+          jibun,
         ].where((s) => s.isNotEmpty).toList();
 
         Map<String, double>? center;
         for (final cand in candidates) {
           center = await _addrToCoordinate(cand);
-          // 실패 시 '대한민국' 접두사 붙여 재시도 (일부 케이스에서 필요)
           if (center == null && !cand.startsWith('대한민국')) {
             center = await _addrToCoordinate('대한민국 $cand');
           }
@@ -166,7 +163,7 @@ class _MapScreenState extends State<MapScreen> {
         places.add(
           PlaceInfo(
             pos: LatLng(center['latitude']!, center['longitude']!),
-            title: roadFull.isNotEmpty ? roadFull : jibun, // 마커/리스트 타이틀
+            title: roadFull.isNotEmpty ? roadFull : jibun,
             address: jibun,
             roadAddress: roadFull,
           ),
@@ -238,11 +235,15 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _animateSheet(double size) {
-    _sheetCtrl.animateTo(
-      size,
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
-    );
+    try {
+      _sheetCtrl.animateTo(
+        size,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    } catch (_) {
+      // 컨트롤러가 아직 attach 되지 않은 경우 무시
+    }
   }
 
   void _toggleSheet() {
@@ -282,7 +283,6 @@ class _MapScreenState extends State<MapScreen> {
 
     final zoom = await _controller!.getZoomLevel();
     if (zoom < Z_ALL) {
-      // If zoomed out too far, show all markers from cache instead
       await _showAllOwnerMarkersFromCache();
       return;
     }
@@ -445,6 +445,34 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  /// 🔹 X 버튼에서 호출: 텍스트/결과/마커 정리 + 시트 안전하게 접기
+  Future<void> _clearSearchResults() async {
+    _searchCtrl.clear();
+    _searchFocus.unfocus();
+    _viewportDebounce?.cancel();
+
+    // 시트가 화면에 있을 법한 상태면 먼저 접는 애니메이션을 시도
+    if (_results.isNotEmpty) {
+      try {
+        await _sheetCtrl.animateTo(
+          _sheetMin,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+        );
+      } catch (_) {
+        // 시트가 attach 되지 않았거나 타이밍 경합 시 무시
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _results.clear(); // ← 조건부 렌더링 false → 시트 제거
+      _searchMarkers.clear(); // ← 검색 마커 제거
+      _selectedPlace = null; // ← 선택 초기화
+      _showOwnerPreview = false; // ← 혹시 켜져 있으면 닫기
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final filteredSuggestions = () {
@@ -539,23 +567,43 @@ class _MapScreenState extends State<MapScreen> {
                           Icons.search,
                           color: Colors.black87,
                         ),
-                        suffixIcon: IconButton(
-                          icon: _loading
-                              ? SizedBox(
-                                  width: ResponsiveSizes.p(context, 20),
-                                  height: ResponsiveSizes.p(context, 20),
-                                  child: const CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.arrow_forward,
-                                  color: Colors.black87,
+                        // 🔽 X + 검색 아이콘(로딩시 인디케이터)
+                        suffixIconConstraints: BoxConstraints(
+                          maxWidth: ResponsiveSizes.p(context, 96),
+                        ),
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_searchCtrl.text.isNotEmpty ||
+                                _results.isNotEmpty)
+                              IconButton(
+                                tooltip: '지우기',
+                                icon: const Icon(
+                                  Icons.clear,
+                                  color: Colors.black54,
                                 ),
-                          onPressed: _loading
-                              ? null
-                              : () => _searchAddress(_searchCtrl.text),
-                          tooltip: '검색',
+                                onPressed: _loading
+                                    ? null
+                                    : _clearSearchResults,
+                              ),
+                            _loading
+                                ? SizedBox(
+                                    width: ResponsiveSizes.p(context, 20),
+                                    height: ResponsiveSizes.p(context, 20),
+                                    child: const CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : IconButton(
+                                    tooltip: '검색',
+                                    icon: const Icon(
+                                      Icons.arrow_forward,
+                                      color: Colors.black87,
+                                    ),
+                                    onPressed: () =>
+                                        _searchAddress(_searchCtrl.text),
+                                  ),
+                          ],
                         ),
                       ),
                       onChanged: (_) => setState(() {}),

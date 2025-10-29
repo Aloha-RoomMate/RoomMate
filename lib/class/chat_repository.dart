@@ -1,5 +1,7 @@
+// lib/class/chat_repository.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'post_snippet.dart';
 
 class ChatRepository {
   final _db = FirebaseFirestore.instance;
@@ -20,6 +22,54 @@ class ChatRepository {
     return list;
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Origin Post 공유(한 번만)
+  Future<bool> hasSharedOriginPost(String chatRoomId, String postId) async {
+    final chatRef = _db.collection('chats').doc(chatRoomId);
+    final snap = await chatRef.get();
+    final data = snap.data() ?? const {};
+    final list = (data['sharedOriginPostIds'] as List?) ?? const [];
+    return list.contains(postId);
+  }
+
+  /// 공지형 '게시글 카드'를 **한 번만** 보내고, sharedOriginPostIds 에 기록
+  /// 반환값: 실제 전송되면 true, 이미 보낸 적 있으면 false
+  Future<bool> sharePostOnce(String chatRoomId, PostSnippet s) async {
+    final chatRef = _db.collection('chats').doc(chatRoomId);
+    final msgCol = chatRef.collection('messages');
+    final me = _auth.currentUser!;
+    return _db.runTransaction<bool>((tx) async {
+      final chatSnap = await tx.get(chatRef);
+      final data = chatSnap.data() ?? <String, dynamic>{};
+      final shared = (data['sharedOriginPostIds'] as List?) ?? const [];
+      if (shared.contains(s.postId)) {
+        return false; // 이미 공유됨
+      }
+
+      final msgRef = msgCol.doc();
+      tx.set(msgRef, {
+        'id': msgRef.id,
+        'kind': 'post',
+        'senderId': me.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'post': s.toMap(),
+      });
+
+      tx.set(
+        chatRef,
+        {
+          'sharedOriginPostIds': FieldValue.arrayUnion([s.postId]),
+          'lastMessage': '${s.title} 공유함',
+          'lastMessageSenderId': me.uid,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      return true;
+    });
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
   /// 메시지 전송 시에만 채팅방 문서를 원자적으로 생성/갱신
   Future<void> sendMessage(String chatRoomId, String text) async {
     final me = _auth.currentUser!;
@@ -53,7 +103,6 @@ class ChatRepository {
         "updatedAt": FieldValue.serverTimestamp(),
       };
 
-      // 최초 생성시에만 createdAt 세팅
       if (!snap.exists) {
         updates["createdAt"] = FieldValue.serverTimestamp();
       }
@@ -92,12 +141,36 @@ class ChatRepository {
     });
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> watchMessages(String chatRoomId) {
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchMessages(
+    String chatRoomId,
+  ) {
     return _db
         .collection("chats")
         .doc(chatRoomId)
         .collection("messages")
         .orderBy("createdAt", descending: false)
         .snapshots();
+  }
+
+  /// (선택) 강제 공유(한 번 제한 없이) — 기존 코드 유지 호환
+  Future<void> sendPostShare(String chatRoomId, PostSnippet s) async {
+    final me = _auth.currentUser!;
+    final msgRef = _db
+        .collection('chats')
+        .doc(chatRoomId)
+        .collection('messages')
+        .doc();
+    await msgRef.set({
+      'id': msgRef.id,
+      'kind': 'post',
+      'senderId': me.uid,
+      'createdAt': FieldValue.serverTimestamp(),
+      'post': s.toMap(),
+    });
+    await _db.collection('chats').doc(chatRoomId).set({
+      'lastMessage': '${s.title} 공유함',
+      'lastMessageSenderId': me.uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

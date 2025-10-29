@@ -258,7 +258,7 @@ class _UserjobScreenState extends State<UserjobScreen>
 
   @override
   Widget build(BuildContext context) {
-    final textOptions = ['회사/학교', '재택', '프리랜서', '대학생'];
+    final textOptions = ['회사', '재택', '프리랜서', '대학생'];
     final bool isNextEnabled = _isNextEnabled();
     final genderHint = _genderLocked ? ' (설정됨 · 수정 불가)' : '';
 

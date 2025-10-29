@@ -429,9 +429,9 @@ class _SuggestedUserTile extends StatelessWidget {
 
             // 게시글 보기 아이콘
             IconButton(
-              tooltip: '게시글 보기',
+              tooltip: '상대 프로필 보기',
               onPressed: onOpenProfile,
-              icon: const Icon(Icons.article_outlined),
+              icon: const Icon(Icons.person_pin_rounded),
             ),
           ],
         ),

@@ -15,6 +15,7 @@ import 'package:roommate/features/navigationbar/widgets/feed_filter.dart';
 import 'package:roommate/features/post/room_owner_post_screen.dart';
 import 'package:roommate/features/post/searcher_post_screen.dart';
 import 'package:roommate/features/recommend/userlist_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 👈 추가
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({
@@ -134,13 +135,15 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   void _onMypageTap(AppUser? user) {
-    if (user == null) {
-      _toast('로그인이 만료되었습니다.');
+    final authUser = FirebaseAuth.instance.currentUser; // ← 여기로 판별
+    if (authUser == null) {
+      _toast('로그인이 필요합니다.');
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
       return;
     }
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => const MypageScreen(isBlocked: false),
@@ -215,9 +218,14 @@ class _MainNavigationState extends State<MainNavigation> {
         border: Border(top: BorderSide(color: cs.outlineVariant, width: 0.6)),
       ),
       child: SafeArea(
-        top: false,
+        top: true,
         bottom: false,
+
         child: BottomNavigationBar(
+          showSelectedLabels: false,
+          showUnselectedLabels: false,
+          selectedFontSize: 0,
+          unselectedFontSize: 0,
           onTap: (i) {
             HapticFeedback.selectionClick();
 
@@ -247,8 +255,6 @@ class _MainNavigationState extends State<MainNavigation> {
           elevation: 0,
           selectedItemColor: cs.primary,
           unselectedItemColor: cs.onSurfaceVariant,
-          showUnselectedLabels: true,
-          // ⬇️ 아이콘 크기 통일
           selectedIconTheme: const IconThemeData(size: 23),
           unselectedIconTheme: const IconThemeData(size: 21),
           items: navItems,

@@ -1,4 +1,4 @@
-// features/post/room_owner_post_screen.dart
+// lib/features/post/room_owner_post_screen.dart
 import 'dart:convert';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -61,8 +61,13 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
 
   // image pick & upload (Supabase)
   final _picker = ImagePicker();
-  final List<XFile> _pickedImages = [];
+  final List<XFile> _pickedImages = []; // 새로 추가할 이미지(저장 시 업로드)
   bool _uploadingImages = false;
+
+  // === 기존 업로드 이미지(편집 모드) ===
+  List<String> _existingImagePaths = []; // storage 경로
+  List<String> _existingImageUrls = []; // 표시용 signed URL
+  bool _loadingExistingImages = false;
 
   static const String _bucket = 'RoomMate-image';
   final _supabase = Supabase.instance.client;
@@ -277,6 +282,8 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       _maxContractCtrl.text = (p.maxContract ?? 0).toString();
       _introductionCtrl.text = p.introduction ?? '';
       _selectedMovingDate = p.movingDate?.toDate();
+
+      _loadExistingImages(); // ✅ 편집 모드: 기존 이미지 불러오기
     }
   }
 
@@ -435,8 +442,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
           }
         }
 
-        // 편집 시에는 이미지 추가/삭제 로직이 더 복잡하므로, 여기서는 새 이미지를 추가하는 기존 로직을 유지합니다.
-        // TODO: 이미지 삭제 및 순서 변경 기능 구현 필요
         await docRef.update({
           ...common,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -449,7 +454,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
           );
 
           if (newPaths.isNotEmpty) {
-            // ArrayUnion을 사용하여 기존 배열에 새 항목을 원자적으로 추가
             await docRef.update({
               'imageUrls': FieldValue.arrayUnion(newPaths),
               'updatedAt': FieldValue.serverTimestamp(),
@@ -485,12 +489,13 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       final jitter = _randomizeCoord(center, 200.0);
       final normalizedGender = _normalizeGender(_me?.gender);
 
-      // 4. 모든 정보를 포함하여 문서를 한 번에 생성
+      // 4. 문서 생성
       await col.doc(postId).set({
         ...common,
         'authorId': _me?.uid ?? uid,
         'authorGender': normalizedGender ?? _me?.gender,
         'postType': 'roomOwner',
+        'status': 'open', // ✅ 신규 글은 기본 open
         'coordinate': GeoPoint(jitter['latitude']!, jitter['longitude']!),
         'imageUrls': uploadedPaths, // 업로드된 이미지 경로 사용
         'createdAt': FieldValue.serverTimestamp(),
@@ -515,6 +520,100 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
     }
   }
 
+  // ==== 편집 모드: 기존 이미지 불러오기 & 삭제 ====
+
+  Future<void> _loadExistingImages() async {
+    final post = widget.postToEdit;
+    if (post == null) return;
+
+    final paths = (post.imageUrls ?? [])
+        .whereType<String>()
+        .where((s) => s.trim().isNotEmpty)
+        .toList();
+
+    if (paths.isEmpty) {
+      setState(() {
+        _existingImagePaths = [];
+        _existingImageUrls = [];
+      });
+      return;
+    }
+
+    setState(() => _loadingExistingImages = true);
+    try {
+      final urls = await Future.wait(
+        paths.map(
+          (p) => _supabase.storage.from(_bucket).createSignedUrl(p, 3600),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _existingImagePaths = paths;
+        _existingImageUrls = urls;
+      });
+    } catch (_) {
+      // 보기 실패는 무시
+    } finally {
+      if (mounted) setState(() => _loadingExistingImages = false);
+    }
+  }
+
+  Future<void> _removeExistingImageAt(int index) async {
+    final post = widget.postToEdit;
+    if (post == null) return;
+
+    final docId = post.postId!;
+    final col = FirebaseFirestore.instance.collection('roomOwnerPosts');
+    final docRef = col.doc(docId);
+
+    final path = _existingImagePaths[index];
+
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('이미지 삭제'),
+        content: const Text('이 이미지를 삭제할까요? (되돌릴 수 없습니다)'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true) return;
+
+    try {
+      // 1) Storage에서 삭제
+      await _supabase.storage.from(_bucket).remove([path]);
+
+      // 2) Firestore 배열에서 제거
+      await docRef.update({
+        'imageUrls': FieldValue.arrayRemove([path]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // 3) 로컬 상태에서 제거
+      setState(() {
+        _existingImagePaths.removeAt(index);
+        _existingImageUrls.removeAt(index);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이미지를 삭제했습니다.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('삭제에 실패했어요: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final buttonText = _isEdit ? '수정 완료' : '다음';
@@ -524,12 +623,12 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
-          automaticallyImplyLeading: false,
+          // ✅ 뒤로가기 화살표
+          automaticallyImplyLeading: true,
+          leading: const BackButton(),
           elevation: 0,
           scrolledUnderElevation: 0,
-          title: Text(
-            _isEdit ? '게시글 수정' : '게시글 작성',
-          ),
+          title: Text(_isEdit ? '게시글 수정' : '게시글 작성'),
         ),
         body: Padding(
           padding: const EdgeInsets.all(12),
@@ -554,7 +653,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       color: Colors.black38,
                       fontWeight: FontWeight.w300,
                     ),
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 Gaps.v48(context),
@@ -583,7 +682,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                         controller: _roadAddrCtrl,
                         decoration: InputDecoration(
                           hintText: '도로명 주소 입력 후 엔터',
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                           hintStyle: TextStyle(
                             fontSize: ResponsiveSizes.f(context, 14),
                             color: Colors.black38,
@@ -637,6 +736,76 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   },
                 ),
                 Gaps.v2(context),
+
+                // === 기존 업로드된 이미지 (편집 모드) ===
+                if (_isEdit) ...[
+                  Gaps.v12(context),
+                  Text(
+                    '기존 업로드된 사진',
+                    style: TextStyle(
+                      fontSize: ResponsiveSizes.f(context, 24),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Gaps.v12(context),
+                  if (_loadingExistingImages)
+                    const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else if (_existingImageUrls.isEmpty)
+                    const Text('기존 이미지가 없습니다.')
+                  else
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                          ),
+                      itemCount: _existingImageUrls.length,
+                      itemBuilder: (_, i) => Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              _existingImageUrls[i],
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const ColoredBox(
+                                color: Color(0xFFE0E0E0),
+                                child: Center(
+                                  child: Icon(Icons.broken_image_outlined),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            right: 4,
+                            top: 4,
+                            child: InkWell(
+                              onTap: () => _removeExistingImageAt(i),
+                              child: const CircleAvatar(
+                                radius: 12,
+                                backgroundColor: Colors.black54,
+                                child: Icon(
+                                  Icons.close,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Gaps.v24(context),
+                ],
+
+                // === 새로 추가할 로컬 선택 이미지 미리보기 ===
                 if (_pickedImages.isNotEmpty)
                   GridView.builder(
                     shrinkWrap: true,
@@ -653,6 +822,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
+                          // 웹 호환을 위해 Image.network 사용(Blob URL)
                           child: Image.network(
                             _pickedImages[i].path,
                             fit: BoxFit.cover,
@@ -724,7 +894,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                             color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                         ),
                       ),
                     ),
@@ -740,7 +910,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                             color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                         ),
                       ),
                     ),
@@ -756,7 +926,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                             color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                         ),
                       ),
                     ),
@@ -777,7 +947,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                             color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                         ),
                       ),
                     ),
@@ -793,7 +963,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                             color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                         ),
                       ),
                     ),
@@ -821,7 +991,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                             color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                         ),
                       ),
                     ),
@@ -837,7 +1007,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                             color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                         ),
                       ),
                     ),
@@ -858,7 +1028,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   controller: _movingDateCtrl,
                   readOnly: true,
                   decoration: InputDecoration(
-                    suffixIcon: Padding(
+                    suffixIcon: const Padding(
                       padding: EdgeInsets.all(10),
                       child: FaIcon(FontAwesomeIcons.calendar),
                     ),
@@ -868,7 +1038,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       color: Colors.black38,
                       fontWeight: FontWeight.w300,
                     ),
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 Gaps.v24(context),
@@ -886,7 +1056,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                             color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                         ),
                       ),
                     ),
@@ -902,8 +1072,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                             color: Colors.black38,
                             fontWeight: FontWeight.w300,
                           ),
-
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                         ),
                       ),
                     ),
@@ -931,7 +1100,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                       color: Colors.black38,
                       fontWeight: FontWeight.w300,
                     ),
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 Gaps.v24(context),

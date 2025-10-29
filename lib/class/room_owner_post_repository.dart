@@ -22,7 +22,6 @@ class RoomOwnerPostRepository {
       _db.collection('roomOwnerPosts'); // ✅ 복수형 통일
 
   // -------------------- 성별 토큰/정규화(내부 헬퍼) --------------------
-
   static const Set<String> _maleTokens = {'male', '남성', '남자', 'm', 'M'};
   static const Set<String> _femaleTokens = {'female', '여성', '여자', 'f', 'F'};
 
@@ -54,9 +53,9 @@ class RoomOwnerPostRepository {
   Future<String> createPost(RoomOwnerPost post) async {
     final data = {
       ...post.toMap(),
-      // 저장 시 표준값으로 살짝 정규화(기존 문서는 그대로 둠)
       if (post.authorGender != null)
         'authorGender': _normalize(post.authorGender) ?? post.authorGender,
+      'status': post.toMap()['status'] ?? 'open', // 기본 open
       'createdAt': FieldValue.serverTimestamp(),
       if (post.imageUrls == null) 'imageUrls': <String>[],
     };
@@ -81,18 +80,19 @@ class RoomOwnerPostRepository {
     return RoomOwnerPost.fromDoc(doc);
   }
 
+  // ✅ 과거 코드 호환용 별칭
+  Future<RoomOwnerPost?> fetchPostById(String postId) => fetchById(postId);
+
   Future<void> deletePost(String postId) => _col.doc(postId).delete();
 
   // -------------------- 목록 / 피드 --------------------
 
-  /// postType 피드(페이지네이션)
   Future<PaginatedPostsResult> fetchPosts({
     required String postType,
     DocumentSnapshot? lastItem,
     int limit = 20,
-    String? myGender, // "남성" 그대로 받아도 됨(동의어 처리)
+    String? myGender,
   }) async {
-    // myGender 미전달 시 로그인 사용자 gender를 읽어 자동 적용
     myGender ??= await _fetchViewerGender();
 
     try {
@@ -101,7 +101,6 @@ class RoomOwnerPostRepository {
           .orderBy('createdAt', descending: true)
           .limit(limit);
 
-      // 🔑 규칙 충족/쿼리 통과용: 동의어 집합 whereIn
       final tokens = _synonyms(myGender);
       if (tokens.isNotEmpty) {
         q = q.where('authorGender', whereIn: tokens);
@@ -111,6 +110,13 @@ class RoomOwnerPostRepository {
 
       final snap = await q.get();
       final posts = snap.docs.map(RoomOwnerPost.fromDoc).toList();
+
+      // 🔍 클라 필터로 마감/매칭 숨기기(원하면 주석 해제)
+      // final filtered = posts.where((p) {
+      //   final st = (p.toMap()['status'] ?? 'open').toString();
+      //   return st == 'open';
+      // }).toList();
+
       return PaginatedPostsResult(
         posts: posts,
         lastDocument: snap.docs.isNotEmpty ? snap.docs.last : null,
@@ -122,7 +128,7 @@ class RoomOwnerPostRepository {
 
       if (!needsIndex) rethrow;
 
-      // 🩹 인덱스 빌드 중 임시 폴백(서버 정렬 없이 받아 클라 정렬)
+      // 🩹 인덱스 빌드 중 임시 폴백
       var q = _col.where('postType', isEqualTo: postType).limit(limit);
 
       final tokens = _synonyms(myGender);
@@ -149,12 +155,11 @@ class RoomOwnerPostRepository {
       final list = docs.map(RoomOwnerPost.fromDoc).toList();
       return PaginatedPostsResult(
         posts: list,
-        lastDocument: snap.docs.isNotEmpty ? snap.docs.last : null,
+        lastDocument: docs.isNotEmpty ? docs.last : null,
       );
     }
   }
 
-  /// 특정 사용자 글 전체(단순 정렬)
   Future<List<RoomOwnerPost>> fetchPostByUser(String uid) async {
     final snap = await _col
         .where('authorId', isEqualTo: uid)
@@ -163,7 +168,6 @@ class RoomOwnerPostRepository {
     return snap.docs.map(RoomOwnerPost.fromDoc).toList();
   }
 
-  /// 특정 사용자 글 — 페이지네이션 (인덱스 빌드 중이면 폴백)
   Future<PaginatedPostsResult> fetchUserPostsPaged({
     required String uid,
     DocumentSnapshot? lastItem,
@@ -196,7 +200,6 @@ class RoomOwnerPostRepository {
           (msg.contains('index') || msg.contains('currently building'));
       if (!building) rethrow;
 
-      // 🩹 폴백: 서버 정렬 없이 받아서 클라에서 createdAt desc 정렬
       var q = _col.where('authorId', isEqualTo: uid).limit(limit);
 
       final tokens = _synonyms(authorGender);
@@ -223,12 +226,11 @@ class RoomOwnerPostRepository {
       final list = docs.map(RoomOwnerPost.fromDoc).toList();
       return PaginatedPostsResult(
         posts: list,
-        lastDocument: snap.docs.isNotEmpty ? snap.docs.last : null,
+        lastDocument: docs.isNotEmpty ? docs.last : null,
       );
     }
   }
 
-  /// 최신글 일부
   Future<List<RoomOwnerPost>> fetchAllPosts({
     int limit = 20,
     String? myGender,
@@ -243,17 +245,11 @@ class RoomOwnerPostRepository {
     }
 
     final snap = await q.get();
-    return snap.docs.map(RoomOwnerPost.fromDoc).toList();
+    final list = snap.docs.map(RoomOwnerPost.fromDoc).toList();
+    return list;
   }
 
   // -------------------- 지도(뷰포트 내) --------------------
-
-  /// 현재 지도 사각형(viewport) 안의 RoomOwner 글만 가져오기
-  ///
-  /// ⚠️ Firestore의 GeoPoint 단일 필드 범위 질의는 사전식 정렬이라
-  ///    정확한 사각형 컷이 되지 않을 수 있음.
-  ///    → 1) GeoPoint로 대략 범위 질의
-  ///    → 2) 클라이언트에서 lat/lng로 최종 필터
   Future<List<RoomOwnerPost>> fetchOwnerPostsInBounds({
     required double minLat,
     required double minLng,
@@ -278,7 +274,6 @@ class RoomOwnerPostRepository {
 
       final snap = await query.get();
 
-      // 최종 사각형 필터(사전식 한계 보정)
       var list = snap.docs.map(RoomOwnerPost.fromDoc).where((p) {
         final gp = p.coordinate;
         if (gp == null) return false;
@@ -289,7 +284,6 @@ class RoomOwnerPostRepository {
       if (list.length > limit) list = list.take(limit).toList();
       return list;
     } on FirebaseException catch (e) {
-      // 👉 인덱스 없을 때 임시 폴백
       final needsIndex = e.code == 'failed-precondition';
       if (!needsIndex) rethrow;
 
@@ -313,5 +307,28 @@ class RoomOwnerPostRepository {
 
       return list;
     }
+  }
+}
+
+// === 상태 관리 유틸(추가) ===
+extension RoomOwnerPostRepositoryStatus on RoomOwnerPostRepository {
+  Future<void> closePost(String postId) async {
+    await updatePost(postId, {
+      'status': 'closed',
+      'closedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> markPostMatched({
+    required String postId,
+    required String chatRoomId,
+    required String partnerUid,
+  }) async {
+    await updatePost(postId, {
+      'status': 'matched',
+      'matchedChatRoomId': chatRoomId,
+      'matchedWithUid': partnerUid,
+      'matchedAt': FieldValue.serverTimestamp(),
+    });
   }
 }
