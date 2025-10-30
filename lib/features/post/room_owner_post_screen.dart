@@ -24,12 +24,6 @@ const _jusoKey = String.fromEnvironment(
   defaultValue: '',
 );
 
-class _PickedImage {
-  final XFile file;
-  final DateTime addedAt;
-  const _PickedImage(this.file, this.addedAt);
-}
-
 class RoomOwnerPostScreen extends StatefulWidget {
   const RoomOwnerPostScreen({super.key, this.postToEdit});
   final RoomOwnerPost? postToEdit;
@@ -67,7 +61,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
 
   // image pick & upload (Supabase)
   final _picker = ImagePicker();
-  final List<_PickedImage> _pickedImages = []; // 새로 추가할 이미지(저장 시 업로드)
+  final List<XFile> _pickedImages = []; // 새로 추가할 이미지(저장 시 업로드)
   bool _uploadingImages = false;
 
   // === 기존 업로드 이미지(편집 모드) ===
@@ -114,12 +108,8 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
 
     final uploadedPaths = <String>[];
     try {
-      // ✔ 선택(addedAt) 오름차순으로 고정
-      final ordered = List<_PickedImage>.from(_pickedImages)
-        ..sort((a, b) => a.addedAt.compareTo(b.addedAt));
-
-      for (int i = 0; i < ordered.length; i++) {
-        final xf = ordered[i].file;
+      for (int i = 0; i < _pickedImages.length; i++) {
+        final xf = _pickedImages[i];
         final ext = xf.path.split('.').last;
         final fileName = '${DateTime.now().millisecondsSinceEpoch}-$i.$ext';
         final storagePath = 'roomOwnerPosts/$uid/$postId/$fileName';
@@ -136,6 +126,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                 cacheControl: '3600',
               ),
             );
+
         uploadedPaths.add(storagePath);
       }
     } finally {
@@ -194,9 +185,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
         imageQuality: 85,
         preferredCameraDevice: CameraDevice.rear,
       );
-      if (x != null) {
-        setState(() => _pickedImages.add(_PickedImage(x, DateTime.now())));
-      }
+      if (x != null) setState(() => _pickedImages.add(x));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -208,17 +197,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
   Future<void> _getPhotoLibraryImages() async {
     try {
       final files = await _picker.pickMultiImage(imageQuality: 85);
-      if (files.isNotEmpty) {
-        final base = DateTime.now();
-        setState(() {
-          for (int i = 0; i < files.length; i++) {
-            // 선택한 “그대로의 순서”를 미세한 시간차로 보존
-            _pickedImages.add(
-              _PickedImage(files[i], base.add(Duration(microseconds: i))),
-            );
-          }
-        });
-      }
+      if (files.isNotEmpty) setState(() => _pickedImages.addAll(files));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -715,16 +694,6 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                         },
                       ),
                     ),
-                    Gaps.v8(context),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: _addresses.isNotEmpty
-                          ? SizedBox(
-                              height: 240, // 필요 시 200~320 사이로 조절
-                              child: _buildResults(),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
                   ],
                 ),
                 Builder(
@@ -767,6 +736,12 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   },
                 ),
                 Gaps.v2(context),
+
+                SizedBox(
+                  height: _addresses.isNotEmpty ? 300 : 0,
+                  child: _buildResults(),
+                ),
+                Gaps.v24(context),
 
                 // === 기존 업로드된 이미지 (편집 모드) ===
                 if (_isEdit) ...[
@@ -836,50 +811,7 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   Gaps.v24(context),
                 ],
 
-                // === 새로 추가할 로컬 선택 이미지 미리보기 ===
-                if (_pickedImages.isNotEmpty)
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: 8,
-                          crossAxisSpacing: 8,
-                        ),
-                    itemCount: _pickedImages.length,
-                    itemBuilder: (_, i) => Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          // 웹 호환을 위해 Image.network 사용(Blob URL)
-                          child: Image.network(
-                            _pickedImages[i].file.path,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        Positioned(
-                          right: 4,
-                          top: 4,
-                          child: InkWell(
-                            onTap: () => _removeImageAt(i),
-                            child: const CircleAvatar(
-                              radius: 12,
-                              backgroundColor: Colors.black54,
-                              child: Icon(
-                                Icons.close,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                Gaps.v32(context),
-
+                Gaps.v12(context),
                 Text(
                   '사진 업로드',
                   style: TextStyle(
@@ -906,6 +838,49 @@ class _RoomOwnerPostScreenState extends State<RoomOwnerPostScreen> {
                   ],
                 ),
                 Gaps.v40(context),
+                // === 새로 추가할 로컬 선택 이미지 미리보기 ===
+                if (_pickedImages.isNotEmpty)
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                        ),
+                    itemCount: _pickedImages.length,
+                    itemBuilder: (_, i) => Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          // 웹 호환을 위해 Image.network 사용(Blob URL)
+                          child: Image.network(
+                            _pickedImages[i].path,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: InkWell(
+                            onTap: () => _removeImageAt(i),
+                            child: const CircleAvatar(
+                              radius: 12,
+                              backgroundColor: Colors.black54,
+                              child: Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Gaps.v24(context),
 
                 Row(
                   children: [
