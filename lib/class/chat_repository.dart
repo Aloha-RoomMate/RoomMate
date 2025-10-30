@@ -59,38 +59,34 @@ class ChatRepository {
   Future<bool> sharePostOnce(String chatRoomId, PostSnippet s) async {
     final me = _auth.currentUser!;
     final chatRef = _db.collection('chats').doc(chatRoomId);
-    final msgCol = chatRef.collection('messages');
     final ids = _idsFromRoomId(chatRoomId);
+    final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
+    final msgId = 'post_${s.postId}_${me.uid}'; // 결정적 ID
 
-    debugPrint(
-      '[sharePostOnce] uid=${me.uid}, room=$chatRoomId, post=${s.postId}',
-    );
+    return await _db.runTransaction<bool>((tx) async {
+      final snap = await tx.get(chatRef);
+      final already = snap.exists
+          ? List.from(
+              snap.data()?['sharedOriginPostIds'] ?? const [],
+            ).contains(s.postId)
+          : false;
+      if (already) {
+        debugPrint('[sharePostOnce] already shared, skip');
+        return false;
+      }
 
-    // 1) 메시지 먼저 (부모 문서 없어도 rules 상 허용됨)
-    final msgRef = msgCol.doc();
-    try {
-      await msgRef.set({
-        'id': msgRef.id,
+      // 1) 메시지(결정적 ID → 중복 생성 불가)
+      final msgRef = chatRef.collection('messages').doc(msgId);
+      tx.set(msgRef, {
+        'id': msgId,
         'kind': 'post',
         'senderId': me.uid,
         'createdAt': FieldValue.serverTimestamp(),
         'post': s.toMap(),
       });
-      debugPrint('[sharePostOnce] messages/${msgRef.id} written');
-    } on FirebaseException catch (e) {
-      debugPrint(
-        '[sharePostOnce] write message FAILED: code=${e.code} msg=${e.message}',
-      );
-      rethrow;
-    } catch (e) {
-      debugPrint('[sharePostOnce] write message FAILED: $e');
-      rethrow;
-    }
 
-    // 2) 메타 upsert(실패해도 대화는 존재)
-    try {
-      final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
-      await chatRef.set({
+      // 2) 메타
+      tx.set(chatRef, {
         'participants': ids,
         'sharedOriginPostIds': FieldValue.arrayUnion([s.postId]),
         'lastMessage': '${s.title} 공유함',
@@ -100,17 +96,9 @@ class ChatRepository {
         'unreadCounts.${me.uid}': 0,
         'unreadCounts.$other': FieldValue.increment(1),
       }, SetOptions(merge: true));
-      debugPrint('[sharePostOnce] meta upsert ok');
+
       return true;
-    } on FirebaseException catch (e) {
-      debugPrint(
-        '[sharePostOnce] meta upsert FAILED: code=${e.code} msg=${e.message}',
-      );
-      return true; // 메시지는 이미 전송됨
-    } catch (e) {
-      debugPrint('[sharePostOnce] meta upsert FAILED: $e');
-      return true;
-    }
+    });
   }
 
   // ChatRepository 클래스 내부에 추가
