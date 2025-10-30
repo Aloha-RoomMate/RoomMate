@@ -146,17 +146,41 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
 
-    // 2) 원글 UI용 정보만 로드(서버에 chats 문서 접근 안함)
+    // 2) 원글 UI + '이미 공유됨' 체크
     if (widget.postSnippet != null) {
-      _alreadySharedOrigin = false; // 첫 전송 시 1회 공유하도록
+      _alreadySharedOrigin = false; // 기본값
       try {
+        // 원글 로딩(기존 코드)
         final p = await _postRepo.fetchById(widget.postSnippet!.postId);
         if (!mounted) return;
         setState(() {
           _originPost = p;
           _iAmAuthorOfOrigin = (p?.authorId == _me.uid);
         });
-      } catch (_) {}
+
+        // 🔎 chats/{id} 에서 sharedOriginPostIds 확인
+        try {
+          final chatDoc = await FirebaseFirestore.instance
+              .collection('chats')
+              .doc(widget.chatRoomId)
+              .get();
+
+          if (chatDoc.exists) {
+            final arr =
+                ((chatDoc.data()?['sharedOriginPostIds'] as List?) ?? const [])
+                    .cast<String>();
+            if (arr.contains(widget.postSnippet!.postId)) {
+              _alreadySharedOrigin = true; // 이미 공유됨 → 버튼 숨김 + 자동공유 스킵
+            }
+          }
+        } catch (_) {
+          /* 읽기 실패는 무시 */
+        }
+
+        if (mounted) setState(() {}); // 버튼 상태 반영
+      } catch (_) {
+        /* ignore */
+      }
     } else {
       _alreadySharedOrigin = true;
       if (mounted) setState(() {});

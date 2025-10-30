@@ -56,48 +56,55 @@ class ChatRepository {
   }
 
   // ── 게시글 카드 1회 공유 ─────────────────────────────────────────────
+  // ChatRepository 안의 sharePostOnce 를 아래 구현으로 교체
   Future<bool> sharePostOnce(String chatRoomId, PostSnippet s) async {
     final me = _auth.currentUser!;
     final chatRef = _db.collection('chats').doc(chatRoomId);
+    final msgRef = chatRef.collection('messages').doc(); // 새 메시지 id 미리 확보
     final ids = _idsFromRoomId(chatRoomId);
-    final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
-    final msgId = 'post_${s.postId}_${me.uid}'; // 결정적 ID
 
-    return await _db.runTransaction<bool>((tx) async {
+    return _db.runTransaction<bool>((tx) async {
+      // 1) 현재 상태 읽기
       final snap = await tx.get(chatRef);
-      final already = snap.exists
-          ? List.from(
-              snap.data()?['sharedOriginPostIds'] ?? const [],
-            ).contains(s.postId)
-          : false;
-      if (already) {
-        debugPrint('[sharePostOnce] already shared, skip');
+      final shared =
+          (snap.exists
+                  ? (snap.data()?['sharedOriginPostIds'] as List?) ?? const []
+                  : const [])
+              .cast<String>();
+
+      // 2) 이미 공유되어 있으면 아무 것도 쓰지 않고 false 반환
+      if (shared.contains(s.postId)) {
+        debugPrint('[sharePostOnce] already shared: ${s.postId}');
         return false;
       }
 
-      // 1) 메시지(결정적 ID → 중복 생성 불가)
-      final msgRef = chatRef.collection('messages').doc(msgId);
+      // 3) 메시지 쓰기
       tx.set(msgRef, {
-        'id': msgId,
+        'id': msgRef.id,
         'kind': 'post',
         'senderId': me.uid,
         'createdAt': FieldValue.serverTimestamp(),
         'post': s.toMap(),
       });
 
-      // 2) 메타
-      tx.set(chatRef, {
-        'participants': ids,
-        'sharedOriginPostIds': FieldValue.arrayUnion([s.postId]),
-        'lastMessage': '${s.title} 공유함',
-        'lastMessageSenderId': me.uid,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'hasContent': true,
-        'unreadCounts.${me.uid}': 0,
-        'unreadCounts.$other': FieldValue.increment(1),
-      }, SetOptions(merge: true));
+      // 4) 부모 메타 갱신
+      final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
+      tx.set(
+        chatRef,
+        {
+          'participants': ids,
+          'sharedOriginPostIds': FieldValue.arrayUnion([s.postId]),
+          'lastMessage': '${s.title} 공유함',
+          'lastMessageSenderId': me.uid,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'hasContent': true,
+          'unreadCounts.${me.uid}': 0,
+          'unreadCounts.$other': FieldValue.increment(1),
+        },
+        SetOptions(merge: true),
+      );
 
-      return true;
+      return true; // 이번에 새로 공유됨
     });
   }
 
