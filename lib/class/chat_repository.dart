@@ -53,40 +53,34 @@ class ChatRepository {
 
     await _ensureChatDoc(chatRoomId);
 
-    return _db.runTransaction<bool>((tx) async {
-      final chatSnap = await tx.get(chatRef);
-      final data = chatSnap.data() ?? <String, dynamic>{};
-      final shared = (data['sharedOriginPostIds'] as List?) ?? const [];
-      if (shared.contains(s.postId)) return false;
-
-      // 메시지 문서
-      final msgRef = msgCol.doc();
-      tx.set(msgRef, {
-        'id': msgRef.id,
-        'kind': 'post',
-        'senderId': me.uid,
-        'createdAt': FieldValue.serverTimestamp(),
-        'post': s.toMap(),
-      });
-
-      // 메타 갱신 (+ 배지/hasContent)
-      final participants = List<String>.from(data['participants'] ?? const []);
-      final updates = <String, dynamic>{
-        'sharedOriginPostIds': FieldValue.arrayUnion([s.postId]),
-        'lastMessage': '${s.title} 공유함',
-        'lastMessageSenderId': me.uid,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'hasContent': true, // ✅ 목록 대상화
-      };
-      for (final p in participants) {
-        updates['unreadCounts.$p'] = (p == me.uid)
-            ? 0
-            : FieldValue.increment(1);
-      }
-
-      tx.set(chatRef, updates, SetOptions(merge: true));
-      return true;
+    // 메시지 카드 추가
+    final msgRef = msgCol.doc();
+    await msgRef.set({
+      'id': msgRef.id,
+      'kind': 'post',
+      'senderId': me.uid,
+      'createdAt': FieldValue.serverTimestamp(),
+      'post': s.toMap(),
     });
+
+    final ids = _idsFromRoomId(chatRoomId);
+    if (ids.length < 2) {
+      throw Exception('Invalid chatRoomId: $chatRoomId');
+    }
+    final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
+
+    // 메타만 합치기 (arrayUnion 이중 방지)
+    await chatRef.set({
+      'sharedOriginPostIds': FieldValue.arrayUnion([s.postId]),
+      'lastMessage': '${s.title} 공유함',
+      'lastMessageSenderId': me.uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'hasContent': true,
+      'unreadCounts.${me.uid}': 0,
+      'unreadCounts.$other': FieldValue.increment(1),
+    }, SetOptions(merge: true));
+
+    return true;
   }
 
   // ── 텍스트 전송 ─────────────────────────────────────────────────────
@@ -108,26 +102,17 @@ class ChatRepository {
       'kind': 'text',
     });
 
-    await _db.runTransaction((tx) async {
-      final snap = await tx.get(chatRef);
-      if (!snap.exists) return;
+    final ids = _idsFromRoomId(chatRoomId);
+    final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
 
-      final participants = List<String>.from(
-        snap.data()?['participants'] ?? const [],
-      );
-      final updates = <String, dynamic>{
-        'lastMessage': text,
-        'lastMessageSenderId': me.uid,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'hasContent': true, // ✅ 빈방 숨기기 플래그
-      };
-      for (final p in participants) {
-        updates['unreadCounts.$p'] = (p == me.uid)
-            ? 0
-            : FieldValue.increment(1);
-      }
-      tx.set(chatRef, updates, SetOptions(merge: true));
-    });
+    await chatRef.set({
+      'lastMessage': text,
+      'lastMessageSenderId': me.uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'hasContent': true,
+      'unreadCounts.${me.uid}': 0,
+      'unreadCounts.$other': FieldValue.increment(1),
+    }, SetOptions(merge: true));
   }
 
   /// 읽음 처리: 문서 없으면 아예 수행하지 않음(빈 방 생성 방지)
