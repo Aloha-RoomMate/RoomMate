@@ -54,6 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _me = FirebaseAuth.instance.currentUser!;
   String? _lastClearedMsgId;
   String? _partnerPhoto;
+  bool _sharingInFlight = false;
 
   final _supabase = Supabase.instance.client;
   final _postRepo = RoomOwnerPostRepository();
@@ -244,24 +245,34 @@ class _ChatScreenState extends State<ChatScreen> {
   // ─────────────────────────────────────────────────────────────
   // 공통: 첫 전송 시 1회 자동 공유(낙관적 잠금)
   // ─────────────────────────────────────────────────────────────
+  // === PATCH: 자동 1회 공유 안전 가드 ===
   Future<void> _maybeShareOriginOnceAfterFirstSend() async {
+    // 이미 보냈거나, 옵션 꺼짐, 원글 없음, 이미 공유됨이면 패스
     if (_firstSendDone ||
         !widget.autoSharePostOnFirstSend ||
         widget.postSnippet == null ||
         _alreadySharedOrigin) {
       return;
     }
+    // 공유 중이면 중복 방지
+    if (_sharingInFlight) return;
 
     _firstSendDone = true;
-    final prev = _alreadySharedOrigin;
-    setState(() => _alreadySharedOrigin = true); // 낙관적 잠금
 
+    // 낙관적 잠금
+    final prev = _alreadySharedOrigin;
+    setState(() => _alreadySharedOrigin = true);
+
+    _sharingInFlight = true;
     try {
       await _chatRepo.sharePostOnce(widget.chatRoomId, widget.postSnippet!);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _alreadySharedOrigin = prev); // 실패 시 되돌림
+      // 실패 시 되돌리기
+      setState(() => _alreadySharedOrigin = prev);
       await _showVerboseError(e, '글 공유');
+    } finally {
+      _sharingInFlight = false;
     }
   }
 
@@ -706,9 +717,15 @@ class _ChatScreenState extends State<ChatScreen> {
                           left: ResponsiveSizes.p(context, 4),
                         ),
                         child: OutlinedButton.icon(
+                          // === PATCH: 수동 공유 버튼 중복 방지 ===
                           onPressed: () async {
-                            if (_alreadySharedOrigin) return;
-                            setState(() => _alreadySharedOrigin = true); // 잠금
+                            if (_alreadySharedOrigin || _sharingInFlight)
+                              return;
+
+                            // 낙관적 잠금 + 인플라이트 플래그
+                            setState(() => _alreadySharedOrigin = true);
+                            _sharingInFlight = true;
+
                             try {
                               await _chatRepo.sharePostOnce(
                                 widget.chatRoomId,
@@ -716,10 +733,15 @@ class _ChatScreenState extends State<ChatScreen> {
                               );
                             } catch (e) {
                               if (!mounted) return;
-                              setState(() => _alreadySharedOrigin = false);
+                              setState(
+                                () => _alreadySharedOrigin = false,
+                              ); // 실패 시 되돌림
                               await _showVerboseError(e, '글 공유');
+                            } finally {
+                              _sharingInFlight = false;
                             }
                           },
+
                           icon: const Icon(Icons.campaign_outlined),
                           label: const Text('글 공유하기'),
                           style: OutlinedButton.styleFrom(
