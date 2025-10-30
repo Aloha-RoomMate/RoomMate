@@ -45,72 +45,126 @@ class ChatRepository {
 
   // ChatRepository.dart 안의 두 메서드만 교체
 
+  // lib/class/chat_repository.dart 안에 있는 sendMessage 전체 교체
   Future<void> sendMessage(String chatRoomId, String text) async {
     final me = _auth.currentUser!;
+    final ids = _idsFromRoomId(chatRoomId);
     final chatRef = _db.collection('chats').doc(chatRoomId);
     final msgRef = chatRef.collection('messages').doc();
-    final ids = _idsFromRoomId(chatRoomId);
 
-    // 0) 부모 chat 문서 '존재 보장' (create 가능)
-    await _ensureChatDoc(chatRoomId);
+    await _db.runTransaction((tx) async {
+      // 1) 부모 채팅 문서 존재 보장 (없으면 생성)
+      final snap = await tx.get(chatRef);
+      if (!snap.exists) {
+        tx.set(chatRef, {
+          'participants': ids,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'lastMessage': '',
+          'lastMessageSenderId': null,
+          'unreadCounts': {for (final p in ids) p: 0},
+          'hasContent': false,
+          'sharedOriginPostIds': [],
+          'lastSeenAt': {me.uid: FieldValue.serverTimestamp()},
+        });
+      }
 
-    // 1) 메시지
-    await msgRef.set({
-      'id': msgRef.id,
-      'senderId': me.uid,
-      'text': text,
-      'senderName': me.displayName ?? 'W R U',
-      'senderPhotoURL': me.photoURL,
-      'createdAt': FieldValue.serverTimestamp(),
-      'kind': 'text',
+      // 2) 메시지 생성
+      tx.set(msgRef, {
+        'id': msgRef.id,
+        'kind': 'text',
+        'text': text,
+        'senderId': me.uid,
+        'senderName': me.displayName ?? 'W R U',
+        'senderPhotoURL': me.photoURL,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 3) 메타 갱신(읽지 않음/라스트 메시지 등)
+      final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
+      tx.set(
+        chatRef,
+        {
+          'participants': ids, // participants 변경 금지 규칙과 동일 유지
+          'updatedAt': FieldValue.serverTimestamp(),
+          'lastMessage': text,
+          'lastMessageSenderId': me.uid,
+          'hasContent': true,
+          'unreadCounts.${me.uid}': 0,
+          'unreadCounts.$other': FieldValue.increment(1),
+          'lastSeenAt.${me.uid}': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
     });
-
-    // 2) 메타 업데이트(읽지 않음/라스트 메시지 등)
-    final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
-    await chatRef.set({
-      'participants': ids,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      'lastMessage': text,
-      'lastMessageSenderId': me.uid,
-      'hasContent': true,
-      'unreadCounts.${me.uid}': 0,
-      'unreadCounts.$other': FieldValue.increment(1),
-      'sharedOriginPostIds': FieldValue.arrayUnion([]),
-    }, SetOptions(merge: true));
   }
 
+  // lib/class/chat_repository.dart 안에 있는 sharePostOnce 전체 교체
   Future<bool> sharePostOnce(String chatRoomId, PostSnippet s) async {
     final me = _auth.currentUser!;
-    final chatRef = _db.collection('chats').doc(chatRoomId);
-    final msgCol = chatRef.collection('messages');
     final ids = _idsFromRoomId(chatRoomId);
+    final chatRef = _db.collection('chats').doc(chatRoomId);
 
-    // 0) 부모 chat 문서 '존재 보장'
-    await _ensureChatDoc(chatRoomId);
+    await _db.runTransaction((tx) async {
+      // 1) 부모 채팅 문서 존재 보장
+      final snap = await tx.get(chatRef);
+      if (!snap.exists) {
+        tx.set(chatRef, {
+          'participants': ids,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'lastMessage': '',
+          'lastMessageSenderId': null,
+          'unreadCounts': {for (final p in ids) p: 0},
+          'hasContent': false,
+          'sharedOriginPostIds': [],
+          'lastSeenAt': {me.uid: FieldValue.serverTimestamp()},
+        });
+      }
 
-    // 1) 카드 메시지
-    final msgRef = msgCol.doc();
-    await msgRef.set({
-      'id': msgRef.id,
-      'kind': 'post',
-      'senderId': me.uid,
-      'createdAt': FieldValue.serverTimestamp(),
-      'post': s.toMap(),
+      // 2) 이미 공유했는지 서버에서 한 번 더 체크 (완전 idempotent)
+      final data = (snap.exists ? snap.data() : {}) ?? {};
+      final already = List<String>.from(
+        (data['sharedOriginPostIds'] ?? const []) as List,
+      );
+      if (already.contains(s.postId)) {
+        // 이미 공유된 상태면 메타만 가볍게 갱신하고 종료
+        tx.set(
+          chatRef,
+          {'updatedAt': FieldValue.serverTimestamp()},
+          SetOptions(merge: true),
+        );
+        return;
+      }
+
+      // 3) 카드 메시지 추가
+      final msgRef = chatRef.collection('messages').doc();
+      tx.set(msgRef, {
+        'id': msgRef.id,
+        'kind': 'post',
+        'senderId': me.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'post': s.toMap(),
+      });
+
+      // 4) 메타 갱신 + 공유 이력 기록
+      final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
+      tx.set(
+        chatRef,
+        {
+          'participants': ids,
+          'sharedOriginPostIds': FieldValue.arrayUnion([s.postId]),
+          'lastMessage': '${s.title} 공유함',
+          'lastMessageSenderId': me.uid,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'hasContent': true,
+          'unreadCounts.${me.uid}': 0,
+          'unreadCounts.$other': FieldValue.increment(1),
+          'lastSeenAt.${me.uid}': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
     });
-
-    // 2) 메타(공유 이력 기록) - 이게 실패하면 다음에 또 공유되니 반드시 성공시킵니다
-    final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
-    await chatRef.set({
-      'participants': ids,
-      'sharedOriginPostIds': FieldValue.arrayUnion([s.postId]),
-      'lastMessage': '${s.title} 공유함',
-      'lastMessageSenderId': me.uid,
-      'updatedAt': FieldValue.serverTimestamp(),
-      'hasContent': true,
-      'unreadCounts.${me.uid}': 0,
-      'unreadCounts.$other': FieldValue.increment(1),
-    }, SetOptions(merge: true));
 
     return true;
   }

@@ -55,6 +55,7 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _lastClearedMsgId;
   String? _partnerPhoto;
   bool _sharingInFlight = false;
+  bool _prefillApplied = false; // 프리필을 이 세션에서 이미 적용했는가?
 
   final _supabase = Supabase.instance.client;
   final _postRepo = RoomOwnerPostRepository();
@@ -137,15 +138,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _prepareOriginContext() async {
-    // 1) 프리필
-    if ((widget.initialPrefillText?.isNotEmpty ?? false)) {
-      _msgCtrl.text = widget.initialPrefillText!;
-      _msgCtrl.selection = TextSelection.collapsed(
-        offset: _msgCtrl.text.length,
-      );
-    }
-
-    // 2) 원글 UI/권한 체크 + 이미 공유했는지 확인
+    // 1) 원글 UI/권한 체크 (작성자 여부)
     if (widget.postSnippet != null) {
       try {
         final p = await _postRepo.fetchById(widget.postSnippet!.postId);
@@ -153,7 +146,11 @@ class _ChatScreenState extends State<ChatScreen> {
         _originPost = p;
         _iAmAuthorOfOrigin = (p?.authorId == _me.uid);
       } catch (_) {}
+    }
 
+    // 2) 서버에서 "이미 공유했는지" + "채팅에 내용이 있는지" 확인
+    bool hasContent = false;
+    if (widget.postSnippet != null) {
       try {
         final doc = await FirebaseFirestore.instance
             .collection('chats')
@@ -161,23 +158,40 @@ class _ChatScreenState extends State<ChatScreen> {
             .get();
 
         if (doc.exists) {
-          final list =
-              (doc.data()?['sharedOriginPostIds'] as List?) ?? const [];
-          final shared = list
+          final data = doc.data() ?? const <String, dynamic>{};
+          final list = (data['sharedOriginPostIds'] as List?) ?? const [];
+          _alreadySharedOrigin = list
               .map((e) => e.toString())
               .contains(widget.postSnippet!.postId);
-          _alreadySharedOrigin = shared;
+          hasContent = (data['hasContent'] == true);
         } else {
           _alreadySharedOrigin = false;
+          hasContent = false;
         }
       } catch (_) {
-        _alreadySharedOrigin = false; // 권한/네트워크 문제 시엔 1회 공유 시도
+        // 네트워크/권한 문제 시엔 1회 공유를 시도할 수 있도록 false로 둠
+        _alreadySharedOrigin = false;
+        hasContent = false;
       }
-      if (mounted) setState(() {});
     } else {
+      // 글 없이 들어온 채팅이면 프리필/자동공유 대상이 아님
       _alreadySharedOrigin = true;
-      if (mounted) setState(() {});
     }
+
+    // 3) 프리필은 "아직 공유 안 됨 && 채팅이 비어 있음 && 아직 한 번도 적용 안 함" 일 때만 1회 적용
+    final pre = widget.initialPrefillText;
+    if (!_prefillApplied &&
+        (pre?.isNotEmpty ?? false) &&
+        !_alreadySharedOrigin &&
+        !hasContent) {
+      _msgCtrl.text = pre!;
+      _msgCtrl.selection = TextSelection.collapsed(
+        offset: _msgCtrl.text.length,
+      );
+      _prefillApplied = true; // 이 세션에서 다시는 자동 적용하지 않음
+    }
+
+    if (mounted) setState(() {});
   }
 
   Future<void> _checkChatDocOnce() async {
@@ -279,32 +293,45 @@ class _ChatScreenState extends State<ChatScreen> {
   // ─────────────────────────────────────────────────────────────
   // 전송 공통 로직
   // ─────────────────────────────────────────────────────────────
-  Future<void> _sendCore(String text) async {
+  // 1) _sendCore: 성공 여부 반환
+  Future<bool> _sendCore(String text) async {
     try {
       await _chatRepo.sendMessage(widget.chatRoomId, text);
       await _maybeShareOriginOnceAfterFirstSend();
       await _attachStreamsAndMarkReadIfNeeded();
       Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
+      return true;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       await _showVerboseError(e, '메시지 전송');
+      return false;
     }
   }
 
   // 텍스트 전송
+  // 2) _sendMessage: 성공 시에만 clear + 프리필 소비
   Future<void> _sendMessage() async {
     _commitComposing();
     final text = _msgCtrl.text.trim();
     if (text.isEmpty) return;
-    _msgCtrl.clear();
-    await _sendCore(text);
+
+    final ok = await _sendCore(text);
+    if (ok) {
+      _msgCtrl.clear();
+      _prefillApplied = true; // ✅ 성공 시에만 1회 소비
+    }
   }
 
   // 퀵 전송
+  // 3) _quickSend: 성공 시에만 프리필 소비
   Future<void> _quickSend(String text) async {
     final t = text.trim();
     if (t.isEmpty) return;
-    await _sendCore(t);
+
+    final ok = await _sendCore(t);
+    if (ok) {
+      _prefillApplied = true; // ✅ 성공 시에만 1회 소비
+    }
   }
 
   bool _sameDay(DateTime a, DateTime b) =>
