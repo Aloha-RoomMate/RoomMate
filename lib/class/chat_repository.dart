@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart'; // FirebaseException
 import 'post_snippet.dart';
 
 class ChatRepository {
@@ -14,11 +15,53 @@ class ChatRepository {
 
   List<String> _idsFromRoomId(String roomId) {
     final i = roomId.indexOf('_');
-    if (i <= 0 || i >= roomId.length - 1) return const [];
+    if (i <= 0 || i >= roomId.length - 1) return <String>[];
     final a = roomId.substring(0, i);
     final b = roomId.substring(i + 1);
     final list = [a, b]..sort();
     return list;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 로그/진단 유틸
+  // ─────────────────────────────────────────────────────────────
+
+  /// FirebaseException을 사람이 읽기 좋게 포맷
+  String formatFirebaseError(Object e) {
+    if (e is FirebaseException) {
+      return '[${e.code}] ${e.message ?? 'FirebaseException'}';
+    }
+    return e.toString();
+  }
+
+  /// 현재 사용자/roomId/participants 상태를 한눈에 확인
+  Future<String> diagnoseChat(String chatRoomId) async {
+    final me = _auth.currentUser?.uid;
+    final ids = _idsFromRoomId(chatRoomId);
+    final b = StringBuffer();
+    b.writeln('=== Chat Diagnose ===');
+    b.writeln('me: $me');
+    b.writeln('roomId: $chatRoomId');
+    b.writeln('parsedIds: $ids');
+    b.writeln('meInParsedIds: ${ids.contains(me)}');
+
+    try {
+      final snap = await _db.collection('chats').doc(chatRoomId).get();
+      b.writeln('chat.exists: ${snap.exists}');
+      if (snap.exists) {
+        final data = snap.data() ?? const <String, dynamic>{};
+        final parts =
+            (data['participants'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const <String>[];
+        b.writeln('chat.participants: $parts');
+        b.writeln('meInParticipants: ${parts.contains(me)}');
+      }
+    } catch (e) {
+      b.writeln('chat get() failed: $e');
+    }
+    return b.toString();
   }
 
   /// 부모 chat 문서 보장(없으면 생성, 있으면 유지)
@@ -26,6 +69,25 @@ class ChatRepository {
     final chatRef = _db.collection('chats').doc(chatRoomId);
 
     final ids = _idsFromRoomId(chatRoomId);
+
+    // roomId 파싱 실패/내 uid 누락을 여기서 바로 차단 (규칙까지 가지 않도록)
+    if (ids.length < 2) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'invalid-argument',
+        message: 'Invalid chatRoomId: "$chatRoomId" → parsed: $ids',
+      );
+    }
+    final me = _auth.currentUser?.uid;
+    if (me != null && !ids.contains(me)) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'permission-denied',
+        message:
+            'This roomId does not contain current user. me="$me", parsed=$ids',
+      );
+    }
+
     await chatRef.set({
       'participants': ids,
       'createdAt': FieldValue.serverTimestamp(),
@@ -45,7 +107,6 @@ class ChatRepository {
   }
 
   // ── 게시글 카드 1회 공유 ─────────────────────────────────────────────
-  // ChatRepository.dart — sharePostOnce() 전체 교체
   Future<bool> sharePostOnce(String chatRoomId, PostSnippet s) async {
     final me = _auth.currentUser!;
     final chatRef = _db.collection('chats').doc(chatRoomId);
@@ -65,7 +126,11 @@ class ChatRepository {
 
     final ids = _idsFromRoomId(chatRoomId);
     if (ids.length < 2) {
-      throw Exception('Invalid chatRoomId: $chatRoomId');
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'invalid-argument',
+        message: 'Invalid chatRoomId during sharePostOnce: $chatRoomId',
+      );
     }
     final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
 
@@ -84,7 +149,6 @@ class ChatRepository {
   }
 
   // ── 텍스트 전송 ─────────────────────────────────────────────────────
-  // ChatRepository.dart — sendMessage() 만 수정
   Future<void> sendMessage(String chatRoomId, String text) async {
     final me = _auth.currentUser!;
     final chatRef = _db.collection('chats').doc(chatRoomId);
