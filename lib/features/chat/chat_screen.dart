@@ -62,7 +62,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _iAmAuthorOfOrigin = false;
 
   bool _firstSendDone = false;
-  bool _alreadySharedOrigin = true; // 기본 true, postSnippet 있으면 false/서버값으로 갱신
+  bool _alreadySharedOrigin = true; // 기본 true, postSnippet 있으면 서버값/false로 갱신
 
   // 문서/메시지 스트림 부착 여부(빈 방 보호)
   bool _listenChatDoc = false;
@@ -144,19 +144,15 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
 
-    // 2) 원글 UI/권한 체크
+    // 2) 원글 UI/권한 체크 + 이미 공유했는지 확인
     if (widget.postSnippet != null) {
       try {
-        // 원글 간단 로딩(작성자 여부 확인)
         final p = await _postRepo.fetchById(widget.postSnippet!.postId);
         if (!mounted) return;
-        setState(() {
-          _originPost = p;
-          _iAmAuthorOfOrigin = (p?.authorId == _me.uid);
-        });
+        _originPost = p;
+        _iAmAuthorOfOrigin = (p?.authorId == _me.uid);
       } catch (_) {}
 
-      // ✅ 이미 공유된 적 있는지 서버에서 확인 → 중복 자동공유 방지
       try {
         final doc = await FirebaseFirestore.instance
             .collection('chats')
@@ -174,10 +170,8 @@ class _ChatScreenState extends State<ChatScreen> {
           _alreadySharedOrigin = false;
         }
       } catch (_) {
-        // 권한/네트워크 문제 시엔 클라이언트에서 1회 공유 시도
-        _alreadySharedOrigin = false;
+        _alreadySharedOrigin = false; // 권한/네트워크 문제 시엔 1회 공유 시도
       }
-
       if (mounted) setState(() {});
     } else {
       _alreadySharedOrigin = true;
@@ -232,90 +226,74 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // ── 메시지 전송 ─────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  // 공통: 전송 후 스트림/읽음 정리
+  // ─────────────────────────────────────────────────────────────
+  Future<void> _attachStreamsAndMarkReadIfNeeded() async {
+    if (!_listenMessages || !_listenChatDoc) {
+      if (mounted) {
+        setState(() {
+          _listenChatDoc = true;
+          _listenMessages = true;
+        });
+      }
+      await _chatRepo.markChatRead(widget.chatRoomId);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 공통: 첫 전송 시 1회 자동 공유(낙관적 잠금)
+  // ─────────────────────────────────────────────────────────────
+  Future<void> _maybeShareOriginOnceAfterFirstSend() async {
+    if (_firstSendDone ||
+        !widget.autoSharePostOnFirstSend ||
+        widget.postSnippet == null ||
+        _alreadySharedOrigin) {
+      return;
+    }
+
+    _firstSendDone = true;
+    final prev = _alreadySharedOrigin;
+    setState(() => _alreadySharedOrigin = true); // 낙관적 잠금
+
+    try {
+      await _chatRepo.sharePostOnce(widget.chatRoomId, widget.postSnippet!);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _alreadySharedOrigin = prev); // 실패 시 되돌림
+      await _showVerboseError(e, '글 공유');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 전송 공통 로직
+  // ─────────────────────────────────────────────────────────────
+  Future<void> _sendCore(String text) async {
+    try {
+      await _chatRepo.sendMessage(widget.chatRoomId, text);
+      await _maybeShareOriginOnceAfterFirstSend();
+      await _attachStreamsAndMarkReadIfNeeded();
+      Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
+    } catch (e) {
+      if (!mounted) return;
+      await _showVerboseError(e, '메시지 전송');
+    }
+  }
+
+  // 텍스트 전송
   Future<void> _sendMessage() async {
     _commitComposing();
     final text = _msgCtrl.text.trim();
     if (text.isEmpty) return;
-
-    // 1) 텍스트 전송만 우선
-    try {
-      await _chatRepo.sendMessage(widget.chatRoomId, text);
-      _msgCtrl.clear();
-    } catch (e) {
-      if (!mounted) return;
-      await _showVerboseError(e, '메시지 전송');
-      return; // 이후 로직 중단
-    }
-
-    // 2) (옵션) 첫 1회 글 공유 – 실패해도 전송은 성공 처리
-    if (!_firstSendDone &&
-        widget.autoSharePostOnFirstSend &&
-        widget.postSnippet != null &&
-        !_alreadySharedOrigin) {
-      _firstSendDone = true;
-      try {
-        await _chatRepo.sharePostOnce(widget.chatRoomId, widget.postSnippet!);
-      } catch (e) {
-        if (!mounted) return;
-        await _showVerboseError(e, '글 공유');
-      } finally {
-        _alreadySharedOrigin = true;
-        if (mounted) setState(() {});
-      }
-    }
-
-    if (!_listenMessages || !_listenChatDoc) {
-      if (mounted) {
-        setState(() {
-          _listenChatDoc = true;
-          _listenMessages = true;
-        });
-      }
-      await _chatRepo.markChatRead(widget.chatRoomId);
-    }
-
-    Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
+    _msgCtrl.clear();
+    await _sendCore(text);
   }
 
+  // 퀵 전송
   Future<void> _quickSend(String text) async {
-    if (text.trim().isEmpty) return;
-
-    try {
-      await _chatRepo.sendMessage(widget.chatRoomId, text.trim());
-    } catch (e) {
-      if (!mounted) return;
-      await _showVerboseError(e, '메시지 전송');
-      return;
-    }
-
-    if (!_firstSendDone &&
-        widget.autoSharePostOnFirstSend &&
-        widget.postSnippet != null &&
-        !_alreadySharedOrigin) {
-      _firstSendDone = true;
-      try {
-        await _chatRepo.sharePostOnce(widget.chatRoomId, widget.postSnippet!);
-      } catch (e) {
-        if (!mounted) return;
-        await _showVerboseError(e, '글 공유');
-      } finally {
-        _alreadySharedOrigin = true;
-        if (mounted) setState(() {});
-      }
-    }
-
-    if (!_listenMessages || !_listenChatDoc) {
-      if (mounted) {
-        setState(() {
-          _listenChatDoc = true;
-          _listenMessages = true;
-        });
-      }
-      await _chatRepo.markChatRead(widget.chatRoomId);
-    }
-
-    Future.delayed(const Duration(milliseconds: 80), _scrollToBottom);
+    final t = text.trim();
+    if (t.isEmpty) return;
+    await _sendCore(t);
   }
 
   bool _sameDay(DateTime a, DateTime b) =>
@@ -616,10 +594,9 @@ class _ChatScreenState extends State<ChatScreen> {
                             }
 
                             // 내 메시지 읽지않음 '1'
-                            bool showUnreadBadge = false;
-                            if (isMe) {
-                              if (timeText != null) showUnreadBadge = true;
-                            }
+                            bool showUnreadBadge = isMe && timeText != null
+                                ? true
+                                : false;
 
                             Widget child;
                             if (kind == 'post') {
@@ -730,14 +707,16 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                         child: OutlinedButton.icon(
                           onPressed: () async {
+                            if (_alreadySharedOrigin) return;
+                            setState(() => _alreadySharedOrigin = true); // 잠금
                             try {
                               await _chatRepo.sharePostOnce(
                                 widget.chatRoomId,
                                 widget.postSnippet!,
                               );
-                              setState(() => _alreadySharedOrigin = true);
                             } catch (e) {
                               if (!mounted) return;
+                              setState(() => _alreadySharedOrigin = false);
                               await _showVerboseError(e, '글 공유');
                             }
                           },
