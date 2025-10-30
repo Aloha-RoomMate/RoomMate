@@ -935,11 +935,12 @@ class _BorderlessInput extends StatelessWidget {
   }
 }
 
+// 🔧 PATCH: _MessageBubble – 말풍선 옆 '1' 뱃지 제거
 class _MessageBubble extends StatelessWidget {
   final bool isMe;
   final String text;
   final String? time;
-  final bool showUnread;
+  final bool showUnread; // ← 그대로 두지만 더이상 UI에서 사용하지 않음
 
   const _MessageBubble({
     required this.isMe,
@@ -989,6 +990,7 @@ class _MessageBubble extends StatelessWidget {
       ),
     );
 
+    // 👇 여기에서 '1'을 그리던 부분을 제거했습니다.
     final meta = Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -1009,19 +1011,7 @@ class _MessageBubble extends StatelessWidget {
               ),
             ),
           ),
-        if (isMe && showUnread) ...[
-          SizedBox(width: ResponsiveSizes.p(context, 4)),
-          Text(
-            '1',
-            softWrap: false,
-            overflow: TextOverflow.fade,
-            style: TextStyle(
-              fontSize: ResponsiveSizes.f(context, 10),
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
-            ),
-          ),
-        ],
+        // 🔥 unread '1' 뱃지 삭제
       ],
     );
 
