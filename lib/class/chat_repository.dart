@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart'; // FirebaseException
 import 'post_snippet.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class ChatRepository {
   final _db = FirebaseFirestore.instance;
@@ -15,7 +15,7 @@ class ChatRepository {
 
   List<String> _idsFromRoomId(String roomId) {
     final i = roomId.indexOf('_');
-    if (i <= 0 || i >= roomId.length - 1) return <String>[];
+    if (i <= 0 || i >= roomId.length - 1) return const [];
     final a = roomId.substring(0, i);
     final b = roomId.substring(i + 1);
     final list = [a, b]..sort();
@@ -23,83 +23,32 @@ class ChatRepository {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // 로그/진단 유틸
-  // ─────────────────────────────────────────────────────────────
-
-  /// FirebaseException을 사람이 읽기 좋게 포맷
-  String formatFirebaseError(Object e) {
-    if (e is FirebaseException) {
-      return '[${e.code}] ${e.message ?? 'FirebaseException'}';
-    }
-    return e.toString();
-  }
-
-  /// 현재 사용자/roomId/participants 상태를 한눈에 확인
-  Future<String> diagnoseChat(String chatRoomId) async {
-    final me = _auth.currentUser?.uid;
-    final ids = _idsFromRoomId(chatRoomId);
-    final b = StringBuffer();
-    b.writeln('=== Chat Diagnose ===');
-    b.writeln('me: $me');
-    b.writeln('roomId: $chatRoomId');
-    b.writeln('parsedIds: $ids');
-    b.writeln('meInParsedIds: ${ids.contains(me)}');
-
-    try {
-      final snap = await _db.collection('chats').doc(chatRoomId).get();
-      b.writeln('chat.exists: ${snap.exists}');
-      if (snap.exists) {
-        final data = snap.data() ?? const <String, dynamic>{};
-        final parts =
-            (data['participants'] as List?)
-                ?.map((e) => e.toString())
-                .toList() ??
-            const <String>[];
-        b.writeln('chat.participants: $parts');
-        b.writeln('meInParticipants: ${parts.contains(me)}');
-      }
-    } catch (e) {
-      b.writeln('chat get() failed: $e');
-    }
-    return b.toString();
-  }
-
-  /// 부모 chat 문서 보장(없으면 생성, 있으면 유지)
+  // 선택적: 부모 chat 문서를 미리 만들어두고 싶을 때만 사용 (필수 아님)
   Future<void> _ensureChatDoc(String chatRoomId) async {
+    final ids = _idsFromRoomId(chatRoomId);
     final chatRef = _db.collection('chats').doc(chatRoomId);
 
-    final ids = _idsFromRoomId(chatRoomId);
-
-    // roomId 파싱 실패/내 uid 누락을 여기서 바로 차단 (규칙까지 가지 않도록)
-    if (ids.length < 2) {
-      throw FirebaseException(
-        plugin: 'cloud_firestore',
-        code: 'invalid-argument',
-        message: 'Invalid chatRoomId: "$chatRoomId" → parsed: $ids',
-      );
+    try {
+      await chatRef.set({
+        'participants': ids,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'lastMessage': '',
+        'lastMessageSenderId': null,
+        'unreadCounts': {for (final p in ids) p: 0},
+        'sharedOriginPostIds': [],
+      }, SetOptions(merge: true));
+      debugPrint('[ensureChatDoc] upsert ok: $chatRoomId');
+    } on FirebaseException catch (e) {
+      debugPrint('[ensureChatDoc] fail: code=${e.code} msg=${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('[ensureChatDoc] fail: $e');
+      rethrow;
     }
-    final me = _auth.currentUser?.uid;
-    if (me != null && !ids.contains(me)) {
-      throw FirebaseException(
-        plugin: 'cloud_firestore',
-        code: 'permission-denied',
-        message:
-            'This roomId does not contain current user. me="$me", parsed=$ids',
-      );
-    }
-
-    await chatRef.set({
-      'participants': ids,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      'lastMessage': '',
-      'lastMessageSenderId': null,
-      'unreadCounts': {for (final p in ids) p: 0},
-      'sharedOriginPostIds': [],
-    }, SetOptions(merge: true));
   }
 
-  /// (남겨둠) 필요하면 바로 방을 선생성
+  /// 필요하면 선생성
   Future<String> createChatRoom(String uid1, String uid2) async {
     final id = makeRoomId(uid1, uid2);
     await _ensureChatDoc(id);
@@ -111,41 +60,118 @@ class ChatRepository {
     final me = _auth.currentUser!;
     final chatRef = _db.collection('chats').doc(chatRoomId);
     final msgCol = chatRef.collection('messages');
-
-    await _ensureChatDoc(chatRoomId);
-
-    // 메시지 카드 추가
-    final msgRef = msgCol.doc();
-    await msgRef.set({
-      'id': msgRef.id,
-      'kind': 'post',
-      'senderId': me.uid,
-      'createdAt': FieldValue.serverTimestamp(),
-      'post': s.toMap(),
-    });
-
     final ids = _idsFromRoomId(chatRoomId);
-    if (ids.length < 2) {
-      throw FirebaseException(
-        plugin: 'cloud_firestore',
-        code: 'invalid-argument',
-        message: 'Invalid chatRoomId during sharePostOnce: $chatRoomId',
+
+    debugPrint(
+      '[sharePostOnce] uid=${me.uid}, room=$chatRoomId, post=${s.postId}',
+    );
+
+    // 1) 메시지 먼저 (부모 문서 없어도 rules 상 허용됨)
+    final msgRef = msgCol.doc();
+    try {
+      await msgRef.set({
+        'id': msgRef.id,
+        'kind': 'post',
+        'senderId': me.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'post': s.toMap(),
+      });
+      debugPrint('[sharePostOnce] messages/${msgRef.id} written');
+    } on FirebaseException catch (e) {
+      debugPrint(
+        '[sharePostOnce] write message FAILED: code=${e.code} msg=${e.message}',
       );
+      rethrow;
+    } catch (e) {
+      debugPrint('[sharePostOnce] write message FAILED: $e');
+      rethrow;
     }
-    final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
 
-    // 메타만 합치기 (arrayUnion 이중 방지)
-    await chatRef.set({
-      'sharedOriginPostIds': FieldValue.arrayUnion([s.postId]),
-      'lastMessage': '${s.title} 공유함',
-      'lastMessageSenderId': me.uid,
-      'updatedAt': FieldValue.serverTimestamp(),
-      'hasContent': true,
-      'unreadCounts.${me.uid}': 0,
-      'unreadCounts.$other': FieldValue.increment(1),
-    }, SetOptions(merge: true));
+    // 2) 메타 upsert(실패해도 대화는 존재)
+    try {
+      final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
+      await chatRef.set({
+        'participants': ids,
+        'sharedOriginPostIds': FieldValue.arrayUnion([s.postId]),
+        'lastMessage': '${s.title} 공유함',
+        'lastMessageSenderId': me.uid,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'hasContent': true,
+        'unreadCounts.${me.uid}': 0,
+        'unreadCounts.$other': FieldValue.increment(1),
+      }, SetOptions(merge: true));
+      debugPrint('[sharePostOnce] meta upsert ok');
+      return true;
+    } on FirebaseException catch (e) {
+      debugPrint(
+        '[sharePostOnce] meta upsert FAILED: code=${e.code} msg=${e.message}',
+      );
+      return true; // 메시지는 이미 전송됨
+    } catch (e) {
+      debugPrint('[sharePostOnce] meta upsert FAILED: $e');
+      return true;
+    }
+  }
 
-    return true;
+  // ChatRepository 클래스 내부에 추가
+  String formatFirebaseError(Object e) {
+    // FirebaseException이면 코드/메시지까지 예쁘게 포맷
+    if (e is FirebaseException) {
+      final code = e.code;
+      final msg = e.message ?? '';
+      final plugin = e.plugin;
+      return '[FirebaseException/$code] $msg (plugin=$plugin)';
+    }
+    // 그 외는 문자열화
+    return e.toString();
+  }
+
+  // ChatRepository 클래스 안
+  Future<String> diagnoseChat(String chatRoomId) async {
+    final me = _auth.currentUser?.uid;
+    final parts = _idsFromRoomId(chatRoomId);
+
+    // ⬇️ 여기 수정: '$me_'  →  '${me}_'
+    final idIncludesMeByPrefix =
+        (me != null) && chatRoomId.startsWith('${me}_');
+    final idIncludesMeBySuffix = (me != null) && chatRoomId.endsWith('_$me');
+    final idIncludesMe = idIncludesMeByPrefix || idIncludesMeBySuffix;
+
+    final buf = StringBuffer()
+      ..writeln('=== Chat Diagnose ===')
+      ..writeln('me: $me')
+      ..writeln('roomId: $chatRoomId')
+      ..writeln('parsedIds: $parts')
+      ..writeln('meInParsedIds: ${me != null && parts.contains(me)}')
+      ..writeln('idIncludesMe(by prefix): $idIncludesMeByPrefix')
+      ..writeln('idIncludesMe(by suffix): $idIncludesMeBySuffix')
+      ..writeln('idIncludesMe(overall): $idIncludesMe');
+
+    try {
+      final snap = await _db.collection('chats').doc(chatRoomId).get();
+      buf.writeln('chat.exists: ${snap.exists}');
+      if (snap.exists) {
+        final data = snap.data() ?? {};
+        buf.writeln('chat.participants: ${data['participants']}');
+      }
+    } on FirebaseException catch (e) {
+      buf.writeln('chat get() failed: [${e.code}] ${e.message}');
+    } catch (e) {
+      buf.writeln('chat get() failed: $e');
+    }
+
+    buf.writeln(
+      'rules expectation: messages/create allowed if idIncludesMe && senderId==me',
+    );
+    return buf.toString();
+  }
+
+  // (선택) 기존에 내가 준 diagnose()가 있다면 두 개 다 둬도 되고,
+  // 없다면 이런 alias도 추가해두면 콘솔에서 바로 확인 가능
+  Future<void> diagnose(String chatRoomId) async {
+    final s = await diagnoseChat(chatRoomId);
+    // ignore: avoid_print
+    print(s);
   }
 
   // ── 텍스트 전송 ─────────────────────────────────────────────────────
@@ -153,47 +179,82 @@ class ChatRepository {
     final me = _auth.currentUser!;
     final chatRef = _db.collection('chats').doc(chatRoomId);
     final msgRef = chatRef.collection('messages').doc();
-
-    await _ensureChatDoc(chatRoomId);
-
-    await msgRef.set({
-      'id': msgRef.id,
-      'senderId': me.uid,
-      'text': text,
-      'senderName': me.displayName ?? 'W R U',
-      'senderPhotoURL': me.photoURL,
-      'createdAt': FieldValue.serverTimestamp(),
-      'kind': 'text',
-    });
-
     final ids = _idsFromRoomId(chatRoomId);
-    final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
 
-    await chatRef.set({
-      'lastMessage': text,
-      'lastMessageSenderId': me.uid,
-      'updatedAt': FieldValue.serverTimestamp(),
-      'hasContent': true,
-      'unreadCounts.${me.uid}': 0,
-      'unreadCounts.$other': FieldValue.increment(1),
-    }, SetOptions(merge: true));
+    debugPrint('[sendMessage] START uid=${me.uid}, room=$chatRoomId');
+
+    // 1) 메시지 먼저
+    try {
+      await msgRef.set({
+        'id': msgRef.id,
+        'senderId': me.uid,
+        'text': text,
+        'senderName': me.displayName ?? 'W R U',
+        'senderPhotoURL': me.photoURL,
+        'createdAt': FieldValue.serverTimestamp(),
+        'kind': 'text',
+      });
+      debugPrint('[sendMessage] messages/${msgRef.id} written');
+    } on FirebaseException catch (e) {
+      debugPrint(
+        '[sendMessage] write message FAILED: code=${e.code} msg=${e.message}',
+      );
+      rethrow;
+    } catch (e) {
+      debugPrint('[sendMessage] write message FAILED: $e');
+      rethrow;
+    }
+
+    // 2) 메타 upsert (실패해도 메시지는 이미 있음)
+    try {
+      final other = ids.firstWhere((e) => e != me.uid, orElse: () => me.uid);
+      await chatRef.set({
+        'participants': ids, // 최초일 때만 생성, 있으면 유지
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'lastMessage': text,
+        'lastMessageSenderId': me.uid,
+        'hasContent': true,
+        'unreadCounts.${me.uid}': 0,
+        'unreadCounts.$other': FieldValue.increment(1),
+        'sharedOriginPostIds': FieldValue.arrayUnion([]),
+      }, SetOptions(merge: true));
+      debugPrint('[sendMessage] meta upsert ok');
+    } on FirebaseException catch (e) {
+      debugPrint(
+        '[sendMessage] meta upsert FAILED: code=${e.code} msg=${e.message}',
+      );
+      // swallow: 화면은 메시지 스트림으로 정상 보일 수 있음
+    } catch (e) {
+      debugPrint('[sendMessage] meta upsert FAILED: $e');
+    }
   }
 
-  /// 읽음 처리: 문서 없으면 아예 수행하지 않음(빈 방 생성 방지)
+  /// 읽음 처리: 문서 없으면 SKIP(빈 방 생성 방지)
   Future<void> markChatRead(String chatRoomId) async {
     final me = _auth.currentUser!;
     final chatRef = _db.collection('chats').doc(chatRoomId);
-    final snap = await chatRef.get();
-    if (!snap.exists) return;
 
-    await chatRef.set({
-      'unreadCounts.${me.uid}': 0,
-      'lastSeenAt.${me.uid}': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    try {
+      final snap = await chatRef.get();
+      debugPrint('[markChatRead] chat.exists=${snap.exists} for $chatRoomId');
+      if (!snap.exists) return;
+
+      await chatRef.set({
+        'unreadCounts.${me.uid}': 0,
+        'lastSeenAt.${me.uid}': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debugPrint('[markChatRead] cleared unread for ${me.uid}');
+    } on FirebaseException catch (e) {
+      debugPrint('[markChatRead] FAILED: code=${e.code} msg=${e.message}');
+    } catch (e) {
+      debugPrint('[markChatRead] FAILED: $e');
+    }
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> watchMessages(String chatRoomId) {
+    debugPrint('[watchMessages] attach stream for $chatRoomId');
     return _db
         .collection('chats')
         .doc(chatRoomId)
