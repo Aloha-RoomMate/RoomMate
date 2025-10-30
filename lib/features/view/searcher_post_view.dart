@@ -9,6 +9,7 @@ import 'package:roommate/constants/gaps.dart';
 import 'package:roommate/constants/sizes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:roommate/features/chat/chat_screen.dart';
+import 'package:roommate/features/post/searcher_post_screen.dart';
 import 'package:roommate/features/view/user_profile_view.dart';
 import 'package:roommate/features/navigationbar/screens/mypage_screen.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
@@ -153,10 +154,12 @@ class _SearcherPostViewState extends State<SearcherPostView> {
   }
 
   void _goEdit() {
-    // TODO: 방 구하기 게시물 수정 화면으로 이동 (준비되면 활성화)
-    // Navigator.push(context, MaterialPageRoute(builder: (_) => SearcherPostScreen(postToEdit: widget.post)));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('수정 기능은 아직 준비 중입니다.')),
+    // ✅ 내 글이면 수정 화면으로, 기존 데이터 프리필
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SearcherPostScreen(postToEdit: widget.post),
+      ),
     );
   }
 

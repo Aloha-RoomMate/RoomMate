@@ -1,19 +1,21 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:roommate/class/app_user.dart';
 import 'package:roommate/class/searcher_post.dart';
 import 'package:roommate/class/searcher_post_repository.dart';
 import 'package:roommate/class/user_repository.dart';
 import 'package:roommate/constants/gaps.dart';
-import 'package:roommate/features/authentication/userinfo/searcher_screen.dart'; // ✅ SearcherScreen import
+import 'package:roommate/features/authentication/userinfo/searcher_screen.dart';
 import 'package:roommate/features/category/widgets/category_button.dart';
 import 'package:roommate/features/navigationbar/main_navigation.dart';
 import 'package:roommate/features/post/widgets/form_button.dart';
 import 'package:roommate/constants/responsive_sizes.dart';
 
 class SearcherPostScreen extends StatefulWidget {
-  const SearcherPostScreen({super.key});
+  const SearcherPostScreen({super.key, this.postToEdit});
+  final SearcherPost? postToEdit;
 
   @override
   State<SearcherPostScreen> createState() => _SearcherPostScreenState();
@@ -39,8 +41,10 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
   bool _isPosting = false;
   DateTime? _selectedMovingDate;
 
+  bool get _isEdit => widget.postToEdit != null;
+
   // Chip 및 위치 선택 상태
-  final Set<String> _selectedWantAreas = {}; // ✅ 희망 위치 저장
+  final Set<String> _selectedWantAreas = {};
   final Set<String> _selectedRoomTypes = {};
   final Set<String> _selectedPaymentStructures = {};
 
@@ -52,8 +56,9 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
   void initState() {
     super.initState();
     _loadCurrentUser();
-    // 컨트롤러 리스너 추가하여 버튼 상태 실시간 업데이트
-    final controllers = [
+
+    // 버튼 활성화 갱신 리스너
+    for (final c in [
       _titleCtrl,
       _depositCtrl,
       _minRentCtrl,
@@ -62,9 +67,35 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
       _minContractCtrl,
       _maxContractCtrl,
       _introductionCtrl,
-    ];
-    for (var controller in controllers) {
-      controller.addListener(() => setState(() {}));
+    ]) {
+      c.addListener(() => setState(() {}));
+    }
+
+    // ✅ 편집 모드 프리필
+    final p = widget.postToEdit;
+    if (p != null) {
+      _titleCtrl.text = p.title ?? '';
+      _depositCtrl.text = (p.deposit ?? 0).toString();
+      _minRentCtrl.text = (p.minRent ?? 0).toString();
+      _maxRentCtrl.text = (p.maxRent ?? 0).toString();
+      _minContractCtrl.text = (p.minContract ?? 0).toString();
+      _maxContractCtrl.text = (p.maxContract ?? 0).toString();
+      _introductionCtrl.text = p.introduction ?? '';
+
+      _selectedWantAreas
+        ..clear()
+        ..addAll(p.wantArea ?? const []);
+      _selectedRoomTypes
+        ..clear()
+        ..addAll(p.wantRoom ?? const []);
+      _selectedPaymentStructures
+        ..clear()
+        ..addAll(p.wantPay ?? const []);
+
+      _selectedMovingDate = p.movingDate?.toDate();
+      _movingDateCtrl.text = p.movingDate == null
+          ? ''
+          : DateFormat('yyyy-MM-dd').format(p.movingDate!.toDate());
     }
   }
 
@@ -75,7 +106,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
 
   @override
   void dispose() {
-    final controllers = [
+    for (final c in [
       _titleCtrl,
       _depositCtrl,
       _minRentCtrl,
@@ -84,24 +115,17 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
       _minContractCtrl,
       _maxContractCtrl,
       _introductionCtrl,
-    ];
-    for (var controller in controllers) {
-      controller.dispose();
+    ]) {
+      c.dispose();
     }
     super.dispose();
   }
 
-  // ✅ 1. 희망 위치 선택 화면으로 이동하고 결과를 받아오는 함수
+  // 희망 위치 선택
   Future<void> _onAreaTap() async {
-    // SearcherScreen으로 이동하고, List<String> 타입의 결과를 기다립니다.
     final List<String>? result = await Navigator.of(context).push(
-      MaterialPageRoute(
-        // SearcherScreen이 이제 선택기(picker)로 사용됩니다.
-        builder: (context) => const SearcherScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const SearcherScreen()),
     );
-
-    // 결과가 null이 아니고 비어있지 않다면, 상태를 업데이트합니다.
     if (result != null && result.isNotEmpty) {
       setState(() {
         _selectedWantAreas
@@ -158,24 +182,58 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
       _introductionCtrl,
     ];
     final allFieldsFilled = controllers.every((c) => c.text.isNotEmpty);
-    // ✅ 희망 위치 선택 여부도 검사에 포함
     final allChipsSelected =
         _selectedWantAreas.isNotEmpty &&
         _selectedRoomTypes.isNotEmpty &&
         _selectedPaymentStructures.isNotEmpty;
+
+    // ✅ 편집 모드에서는 _currentUser가 없어도 통과 (작성자 고정)
+    if (_isEdit) return allFieldsFilled && allChipsSelected;
     return allFieldsFilled && allChipsSelected && _currentUser != null;
   }
 
-  void _onSave() async {
+  Future<void> _onSave() async {
     if (!_isNextAvailable() || _isPosting) return;
     setState(() => _isPosting = true);
 
     try {
+      if (_isEdit) {
+        // ✅ 수정 로직: patch 업데이트
+        final patch = <String, dynamic>{
+          'title': _titleCtrl.text,
+          'wantArea': _selectedWantAreas.toList(),
+          'wantRoom': _selectedRoomTypes.toList(),
+          'wantPay': _selectedPaymentStructures.toList(),
+          'deposit': int.tryParse(_depositCtrl.text) ?? 0,
+          'minRent': int.tryParse(_minRentCtrl.text) ?? 0,
+          'maxRent': int.tryParse(_maxRentCtrl.text) ?? 0,
+          'movingDate': _selectedMovingDate == null
+              ? null
+              : Timestamp.fromDate(_selectedMovingDate!),
+          'minContract': int.tryParse(_minContractCtrl.text) ?? 0,
+          'maxContract': int.tryParse(_maxContractCtrl.text) ?? 0,
+          'introduction': _introductionCtrl.text,
+        }..removeWhere((_, v) => v == null);
+
+        await _postRepository.updatePost(widget.postToEdit!.postId!, patch);
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('수정되었습니다.')),
+        );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const MainNavigation()),
+          (route) => false,
+        );
+        return;
+      }
+
+      // ✅ 신규 생성 로직
       final newPost = SearcherPost(
         authorId: _currentUser!.uid,
         authorGender: _currentUser!.gender,
         title: _titleCtrl.text,
-        wantArea: _selectedWantAreas.toList(), // ✅ 선택된 희망 위치 저장
+        wantArea: _selectedWantAreas.toList(),
         wantRoom: _selectedRoomTypes.toList(),
         deposit: int.tryParse(_depositCtrl.text) ?? 0,
         minRent: int.tryParse(_minRentCtrl.text) ?? 0,
@@ -192,18 +250,16 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
 
       await _postRepository.createPost(newPost);
 
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('게시글이 성공적으로 등록되었습니다!')));
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MainNavigation()),
-          (Route<dynamic> route) => false,
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('게시글이 성공적으로 등록되었습니다!')),
+      );
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainNavigation()),
+        (Route<dynamic> route) => false,
+      );
     } catch (e) {
-      print(">> uid: ${_currentUser!.uid}");
-      debugPrint("게시글 생성 오류: $e");
+      debugPrint("게시글 저장 오류: $e");
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -216,22 +272,24 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final titleText = _isEdit ? '게시글 수정' : '게시글 작성';
+    final buttonText = _isEdit ? '수정 완료' : '게시하기';
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
-          automaticallyImplyLeading: false, // ← 기본 뒤로가기 아이콘 숨김
+          // ✅ 요구사항 2: 편집 모드에서 뒤로가기 버튼 표시
+          automaticallyImplyLeading: _isEdit,
           elevation: 0,
           scrolledUnderElevation: 0,
           title: Text(
-            '게시글 작성',
+            titleText,
             style: TextStyle(fontSize: ResponsiveSizes.f(context, 20)),
           ),
         ),
         body: Padding(
-          padding: EdgeInsets.all(
-            ResponsiveSizes.p(context, 24),
-          ),
+          padding: EdgeInsets.all(ResponsiveSizes.p(context, 24)),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,6 +311,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                   ),
                 ),
                 Gaps.v24(context),
+
                 Text(
                   '희망 위치',
                   style: TextStyle(
@@ -261,19 +320,19 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                   ),
                 ),
                 Gaps.v6(context),
-                // ✅ 2. TextField를 CategoryButton 형태로 대체
                 Wrap(
                   children: [
                     CategoryButton(
                       text: _selectedWantAreas.isEmpty
                           ? "선택하기"
-                          : _selectedWantAreas.join(', '), // 선택된 지역 표시
+                          : _selectedWantAreas.join(', '),
                       isSelected: _selectedWantAreas.isNotEmpty,
-                      myonTap: _onAreaTap, // 탭하면 선택 화면으로 이동
+                      myonTap: _onAreaTap,
                     ),
                   ],
                 ),
                 Gaps.v24(context),
+
                 Text(
                   '희망 방 종류/구조',
                   style: TextStyle(
@@ -295,6 +354,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                   ],
                 ),
                 Gaps.v24(context),
+
                 Text(
                   '수용 가능 보증금/월세(관리비 포함)',
                   style: TextStyle(
@@ -343,6 +403,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                   ],
                 ),
                 Gaps.v24(context),
+
                 Text(
                   '희망 지불 구조',
                   style: TextStyle(
@@ -365,6 +426,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                   ],
                 ),
                 Gaps.v24(context),
+
                 Text(
                   '입주 희망일',
                   style: TextStyle(
@@ -385,6 +447,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                   ),
                 ),
                 Gaps.v24(context),
+
                 Text(
                   '희망 계약 기간',
                   style: TextStyle(
@@ -421,6 +484,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                   ],
                 ),
                 Gaps.v24(context),
+
                 Text(
                   '자유 소개',
                   style: TextStyle(
@@ -441,6 +505,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                   ),
                 ),
                 Gaps.v24(context),
+
                 GestureDetector(
                   onTap: _isPosting ? null : _onSave,
                   child: FormButton(
@@ -452,7 +517,7 @@ class _SearcherPostScreenState extends State<SearcherPostScreen> {
                             ),
                           )
                         : Text(
-                            '게시하기',
+                            buttonText,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: ResponsiveSizes.f(context, 16),

@@ -1521,8 +1521,9 @@ class _MiniSearcherPostTile extends StatelessWidget {
 
   void _openDetail(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted) return;
-      Navigator.of(context).push(
+      final el = context as Element;
+      if (!el.mounted) return;
+      Navigator.of(el).push(
         MaterialPageRoute(builder: (_) => SearcherPostView(post: post)),
       );
     });
